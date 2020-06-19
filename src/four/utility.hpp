@@ -93,7 +93,7 @@ struct BoundedVector {
 
     void push_back(T&& value) {
         DCHECK_LT_F(len, N);
-        data[len] = std::forward<T>(value);
+        data[len] = std::move(value);
         len++;
     }
 };
@@ -178,7 +178,7 @@ inline size_t insert_back(std::vector<T>& vec, const T& value) {
 template <class T>
 inline size_t insert_back(std::vector<T>& vec, T&& value) {
     size_t index = vec.size();
-    vec.push_back(std::forward<T>(value));
+    vec.push_back(std::move(value));
     return index;
 }
 
