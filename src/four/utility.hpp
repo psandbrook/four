@@ -6,6 +6,7 @@
 #include <functional>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -45,8 +46,8 @@ inline bool contains(const std::unordered_set<T>& set, const T& value) {
     return set.find(value) != set.cend();
 }
 
-template <class K, class V>
-inline bool has_key(const std::unordered_map<K, V>& map, const K& value) {
+template <class K, class V, class Hash, class Equals>
+inline bool has_key(const std::unordered_map<K, V, Hash, Equals>& map, const K& value) {
     return map.find(value) != map.cend();
 }
 
@@ -57,4 +58,20 @@ inline bool float_eq(f64 a, f64 b, f64 epsilon = DBL_EPSILON) {
         return std::abs(a - b) <= std::max(std::abs(a), std::abs(b)) * epsilon;
     }
 }
+
+struct CStrHash {
+    size_t operator()(const char* x) const {
+        size_t hash = 0;
+        for (s32 i = 0; x[i] != '\0'; i++) {
+            hash_combine(hash, x[i]);
+        }
+        return hash;
+    }
+};
+
+struct CStrEquals {
+    bool operator()(const char* lhs, const char* rhs) const {
+        return strcmp(lhs, rhs) == 0;
+    }
+};
 } // namespace four

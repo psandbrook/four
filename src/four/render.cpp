@@ -1,9 +1,7 @@
 #include <four/math.hpp>
 #include <four/render.hpp>
 
-#include <glad/glad.h>
 #include <igl/triangle/triangulate.h>
-#include <loguru.hpp>
 
 #include <fstream>
 #include <sstream>
@@ -14,7 +12,7 @@ namespace four {
 
 namespace {
 
-u32 compile_shader(const char* path, GLenum shader_type) {
+u32 compile_shader(const char* path, GLenum type) {
 
     // FIXME: This is inefficient
     std::ifstream stream(path);
@@ -23,26 +21,108 @@ u32 compile_shader(const char* path, GLenum shader_type) {
     std::string source = source_buffer.str();
     const char* source_c = source.c_str();
 
-    u32 shader = glCreateShader(shader_type);
-    glShaderSource(shader, 1, &source_c, nullptr);
+    u32 shader = glCreateShader(type);
+    glShaderSource(shader, 1, &source_c, NULL);
     glCompileShader(shader);
 
     s32 success;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-
-    // FIXME: Return error message to caller
     if (!success) {
         s32 len;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
-
         std::vector<char> log((size_t)len);
-        glGetShaderInfoLog(shader, len, nullptr, log.data());
+        glGetShaderInfoLog(shader, len, NULL, log.data());
         ABORT_F("Shader compilation failed: %s", log.data());
     }
 
     return shader;
 }
+
+u32 link_shader_program(u32 vertex_shader, u32 fragment_shader) {
+    u32 program = glCreateProgram();
+    glAttachShader(program, vertex_shader);
+    glAttachShader(program, fragment_shader);
+    glLinkProgram(program);
+
+    s32 success;
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success) {
+        s32 len;
+        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &len);
+        std::vector<char> log((size_t)len);
+        glGetProgramInfoLog(program, len, NULL, log.data());
+        ABORT_F("Program linking failed: %s", log.data());
+    }
+
+    return program;
+}
 } // namespace
+
+GlBuffer::GlBuffer(GLenum type, GLenum usage) : type(type), usage(usage) {
+    glGenBuffers(1, &id);
+}
+
+void GlBuffer::buffer_data(const void* data, size_t size) {
+    glBindBuffer(type, id);
+    if (this->size < size) {
+        glBufferData(type, size, data, usage);
+        this->size = size;
+    } else {
+        CHECK_NE_F(usage, (u32)GL_STATIC_DRAW);
+        glBufferSubData(type, 0, size, data);
+    }
+}
+
+ElementBufferObject::ElementBufferObject(GLenum usage, GLenum primitive)
+        : buf(GL_ELEMENT_ARRAY_BUFFER, usage), primitive(primitive) {}
+
+void ElementBufferObject::buffer_data(const void* data, s32 n) {
+    buf.buffer_data(data, (u32)n * sizeof(u32));
+    primitive_count = n;
+}
+
+VertexArrayObject::VertexArrayObject(u32 shader_program, GlBuffer* vbo, VertexSpec spec, ElementBufferObject _ebo)
+        : vbo(vbo), ebo(std::move(_ebo)), shader_program(shader_program) {
+
+    CHECK_EQ_F(vbo->type, (u32)GL_ARRAY_BUFFER);
+    CHECK_EQ_F(ebo.buf.type, (u32)GL_ELEMENT_ARRAY_BUFFER);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    glGenVertexArrays(1, &id);
+    glBindVertexArray(id);
+
+    glBindBuffer(vbo->type, vbo->id);
+    glVertexAttribPointer(spec.index, spec.size, spec.type, false, spec.stride, (void*)spec.offset);
+    glEnableVertexAttribArray(spec.index);
+
+    glBindBuffer(ebo.buf.type, ebo.buf.id);
+
+    glBindVertexArray(0);
+}
+
+void VertexArrayObject::draw() {
+    glUseProgram(shader_program);
+    glBindVertexArray(id);
+    glDrawElements(ebo.primitive, ebo.primitive_count, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
+
+void VertexArrayObject::set_uniform_mat4(const char* name, const f32* data) {
+    auto it = uniform_locations.find(name);
+    s32 location;
+    if (it == uniform_locations.end()) {
+        location = glGetUniformLocation(shader_program, name);
+        CHECK_NE_F(location, -1);
+        uniform_locations.emplace(name, location);
+    } else {
+        location = it->second;
+    }
+
+    glUseProgram(shader_program);
+    glUniformMatrix4fv(location, 1, false, data);
+}
 
 Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), state(state) {
     const auto& s = *state;
@@ -61,89 +141,28 @@ Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), 
     glEnable(GL_POLYGON_OFFSET_LINE);
     glPolygonOffset(-1.0, -1.0);
 
-    u32 vert_shader = compile_shader("data/vertex.glsl", GL_VERTEX_SHADER);
-    CHECK_NE_F(vert_shader, 0u);
+    u32 wireframe_vert_shader = compile_shader("data/vertex.glsl", GL_VERTEX_SHADER);
+    u32 wireframe_frag_shader = compile_shader("data/fragment.glsl", GL_FRAGMENT_SHADER);
+    u32 wireframe_prog = link_shader_program(wireframe_vert_shader, wireframe_frag_shader);
 
-    u32 frag_shader = compile_shader("data/fragment.glsl", GL_FRAGMENT_SHADER);
-    CHECK_NE_F(frag_shader, 0u);
+    u32 cell_frag_shader = compile_shader("data/fragment-selected-cell.glsl", GL_FRAGMENT_SHADER);
+    u32 cell_prog = link_shader_program(wireframe_vert_shader, cell_frag_shader);
 
-    shader_prog = glCreateProgram();
-    glAttachShader(shader_prog, vert_shader);
-    glAttachShader(shader_prog, frag_shader);
-    glLinkProgram(shader_prog);
+    vertices = GlBuffer(GL_ARRAY_BUFFER, GL_STREAM_DRAW);
+    VertexSpec vertices_spec = {
+            .index = 0,
+            .size = 3,
+            .type = GL_FLOAT,
+            .stride = 3 * sizeof(f32),
+            .offset = 0,
+    };
 
-    {
-        // Check for shader program linking errors
-        s32 success;
-        glGetProgramiv(shader_prog, GL_LINK_STATUS, &success);
-        if (!success) {
-            s32 len;
-            glGetProgramiv(shader_prog, GL_INFO_LOG_LENGTH, &len);
+    ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
+    wireframe_ebo.buffer_data(s.mesh.edges.data(), 2 * (s32)s.mesh.edges.size());
+    wireframe = VertexArrayObject(wireframe_prog, &vertices, vertices_spec, std::move(wireframe_ebo));
 
-            std::vector<char> log((size_t)len);
-            glGetProgramInfoLog(shader_prog, len, nullptr, log.data());
-            ABORT_F("Program linking failed: %s", log.data());
-        }
-    }
-
-    u32 frag_shader_selected_cell = compile_shader("data/fragment-selected-cell.glsl", GL_FRAGMENT_SHADER);
-    CHECK_NE_F(frag_shader_selected_cell, 0u);
-
-    shader_prog_selected_cell = glCreateProgram();
-    glAttachShader(shader_prog_selected_cell, vert_shader);
-    glAttachShader(shader_prog_selected_cell, frag_shader_selected_cell);
-    glLinkProgram(shader_prog_selected_cell);
-
-    {
-        // Check for shader program linking errors
-        s32 success;
-        glGetProgramiv(shader_prog_selected_cell, GL_LINK_STATUS, &success);
-        if (!success) {
-            s32 len;
-            glGetProgramiv(shader_prog_selected_cell, GL_INFO_LOG_LENGTH, &len);
-
-            std::vector<char> log((size_t)len);
-            glGetProgramInfoLog(shader_prog_selected_cell, len, nullptr, log.data());
-            ABORT_F("Program linking failed: %s", log.data());
-        }
-    }
-
-    // Vertex array object for edges
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, s.mesh.vertices.size() * 3 * sizeof(f32), NULL, GL_STREAM_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(f32), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    u32 ebo;
-    glGenBuffers(1, &ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, s.mesh.edges.size() * sizeof(Edge), s.mesh.edges.data(), GL_STATIC_DRAW);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-    // Vertex array object for the selected cell
-    glGenVertexArrays(1, &vao_selected_cell);
-    glBindVertexArray(vao_selected_cell);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(f32), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glGenBuffers(1, &ebo_selected_cell);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_selected_cell);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-    vp_location = glGetUniformLocation(shader_prog, "vp");
-    selected_cell_vp_location = glGetUniformLocation(shader_prog_selected_cell, "vp");
+    ElementBufferObject cell_ebo(GL_STREAM_DRAW, GL_TRIANGLES);
+    selected_cell = VertexArrayObject(cell_prog, &vertices, vertices_spec, std::move(cell_ebo));
 
     projection = HMM_Perspective(90, (f64)window_width / (f64)window_height, 0.1, 100.0);
 }
@@ -166,175 +185,146 @@ void Renderer::render() {
 
     // Triangulate selected cell
     selected_cell_tri_faces.clear();
-    triangulate(s.mesh, s.selected_cell, selected_cell_tri_faces);
+    for (u32 face_i : s.mesh.cells[s.selected_cell]) {
+        const auto& face = s.mesh.faces[face_i];
+        triangulate(projected_vertices, s.mesh.edges, face, selected_cell_tri_faces);
+    }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    {
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-        projected_vertices_f32.clear();
-        for (const auto& v : projected_vertices) {
-            for (f64 element : v.Elements) {
-                projected_vertices_f32.push_back((f32)element);
-            }
+    projected_vertices_f32.clear();
+    for (const auto& v : projected_vertices) {
+        for (f64 element : v.Elements) {
+            projected_vertices_f32.push_back((f32)element);
         }
-        glBufferSubData(GL_ARRAY_BUFFER, 0, s.mesh.vertices.size() * 3 * sizeof(f32), projected_vertices_f32.data());
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
-    {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_selected_cell);
+    vertices.buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * 3 * sizeof(f32));
+    selected_cell.ebo.buffer_data(selected_cell_tri_faces.data(), (s32)selected_cell_tri_faces.size());
 
-        size_t selected_cell_tri_faces_size_b = selected_cell_tri_faces.size() * sizeof(u32);
-        if (ebo_selected_cell_size < selected_cell_tri_faces_size_b) {
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, selected_cell_tri_faces_size_b, selected_cell_tri_faces.data(),
-                         GL_STREAM_DRAW);
-            ebo_selected_cell_size = selected_cell_tri_faces_size_b;
-        } else {
-            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, selected_cell_tri_faces_size_b, selected_cell_tri_faces.data());
+    hmm_mat4 view = HMM_LookAt(s.camera_pos, s.camera_target, s.camera_up);
+    hmm_mat4 vp = projection * view;
+
+    f32 vp_f32[16];
+    for (s32 col = 0; col < 4; col++) {
+        for (s32 row = 0; row < 4; row++) {
+            vp_f32[col * 4 + row] = (f32)vp[col][row];
         }
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 
-    {
-        hmm_mat4 view = HMM_LookAt(s.camera_pos, s.camera_target, s.camera_up);
-        hmm_mat4 vp = projection * view;
+    selected_cell.set_uniform_mat4("vp", vp_f32);
+    selected_cell.draw();
 
-        f32 vp_f32[16];
-        for (s32 col = 0; col < 4; col++) {
-            for (s32 row = 0; row < 4; row++) {
-                vp_f32[col * 4 + row] = (f32)vp[col][row];
-            }
-        }
-
-        glBindVertexArray(vao_selected_cell);
-        glUseProgram(shader_prog_selected_cell);
-        glUniformMatrix4fv(selected_cell_vp_location, 1, false, vp_f32);
-        glDrawElements(GL_TRIANGLES, (GLsizei)selected_cell_tri_faces.size(), GL_UNSIGNED_INT, 0);
-
-        glBindVertexArray(vao);
-        glUseProgram(shader_prog);
-        glUniformMatrix4fv(vp_location, 1, false, vp_f32);
-        glDrawElements(GL_LINES, (GLsizei)(2 * s.mesh.edges.size()), GL_UNSIGNED_INT, 0);
-
-        glBindVertexArray(0);
-    }
+    wireframe.set_uniform_mat4("vp", vp_f32);
+    wireframe.draw();
 
     SDL_GL_SwapWindow(window);
 }
 
-void Renderer::triangulate(const Mesh4& mesh, u32 cell, std::vector<u32>& out_faces) {
+void Renderer::triangulate(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges,
+                           const std::vector<u32>& face, std::vector<u32>& out) {
 
-    for (u32 face_i : mesh.cells[cell]) {
-        const auto& face = mesh.faces[face_i];
+    // Calculate normal vector
 
-        // Calculate normal vector
+    const auto& edge0 = edges[face[0]];
+    hmm_vec3 v0 = vertices[edge0.v0];
+    hmm_vec3 l0 = v0 - vertices[edge0.v1];
 
-        const auto& edge0 = mesh.edges[face[0]];
-        hmm_vec3 v0 = projected_vertices[edge0.v0];
-        hmm_vec3 l0 = v0 - projected_vertices[edge0.v1];
+    hmm_vec3 normal;
+    for (size_t i = 0; i < face.size(); i++) {
+        const auto& edge = edges[face[i]];
+        hmm_vec3 l1 = vertices[edge.v0] - vertices[edge.v1];
+        normal = HMM_Cross(l0, l1);
+        if (float_eq(normal.X, 0.0) && float_eq(normal.Y, 0.0) && float_eq(normal.Z, 0.0)) {
+            // `normal` is the zero vector
 
-        hmm_vec3 normal;
-        for (size_t i = 0; i < face.size(); i++) {
-            const auto& edge = mesh.edges[face[i]];
-            hmm_vec3 l1 = projected_vertices[edge.v0] - projected_vertices[edge.v1];
-            normal = HMM_Cross(l0, l1);
-            if (float_eq(normal.X, 0.0) && float_eq(normal.Y, 0.0) && float_eq(normal.Z, 0.0)) {
-                // `normal` is the zero vector
-
-                // Fail if there are no more edges---this means the face has
-                // no surface area
-                CHECK_LT_F(i, face.size() - 1);
-            } else {
-                break;
-            }
-        }
-
-        normal = HMM_Normalize(normal);
-
-        // Calculate transformation to 2D
-
-        hmm_vec3 up;
-        if (float_eq(std::abs(normal.Y), 1.0)) {
-            up = {1, 0, 0};
+            // Fail if there are no more edges---this means the face has
+            // no surface area
+            CHECK_LT_F(i, face.size() - 1);
         } else {
-            up = {0, 1, 0};
+            break;
         }
+    }
 
-        hmm_mat4 to_2d_trans = HMM_LookAt(v0, v0 + normal, up);
+    normal = HMM_Normalize(normal);
 
-        face2_vertex_i_mapping.clear();
-        face2_vertices.clear();
-        face2_edges.clear();
+    // Calculate transformation to 2D
 
-        for (u32 edge_i : face) {
-            const auto& e = mesh.edges[edge_i];
-            for (int i = 0; i < 2; i++) {
-                u32 v_i = e.vertices[i];
-                if (face2_vertex_i_mapping.left.find(v_i) == face2_vertex_i_mapping.left.end()) {
-                    face2_vertex_i_mapping.left.insert(
-                            VertexIMapping::left_value_type(v_i, (u32)face2_vertices.size()));
-                    hmm_vec3 v_ = transform(to_2d_trans, projected_vertices[v_i]);
-                    CHECK_F(float_eq(v_.Z, 0.0));
-                    face2_vertices.push_back(vec2(v_));
-                }
+    hmm_vec3 up;
+    if (float_eq(std::abs(normal.Y), 1.0)) {
+        up = {1, 0, 0};
+    } else {
+        up = {0, 1, 0};
+    }
+
+    hmm_mat4 to_2d_trans = HMM_LookAt(v0, v0 + normal, up);
+
+    face2_vertex_i_mapping.clear();
+    face2_vertices.clear();
+    face2_edges.clear();
+
+    for (u32 edge_i : face) {
+        const auto& e = edges[edge_i];
+        for (u32 v_i : e.vertices) {
+            if (face2_vertex_i_mapping.left.find(v_i) == face2_vertex_i_mapping.left.end()) {
+                face2_vertex_i_mapping.left.insert(VertexIMapping::left_value_type(v_i, (u32)face2_vertices.size()));
+                hmm_vec3 v_ = transform(to_2d_trans, vertices[v_i]);
+                CHECK_F(float_eq(v_.Z, 0.0));
+                face2_vertices.push_back(vec2(v_));
             }
-            face2_edges.push_back(edge(face2_vertex_i_mapping.left.at(e.v0), face2_vertex_i_mapping.left.at(e.v1)));
         }
+        face2_edges.push_back(edge(face2_vertex_i_mapping.left.at(e.v0), face2_vertex_i_mapping.left.at(e.v1)));
+    }
 
 #ifdef FOUR_DEBUG
-        // All vertices should be coplanar
-        for (const auto& entry : face2_vertex_i_mapping.left) {
-            if (entry.first != edge0.v0) {
-                hmm_vec3 v = projected_vertices[entry.first];
-                f64 x = HMM_Dot(v - v0, normal);
+    // All vertices should be coplanar
+    for (const auto& entry : face2_vertex_i_mapping.left) {
+        if (entry.first != edge0.v0) {
+            hmm_vec3 v = vertices[entry.first];
+            f64 x = HMM_Dot(v - v0, normal);
 
-                // NOTE: Consider floating-point error. See
-                // https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
-                CHECK_F(float_eq(x, 0.0));
-            }
+            // NOTE: Consider floating-point error. See
+            // https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
+            CHECK_F(float_eq(x, 0.0));
         }
+    }
 #endif
 
-        // `igl::triangle::triangulate()` only accepts double precision
-        // floating point values.
-        mesh_v.resize((s64)face2_vertices.size(), Eigen::NoChange);
-        for (size_t i = 0; i < face2_vertices.size(); i++) {
-            hmm_vec2 v = face2_vertices[i];
-            mesh_v((s64)i, 0) = v.X;
-            mesh_v((s64)i, 1) = v.Y;
-        }
+    // `igl::triangle::triangulate()` only accepts double precision
+    // floating point values.
+    mesh_v.resize((s64)face2_vertices.size(), Eigen::NoChange);
+    for (size_t i = 0; i < face2_vertices.size(); i++) {
+        hmm_vec2 v = face2_vertices[i];
+        mesh_v((s64)i, 0) = v.X;
+        mesh_v((s64)i, 1) = v.Y;
+    }
 
-        mesh_e.resize((s64)face2_edges.size(), Eigen::NoChange);
-        for (size_t i = 0; i < face2_edges.size(); i++) {
-            Edge e = face2_edges[i];
-            mesh_e((s64)i, 0) = (s32)e.v0;
-            mesh_e((s64)i, 1) = (s32)e.v1;
-        }
+    mesh_e.resize((s64)face2_edges.size(), Eigen::NoChange);
+    for (size_t i = 0; i < face2_edges.size(); i++) {
+        Edge e = face2_edges[i];
+        mesh_e((s64)i, 0) = (s32)e.v0;
+        mesh_e((s64)i, 1) = (s32)e.v1;
+    }
 
-        // TODO: Support triangulating faces with holes
-        const Eigen::MatrixX2d h;
+    // TODO: Support triangulating faces with holes
+    const Eigen::MatrixX2d h;
 
-        triangulate_out_v.resize(0, Eigen::NoChange);
-        triangulate_out_f.resize(0, Eigen::NoChange);
-        igl::triangle::triangulate(mesh_v, mesh_e, h, "Q", triangulate_out_v, triangulate_out_f);
+    triangulate_out_v.resize(0, Eigen::NoChange);
+    triangulate_out_f.resize(0, Eigen::NoChange);
+    igl::triangle::triangulate(mesh_v, mesh_e, h, "Q", triangulate_out_v, triangulate_out_f);
 
-        CHECK_EQ_F((size_t)triangulate_out_v.rows(), face2_vertices.size());
+    CHECK_EQ_F((size_t)triangulate_out_v.rows(), face2_vertices.size());
 
 #ifdef FOUR_DEBUG
-        for (s32 i = 0; i < triangulate_out_v.rows(); i++) {
-            CHECK_F(float_eq(triangulate_out_v(i, 0), face2_vertices[(size_t)i].X));
-            CHECK_F(float_eq(triangulate_out_v(i, 1), face2_vertices[(size_t)i].Y));
-        }
+    for (s32 i = 0; i < triangulate_out_v.rows(); i++) {
+        CHECK_F(float_eq(triangulate_out_v(i, 0), face2_vertices[(size_t)i].X));
+        CHECK_F(float_eq(triangulate_out_v(i, 1), face2_vertices[(size_t)i].Y));
+    }
 #endif
 
-        for (s32 i = 0; i < triangulate_out_f.rows(); i++) {
-            for (s32 j = 0; j < 3; j++) {
-                out_faces.push_back(face2_vertex_i_mapping.right.at(triangulate_out_f(i, j)));
-            }
+    for (s32 i = 0; i < triangulate_out_f.rows(); i++) {
+        for (s32 j = 0; j < 3; j++) {
+            out.push_back(face2_vertex_i_mapping.right.at(triangulate_out_f(i, j)));
         }
     }
 }

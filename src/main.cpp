@@ -79,13 +79,11 @@ int main(int argc, char** argv) {
         }
 
         // Process input
-
         if (handle_events(state)) {
             break;
         }
 
         // Run simulation
-
         s32 steps = 0;
         while (lag_ms >= step_ms && steps < steps_per_sec) {
             step_state(state, step_ms);
@@ -94,7 +92,6 @@ int main(int argc, char** argv) {
         }
 
         // Render
-
         renderer.render();
         frames++;
     }
