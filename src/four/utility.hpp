@@ -42,62 +42,6 @@ using f64 = double;
 static_assert(sizeof(f32) == 4);
 static_assert(sizeof(f64) == 8);
 
-constexpr f64 default_epsilon = 0.00000000000001;
-
-inline bool float_eq(f64 a, f64 b, f64 epsilon = default_epsilon) {
-    if (a < 1.0 && b < 1.0) {
-        return std::abs(a - b) <= epsilon;
-    } else {
-        return std::abs(a - b) <= std::max(std::abs(a), std::abs(b)) * epsilon;
-    }
-}
-
-template <class T, size_t N>
-struct BoundedVector {
-    size_t len;
-    T data[N];
-
-    BoundedVector() noexcept : len(0) {}
-
-    T* begin() noexcept {
-        return data;
-    }
-
-    T* end() noexcept {
-        return data + len;
-    }
-
-    const T* cbegin() const noexcept {
-        return data;
-    }
-
-    const T* cend() const noexcept {
-        return data + len;
-    }
-
-    T& operator[](size_t index) noexcept {
-        DCHECK_LT_F(index, len);
-        return data[index];
-    }
-
-    const T& operator[](size_t index) const noexcept {
-        DCHECK_LT_F(index, len);
-        return data[index];
-    }
-
-    void push_back(const T& value) {
-        DCHECK_LT_F(len, N);
-        data[len] = value;
-        len++;
-    }
-
-    void push_back(T&& value) {
-        DCHECK_LT_F(len, N);
-        data[len] = std::move(value);
-        len++;
-    }
-};
-
 using loguru::strprintf;
 
 template <class T>
@@ -160,6 +104,62 @@ inline void dexpr(const char* name, const T& value) {
 
 inline void dline() {
     DPRINT(" ");
+}
+
+template <class T, size_t N>
+struct BoundedVector {
+    size_t len;
+    T data[N];
+
+    BoundedVector() noexcept : len(0) {}
+
+    T* begin() noexcept {
+        return data;
+    }
+
+    T* end() noexcept {
+        return data + len;
+    }
+
+    const T* cbegin() const noexcept {
+        return data;
+    }
+
+    const T* cend() const noexcept {
+        return data + len;
+    }
+
+    T& operator[](size_t index) noexcept {
+        DCHECK_LT_F(index, len);
+        return data[index];
+    }
+
+    const T& operator[](size_t index) const noexcept {
+        DCHECK_LT_F(index, len);
+        return data[index];
+    }
+
+    void push_back(const T& value) {
+        DCHECK_LT_F(len, N);
+        data[len] = value;
+        len++;
+    }
+
+    void push_back(T&& value) {
+        DCHECK_LT_F(len, N);
+        data[len] = std::move(value);
+        len++;
+    }
+};
+
+constexpr f64 default_epsilon = 0.00000000000001;
+
+inline bool float_eq(f64 a, f64 b, f64 epsilon = default_epsilon) {
+    if (a < 1.0 && b < 1.0) {
+        return std::abs(a - b) <= epsilon;
+    } else {
+        return std::abs(a - b) <= std::max(std::abs(a), std::abs(b)) * epsilon;
+    }
 }
 
 template <class T>
