@@ -18,6 +18,8 @@ struct AppState {
 
     hmm_vec4 mesh_pos = {0, 0, 0, 2.5};
     s32 selected_cell = 0;
+    bool selected_cell_cycle = false;
+    f64 selected_cell_cycle_acc = 0.0;
 
     hmm_vec4 camera4_pos = {0, 0, 0, 0};
     hmm_vec4 camera4_target = {0, 0, 0, 1};

@@ -144,6 +144,7 @@ bool AppState::process_events_and_imgui() {
         ImGui::End();
         if (new_mesh_path) {
             mesh = load_mesh_from_file(new_mesh_path);
+            selected_cell = 0;
             mesh_changed = true;
         }
     }
@@ -151,8 +152,12 @@ bool AppState::process_events_and_imgui() {
     // Selected cell window
     {
         ImGui::Begin("Selected cell", NULL, ImGuiWindowFlags_NoScrollbar);
+        ImGui::Checkbox("Cycle", &selected_cell_cycle);
+        ImVec2 cycle_size = ImGui::GetItemRectSize();
+
         ImGui::PushItemWidth(-1);
-        auto list_box_size = ImVec2(0, ImGui::GetWindowHeight() - 1.5f * ImGui::GetWindowContentRegionMin().y);
+        auto list_box_size =
+                ImVec2(0, ImGui::GetWindowHeight() - 1.7f * ImGui::GetWindowContentRegionMin().y - cycle_size.y);
         if (ImGui::ListBoxHeader("##empty", list_box_size)) {
             for (s32 i = 0; i < (s32)mesh.cells.size(); i++) {
 
@@ -176,6 +181,19 @@ bool AppState::process_events_and_imgui() {
 }
 
 void AppState::step(const f64 ms) {
+
+    if (selected_cell_cycle) {
+        selected_cell_cycle_acc += ms;
+        if (selected_cell_cycle_acc >= 2000.0) {
+            selected_cell++;
+            if (selected_cell == (s32)mesh.cells.size()) {
+                selected_cell = 0;
+            }
+            selected_cell_cycle_acc = 0.0;
+        }
+    } else {
+        selected_cell_cycle_acc = 0.0;
+    }
 
     Rotor4 r = rotor4({1, 0, 0, 0}, {1, 0, 0, 0.002});
 
