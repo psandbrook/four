@@ -427,54 +427,22 @@ void Renderer::do_window_size_changed() {
 
 void Renderer::do_mesh_changed() {
     auto& s = *state;
+    const auto rand_color = [&]() -> f32 { return color_dist(s.random_eng_32); };
+
     wireframe.ebo.buffer_elements_realloc(s.mesh.edges.data(), 2 * (s32)s.mesh.edges.size());
 
-    tet_mesh_vertices.clear();
-    tet_mesh_tets.clear();
+    tet_colors.clear();
+    std::unordered_map<u32, glm::vec3> cell_colors;
 
-    for (s64 i = 0; i < (s64)s.mesh.cells.size(); i++) {
-        const Cell& cell = s.mesh.cells[(size_t)i];
-        out_tets.clear();
-
-        DCHECK_GE_F(cell.size(), 4u);
-        if (cell.size() == 4) {
-            // The cell is already a tetrahedron
-
-            BoundedVector<u32, 4> vertex_indices;
-            for (u32 f_i : cell) {
-                const Face& f = s.mesh.faces[f_i];
-                for (u32 e_i : f) {
-                    const Edge& e = s.mesh.edges[e_i];
-                    for (u32 v_i : e.vertices) {
-                        if (!contains(vertex_indices, v_i)) {
-                            vertex_indices.push_back(v_i);
-                            out_tets.push_back((u32)tet_mesh_vertices.size());
-                            tet_mesh_vertices.push_back(s.mesh.vertices[v_i]);
-                        }
-                    }
-                }
-            }
-
-        } else {
-            LOG_F(1, "Tetrahedralizing cell %li with %lu faces", i, cell.size());
-            bool success = render_funcs.tetrahedralize(s.mesh.vertices, s.mesh.edges, s.mesh.faces, cell,
-                                                       tet_mesh_vertices, out_tets);
-            DCHECK_F(success);
+    for (const Mesh4::Tet& tet : s.mesh.tets) {
+        if (!has_key(cell_colors, tet.cell)) {
+            const auto color = glm::vec3(rand_color(), rand_color(), rand_color());
+            cell_colors.emplace(tet.cell, color);
         }
-
-        DCHECK_EQ_F((s64)out_tets.size() % 4, 0);
-        f32 color[3] = {color_dist(s.random_eng_32), color_dist(s.random_eng_32), color_dist(s.random_eng_32)};
-        for (size_t tet_i = 0; tet_i < out_tets.size() / 4; tet_i++) {
-            Tet tet;
-            tet.color[0] = color[0];
-            tet.color[1] = color[1];
-            tet.color[2] = color[2];
-            for (size_t j = 0; j < 4; j++) {
-                tet.vertices[j] = out_tets[tet_i * 4 + j];
-            }
-            tet_mesh_tets.push_back(tet);
-        }
+        tet_colors.push_back(cell_colors.at(tet.cell));
     }
+
+    CHECK_EQ_F(cell_colors.size(), s.mesh.cells.size());
 }
 
 void Renderer::calculate_cross_section() {
@@ -490,12 +458,13 @@ redo_cross_section:
 
     tet_mesh_vertices_world.clear();
     Mat5 model = mk_model_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation);
-    for (const auto& v : tet_mesh_vertices) {
+    for (const auto& v : s.mesh.tet_vertices) {
         tet_mesh_vertices_world.push_back(transform(model, v));
     }
 
-    for (s64 tet_i = 0; tet_i < (s64)tet_mesh_tets.size(); tet_i++) {
-        const Tet& tet = tet_mesh_tets[(size_t)tet_i];
+    for (s64 tet_i = 0; tet_i < (s64)s.mesh.tets.size(); tet_i++) {
+        const Mesh4::Tet& tet = s.mesh.tets[(size_t)tet_i];
+        const glm::vec3& color = tet_colors[(size_t)tet_i];
 
         // clang-format off
         Edge edges[6] = {
@@ -557,11 +526,8 @@ redo_cross_section:
                 DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
                 cross_tris.push_back((u32)(cross_vertices.size() / 3));
                 for (s32 j = 0; j < 3; j++) {
-                    f64 e = intersect[(size_t)i][j];
-                    cross_vertices.push_back((f32)e);
-                }
-                for (f32 e : tet.color) {
-                    cross_colors.push_back(e);
+                    cross_vertices.push_back((f32)intersect[(size_t)i][j]);
+                    cross_colors.push_back(color[j]);
                 }
             }
 
@@ -578,11 +544,8 @@ redo_cross_section:
                 DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
                 v_mapping[i] = (u32)(cross_vertices.size() / 3);
                 for (s32 j = 0; j < 3; j++) {
-                    f64 e = intersect[(size_t)i][j];
-                    cross_vertices.push_back((f32)e);
-                }
-                for (f32 e : tet.color) {
-                    cross_colors.push_back(e);
+                    cross_vertices.push_back((f32)intersect[(size_t)i][j]);
+                    cross_colors.push_back(color[j]);
                 }
             }
 

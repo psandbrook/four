@@ -1,5 +1,6 @@
 #include <four/mesh.hpp>
 
+#include <igl/copyleft/tetgen/tetrahedralize.h>
 #include <loguru.hpp>
 #include <tinyxml2.h>
 
@@ -11,6 +12,240 @@
 namespace txml = tinyxml2;
 
 namespace four {
+
+namespace {
+
+void tetrahedralize_polyhedron(const std::vector<glm::dvec3>& vertices, const std::vector<std::vector<u32>>& faces,
+                               std::vector<glm::dvec3>& out_vertices, std::vector<u32>& out_tets) {
+
+    std::vector<std::vector<f64>> vertices_vec;
+    vertices_vec.reserve(vertices.size());
+    for (const auto& v : vertices) {
+        std::vector<f64> v_ = {v.x, v.y, v.z};
+        vertices_vec.push_back(std::move(v_));
+    }
+
+    std::vector<std::vector<int>> faces_int;
+    faces_int.reserve(faces.size());
+    for (const auto& f : faces) {
+        std::vector<int> f_int;
+        f_int.reserve(f.size());
+        for (u32 i : f) {
+            f_int.push_back((int)i);
+        }
+        faces_int.push_back(std::move(f_int));
+    }
+
+    std::vector<std::vector<f64>> out_vertices_vec;
+    std::vector<std::vector<int>> out_tets_int;
+    std::vector<std::vector<int>> out_faces;
+    out_vertices_vec.reserve(vertices_vec.size());
+    int result = igl::copyleft::tetgen::tetrahedralize(vertices_vec, faces_int, "pYQ", out_vertices_vec, out_tets_int,
+                                                       out_faces);
+#ifdef FOUR_DEBUG
+    fflush(stdout);
+    fflush(stderr);
+#endif
+
+    if (result != 0) {
+        fflush(stdout);
+        fflush(stderr);
+        ABORT_F("TetGen failed: %i", result);
+    }
+
+    out_vertices.reserve(out_vertices_vec.size());
+    for (const auto& v : out_vertices_vec) {
+        out_vertices.push_back(glm::dvec3(v[0], v[1], v[2]));
+    }
+
+    out_tets.reserve(out_tets_int.size() * 4);
+    for (const auto& tet : out_tets_int) {
+        for (int i : tet) {
+            out_tets.push_back((u32)i);
+        }
+    }
+}
+
+void tetrahedralize_cell(const Mesh4& mesh, const s64 cell_i, std::vector<glm::dvec4>& out_vertices,
+                         std::vector<u32>& out_tets) {
+
+    // Calculate normal vector
+
+    const Cell& cell = mesh.cells[(size_t)cell_i];
+    const Face& face0 = mesh.faces[cell[0]];
+    u32 edge0_i = face0[0];
+    const Edge& edge0 = mesh.edges[edge0_i];
+    u32 v0_i = edge0.v0;
+    glm::dvec4 v0 = mesh.vertices[v0_i];
+
+    glm::dvec4 normal;
+    {
+        bool found_edge = false;
+        u32 found_edge_i = (u32)-1;
+        glm::dvec4 other_edges[2];
+
+        for (u32 f_i : cell) {
+            const Face& f = mesh.faces[f_i];
+            for (u32 e_i : f) {
+
+                if (e_i == edge0_i || (found_edge && e_i == found_edge_i)) {
+                    continue;
+                }
+
+                const Edge& e = mesh.edges[e_i];
+                if (e.v0 == v0_i || e.v1 == v0_i) {
+                    u32 other_vi = e.v0 == v0_i ? e.v1 : e.v0;
+                    if (!found_edge) {
+                        found_edge = true;
+                        found_edge_i = e_i;
+                        other_edges[0] = mesh.vertices[other_vi] - v0;
+                    } else {
+                        other_edges[1] = mesh.vertices[other_vi] - v0;
+                        goto find_v0_edges_end;
+                    }
+                }
+            }
+        }
+        ABORT_F("Could not find normal vector");
+    find_v0_edges_end:
+        normal = glm::normalize(cross(mesh.vertices[edge0.v1] - v0, other_edges[0], other_edges[1]));
+    }
+
+    // Calculate transformation to 3D
+
+    glm::dvec4 up;
+    glm::dvec4 over;
+    if (float_eq(std::abs(normal.y), 1.0, 0.001)) {
+        up = {1, 0, 0, 0};
+        over = {0, 0, 1, 0};
+    } else if (float_eq(std::abs(normal.z), 1.0, 0.001)) {
+        up = {0, 1, 0, 0};
+        over = {1, 0, 0, 0};
+    } else if (float_eq(sq(normal.y) + sq(normal.z), 1.0, 0.001)) {
+        up = {1, 0, 0, 0};
+        over = {0, 0, 0, 1};
+    } else {
+        up = {0, 1, 0, 0};
+        over = {0, 0, 1, 0};
+    }
+
+    Mat5 to_3d_trans = look_at(v0, v0 + normal, up, over);
+    Mat5 to_3d_trans_inverse = look_at_inverse(v0, v0 + normal, up, over);
+
+#ifdef FOUR_DEBUG
+    {
+        glm::dvec4 v0_ = transform(to_3d_trans_inverse * to_3d_trans, v0);
+        DCHECK_F(float_eq(v0.x, v0_.x) && float_eq(v0.y, v0_.y) && float_eq(v0.z, v0_.z) && float_eq(v0.w, v0_.w));
+    }
+#endif
+
+    std::unordered_map<u32, u32> cell3_vertex_i_mapping;
+    std::vector<glm::dvec3> cell3_vertices;
+    std::vector<std::vector<u32>> cell3_faces;
+    cell3_faces.reserve(cell.size());
+
+    for (u32 f_i : cell) {
+        const Face& f = mesh.faces[f_i];
+
+        for (u32 e_i : f) {
+            const Edge& e = mesh.edges[e_i];
+            for (u32 v_i : e.vertices) {
+                if (!has_key(cell3_vertex_i_mapping, v_i)) {
+                    cell3_vertex_i_mapping.emplace(v_i, cell3_vertices.size());
+                    glm::dvec4 v = mesh.vertices[v_i];
+                    glm::dvec4 v_ = transform(to_3d_trans, v);
+                    DCHECK_F(float_eq(v_.w, 0.0));
+                    cell3_vertices.push_back(glm::dvec3(v_));
+                }
+            }
+        }
+
+        const Edge& e0 = mesh.edges[f[0]];
+        u32 first_vi = e0.v0;
+        std::vector<u32> this_mesh_f;
+        this_mesh_f.reserve(f.size());
+        this_mesh_f.push_back(cell3_vertex_i_mapping.at(first_vi));
+
+        u32 prev_edge_i = f[0];
+        u32 next_vi = e0.v1;
+
+        while (next_vi != first_vi) {
+            for (u32 e_i : f) {
+                if (e_i != prev_edge_i) {
+                    const Edge& e = mesh.edges[e_i];
+                    if (e.v0 == next_vi || e.v1 == next_vi) {
+                        this_mesh_f.push_back(cell3_vertex_i_mapping.at(next_vi));
+                        next_vi = e.v0 == next_vi ? e.v1 : e.v0;
+                        prev_edge_i = e_i;
+
+                        goto search_next_vi;
+                    }
+                }
+            }
+            // If the for-loop exits without finding `next_vi`, this is an
+            // invalid face.
+            ABORT_F("Invalid face");
+        search_next_vi:;
+        }
+
+        DCHECK_EQ_F(f.size(), this_mesh_f.size());
+        cell3_faces.push_back(std::move(this_mesh_f));
+    }
+
+    DCHECK_EQ_F(cell3_vertex_i_mapping.size(), cell3_vertices.size());
+
+    glm::dmat4 temp_transform_inverse;
+    {
+        glm::dvec3 centroid = glm::dvec3(0, 0, 0);
+        for (const auto& v : cell3_vertices) {
+            centroid += v;
+        }
+
+        centroid.x /= (f64)cell3_vertices.size();
+        centroid.y /= (f64)cell3_vertices.size();
+        centroid.z /= (f64)cell3_vertices.size();
+
+        glm::dmat4 temp_translate = translate(-1.0 * centroid);
+
+        for (auto& v : cell3_vertices) {
+            glm::dvec3 v_ = transform(temp_translate, v);
+            v[0] = v_.x;
+            v[1] = v_.y;
+            v[2] = v_.z;
+        }
+
+        temp_transform_inverse = translate(centroid);
+    }
+
+#ifdef FOUR_DEBUG
+    // All vertices of the cell should be on the same hyperplane
+    for (const auto& entry : cell3_vertex_i_mapping) {
+        if (entry.first != edge0.v0) {
+            glm::dvec4 v = mesh.vertices[entry.first];
+            f64 x = glm::dot(v - v0, normal);
+            DCHECK_F(float_eq(x, 0.0));
+        }
+    }
+#endif
+
+    std::vector<glm::dvec3> out_vertices_3d;
+    std::vector<u32> out_tets_3d;
+    out_vertices_3d.reserve(cell3_vertices.size());
+    tetrahedralize_polyhedron(cell3_vertices, cell3_faces, out_vertices_3d, out_tets_3d);
+
+    std::unordered_map<u32, u32> tet_out_vertex_i_mapping;
+    for (size_t i = 0; i < out_vertices_3d.size(); i++) {
+        tet_out_vertex_i_mapping.emplace(i, out_vertices.size());
+        const auto& v = out_vertices_3d[i];
+        auto v_ = transform(temp_transform_inverse, v);
+        out_vertices.push_back(transform(to_3d_trans_inverse, glm::dvec4(v_, 0.0)));
+    }
+
+    for (u32 i : out_tets_3d) {
+        out_tets.push_back(tet_out_vertex_i_mapping.at(i));
+    }
+}
+} // namespace
 
 size_t FaceHash::operator()(const std::vector<u32>& x) const {
     this->x_ = x;
@@ -39,6 +274,52 @@ bool FaceEquals::operator()(const std::vector<u32>& lhs, const std::vector<u32>&
 
 bool operator==(const Edge& lhs, const Edge& rhs) {
     return (lhs.v0 == rhs.v0 && lhs.v1 == rhs.v1) || (lhs.v0 == rhs.v1 && lhs.v1 == rhs.v0);
+}
+
+void tetrahedralize(Mesh4& mesh) {
+    mesh.tet_vertices.clear();
+    mesh.tets.clear();
+
+    std::vector<u32> out_tets;
+
+    for (s64 cell_i = 0; cell_i < (s64)mesh.cells.size(); cell_i++) {
+        const Cell& cell = mesh.cells[(size_t)cell_i];
+        out_tets.clear();
+
+        DCHECK_GE_F(cell.size(), 4u);
+        if (cell.size() == 4) {
+            // The cell is already a tetrahedron
+
+            BoundedVector<u32, 4> vertex_indices;
+            for (u32 f_i : cell) {
+                const Face& f = mesh.faces[f_i];
+                for (u32 e_i : f) {
+                    const Edge& e = mesh.edges[e_i];
+                    for (u32 v_i : e.vertices) {
+                        if (!contains(vertex_indices, v_i)) {
+                            vertex_indices.push_back(v_i);
+                            out_tets.push_back((u32)mesh.tet_vertices.size());
+                            mesh.tet_vertices.push_back(mesh.vertices[v_i]);
+                        }
+                    }
+                }
+            }
+
+        } else {
+            LOG_F(1, "Tetrahedralizing cell %li with %lu faces", cell_i, cell.size());
+            tetrahedralize_cell(mesh, cell_i, mesh.tet_vertices, out_tets);
+        }
+
+        DCHECK_EQ_F((s64)out_tets.size() % 4, 0);
+        for (size_t tet_i = 0; tet_i < out_tets.size() / 4; tet_i++) {
+            Mesh4::Tet tet;
+            tet.cell = (u32)cell_i;
+            for (size_t j = 0; j < 4; j++) {
+                tet.vertices[j] = out_tets[tet_i * 4 + j];
+            }
+            mesh.tets.push_back(tet);
+        }
+    }
 }
 
 bool save_mesh_to_file(const Mesh4& mesh, const char* path) {
@@ -95,6 +376,31 @@ bool save_mesh_to_file(const Mesh4& mesh, const char* path) {
         cells_xmle->InsertEndChild(indices_xmle);
     }
 
+    txml::XMLElement* tet_vertices_xmle = doc.NewElement("tet_vertices");
+    root->InsertEndChild(tet_vertices_xmle);
+
+    for (const auto& v : mesh.tet_vertices) {
+        txml::XMLElement* v_xmle = doc.NewElement("vec4");
+        v_xmle->SetAttribute("x", v.x);
+        v_xmle->SetAttribute("y", v.y);
+        v_xmle->SetAttribute("z", v.z);
+        v_xmle->SetAttribute("w", v.w);
+        tet_vertices_xmle->InsertEndChild(v_xmle);
+    }
+
+    txml::XMLElement* tets_xmle = doc.NewElement("tets");
+    root->InsertEndChild(tets_xmle);
+
+    for (const Mesh4::Tet& tet : mesh.tets) {
+        txml::XMLElement* tet_xmle = doc.NewElement("tet");
+        tet_xmle->SetAttribute("cell", tet.cell);
+        tet_xmle->SetAttribute("v0", tet.vertices[0]);
+        tet_xmle->SetAttribute("v1", tet.vertices[1]);
+        tet_xmle->SetAttribute("v2", tet.vertices[2]);
+        tet_xmle->SetAttribute("v3", tet.vertices[3]);
+        tets_xmle->InsertEndChild(tet_xmle);
+    }
+
     txml::XMLError error = doc.SaveFile(path);
     if (error) {
         LOG_F(ERROR, "%s", txml::XMLDocument::ErrorIDToName(error));
@@ -116,15 +422,15 @@ Mesh4 load_mesh_from_file(const char* path) {
     Mesh4 result;
 
     txml::XMLElement* root = doc.RootElement();
-    DCHECK_EQ_F(strcmp(root->Name(), "mesh4"), 0);
+    CHECK_EQ_F(strcmp(root->Name(), "mesh4"), 0);
 
     txml::XMLElement* vertices_xmle = root->FirstChildElement();
-    DCHECK_EQ_F(strcmp(vertices_xmle->Name(), "vertices"), 0);
+    CHECK_EQ_F(strcmp(vertices_xmle->Name(), "vertices"), 0);
 
     for (txml::XMLElement* v_xmle = vertices_xmle->FirstChildElement(); v_xmle != NULL;
          v_xmle = v_xmle->NextSiblingElement()) {
 
-        DCHECK_EQ_F(strcmp(v_xmle->Name(), "vec4"), 0);
+        CHECK_EQ_F(strcmp(v_xmle->Name(), "vec4"), 0);
 
         glm::dvec4 v = {};
         v_xmle->QueryDoubleAttribute("x", &v.x);
@@ -135,12 +441,12 @@ Mesh4 load_mesh_from_file(const char* path) {
     }
 
     txml::XMLElement* edges_xmle = vertices_xmle->NextSiblingElement();
-    DCHECK_EQ_F(strcmp(edges_xmle->Name(), "edges"), 0);
+    CHECK_EQ_F(strcmp(edges_xmle->Name(), "edges"), 0);
 
     for (txml::XMLElement* e_xmle = edges_xmle->FirstChildElement(); e_xmle != NULL;
          e_xmle = e_xmle->NextSiblingElement()) {
 
-        DCHECK_EQ_F(strcmp(e_xmle->Name(), "edge"), 0);
+        CHECK_EQ_F(strcmp(e_xmle->Name(), "edge"), 0);
 
         Edge e = {};
         e_xmle->QueryUnsignedAttribute("v0", &e.v0);
@@ -149,19 +455,19 @@ Mesh4 load_mesh_from_file(const char* path) {
     }
 
     txml::XMLElement* faces_xmle = edges_xmle->NextSiblingElement();
-    DCHECK_EQ_F(strcmp(faces_xmle->Name(), "faces"), 0);
+    CHECK_EQ_F(strcmp(faces_xmle->Name(), "faces"), 0);
 
     for (txml::XMLElement* f_xmle = faces_xmle->FirstChildElement(); f_xmle != NULL;
          f_xmle = f_xmle->NextSiblingElement()) {
 
-        DCHECK_EQ_F(strcmp(f_xmle->Name(), "indices"), 0);
+        CHECK_EQ_F(strcmp(f_xmle->Name(), "indices"), 0);
 
         std::vector<u32> face;
 
         for (txml::XMLElement* index_xmle = f_xmle->FirstChildElement(); index_xmle != NULL;
              index_xmle = index_xmle->NextSiblingElement()) {
 
-            DCHECK_EQ_F(strcmp(index_xmle->Name(), "index"), 0);
+            CHECK_EQ_F(strcmp(index_xmle->Name(), "index"), 0);
 
             u32 value = 0;
             index_xmle->QueryUnsignedText(&value);
@@ -172,19 +478,19 @@ Mesh4 load_mesh_from_file(const char* path) {
     }
 
     txml::XMLElement* cells_xmle = faces_xmle->NextSiblingElement();
-    DCHECK_EQ_F(strcmp(cells_xmle->Name(), "cells"), 0);
+    CHECK_EQ_F(strcmp(cells_xmle->Name(), "cells"), 0);
 
     for (txml::XMLElement* c_xmle = cells_xmle->FirstChildElement(); c_xmle != NULL;
          c_xmle = c_xmle->NextSiblingElement()) {
 
-        DCHECK_EQ_F(strcmp(c_xmle->Name(), "indices"), 0);
+        CHECK_EQ_F(strcmp(c_xmle->Name(), "indices"), 0);
 
         std::vector<u32> cell;
 
         for (txml::XMLElement* index_xmle = c_xmle->FirstChildElement(); index_xmle != NULL;
              index_xmle = index_xmle->NextSiblingElement()) {
 
-            DCHECK_EQ_F(strcmp(index_xmle->Name(), "index"), 0);
+            CHECK_EQ_F(strcmp(index_xmle->Name(), "index"), 0);
 
             u32 value = 0;
             index_xmle->QueryUnsignedText(&value);
@@ -192,6 +498,39 @@ Mesh4 load_mesh_from_file(const char* path) {
         }
 
         result.cells.push_back(std::move(cell));
+    }
+
+    txml::XMLElement* tet_vertices_xmle = cells_xmle->NextSiblingElement();
+    CHECK_EQ_F(strcmp(tet_vertices_xmle->Name(), "tet_vertices"), 0);
+
+    for (txml::XMLElement* v_xmle = tet_vertices_xmle->FirstChildElement(); v_xmle != NULL;
+         v_xmle = v_xmle->NextSiblingElement()) {
+
+        CHECK_EQ_F(strcmp(v_xmle->Name(), "vec4"), 0);
+
+        glm::dvec4 v = {};
+        v_xmle->QueryDoubleAttribute("x", &v.x);
+        v_xmle->QueryDoubleAttribute("y", &v.y);
+        v_xmle->QueryDoubleAttribute("z", &v.z);
+        v_xmle->QueryDoubleAttribute("w", &v.w);
+        result.tet_vertices.push_back(v);
+    }
+
+    txml::XMLElement* tets_xmle = tet_vertices_xmle->NextSiblingElement();
+    CHECK_EQ_F(strcmp(tets_xmle->Name(), "tets"), 0);
+
+    for (txml::XMLElement* tet_xmle = tets_xmle->FirstChildElement(); tet_xmle != NULL;
+         tet_xmle = tet_xmle->NextSiblingElement()) {
+
+        CHECK_EQ_F(strcmp(tet_xmle->Name(), "tet"), 0);
+
+        Mesh4::Tet tet;
+        tet_xmle->QueryUnsignedAttribute("cell", &tet.cell);
+        tet_xmle->QueryUnsignedAttribute("v0", &tet.vertices[0]);
+        tet_xmle->QueryUnsignedAttribute("v1", &tet.vertices[1]);
+        tet_xmle->QueryUnsignedAttribute("v2", &tet.vertices[2]);
+        tet_xmle->QueryUnsignedAttribute("v3", &tet.vertices[3]);
+        result.tets.push_back(tet);
     }
 
     LOG_F(INFO, "Loaded Mesh4 from \"%s\" with %lu vertices, %lu edges, %lu faces, %lu cells.", full_path.c_str(),

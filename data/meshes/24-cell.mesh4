@@ -1,0 +1,1095 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mesh4>
+    <vertices>
+        <vec4 x="1" y="1" z="0" w="0"/>
+        <vec4 x="1" y="0" z="1" w="0"/>
+        <vec4 x="1" y="0" z="0" w="1"/>
+        <vec4 x="0" y="1" z="1" w="0"/>
+        <vec4 x="0" y="1" z="0" w="1"/>
+        <vec4 x="0" y="0" z="1" w="1"/>
+        <vec4 x="-1" y="1" z="0" w="0"/>
+        <vec4 x="-1" y="0" z="1" w="0"/>
+        <vec4 x="-1" y="0" z="0" w="1"/>
+        <vec4 x="0" y="-1" z="1" w="0"/>
+        <vec4 x="0" y="-1" z="0" w="1"/>
+        <vec4 x="0" y="0" z="-1" w="1"/>
+        <vec4 x="1" y="-1" z="0" w="0"/>
+        <vec4 x="1" y="0" z="-1" w="0"/>
+        <vec4 x="1" y="0" z="0" w="-1"/>
+        <vec4 x="0" y="1" z="-1" w="0"/>
+        <vec4 x="0" y="1" z="0" w="-1"/>
+        <vec4 x="0" y="0" z="1" w="-1"/>
+        <vec4 x="-1" y="-1" z="0" w="0"/>
+        <vec4 x="-1" y="0" z="-1" w="0"/>
+        <vec4 x="-1" y="0" z="0" w="-1"/>
+        <vec4 x="0" y="-1" z="-1" w="0"/>
+        <vec4 x="0" y="-1" z="0" w="-1"/>
+        <vec4 x="0" y="0" z="-1" w="-1"/>
+    </vertices>
+    <edges>
+        <edge v0="21" v1="22"/>
+        <edge v0="19" v1="20"/>
+        <edge v0="18" v1="20"/>
+        <edge v0="18" v1="19"/>
+        <edge v0="16" v1="23"/>
+        <edge v0="20" v1="23"/>
+        <edge v0="16" v1="17"/>
+        <edge v0="15" v1="23"/>
+        <edge v0="15" v1="16"/>
+        <edge v0="14" v1="23"/>
+        <edge v0="14" v1="17"/>
+        <edge v0="14" v1="16"/>
+        <edge v0="13" v1="15"/>
+        <edge v0="13" v1="14"/>
+        <edge v0="12" v1="21"/>
+        <edge v0="12" v1="14"/>
+        <edge v0="11" v1="19"/>
+        <edge v0="11" v1="15"/>
+        <edge v0="10" v1="21"/>
+        <edge v0="15" v1="19"/>
+        <edge v0="14" v1="22"/>
+        <edge v0="10" v1="12"/>
+        <edge v0="9" v1="22"/>
+        <edge v0="9" v1="17"/>
+        <edge v0="9" v1="12"/>
+        <edge v0="8" v1="18"/>
+        <edge v0="17" v1="22"/>
+        <edge v0="1" v1="12"/>
+        <edge v0="4" v1="15"/>
+        <edge v0="2" v1="12"/>
+        <edge v0="2" v1="10"/>
+        <edge v0="0" v1="13"/>
+        <edge v0="6" v1="19"/>
+        <edge v0="3" v1="5"/>
+        <edge v0="2" v1="4"/>
+        <edge v0="1" v1="14"/>
+        <edge v0="2" v1="11"/>
+        <edge v0="22" v1="23"/>
+        <edge v0="12" v1="22"/>
+        <edge v0="1" v1="9"/>
+        <edge v0="8" v1="11"/>
+        <edge v0="0" v1="2"/>
+        <edge v0="12" v1="13"/>
+        <edge v0="8" v1="10"/>
+        <edge v0="2" v1="5"/>
+        <edge v0="18" v1="22"/>
+        <edge v0="1" v1="2"/>
+        <edge v0="9" v1="18"/>
+        <edge v0="0" v1="1"/>
+        <edge v0="9" v1="10"/>
+        <edge v0="0" v1="4"/>
+        <edge v0="11" v1="21"/>
+        <edge v0="8" v1="19"/>
+        <edge v0="0" v1="16"/>
+        <edge v0="7" v1="18"/>
+        <edge v0="10" v1="11"/>
+        <edge v0="0" v1="3"/>
+        <edge v0="0" v1="15"/>
+        <edge v0="19" v1="21"/>
+        <edge v0="5" v1="8"/>
+        <edge v0="13" v1="21"/>
+        <edge v0="7" v1="20"/>
+        <edge v0="6" v1="20"/>
+        <edge v0="1" v1="17"/>
+        <edge v0="20" v1="22"/>
+        <edge v0="17" v1="20"/>
+        <edge v0="2" v1="13"/>
+        <edge v0="5" v1="7"/>
+        <edge v0="11" v1="13"/>
+        <edge v0="1" v1="5"/>
+        <edge v0="19" v1="23"/>
+        <edge v0="5" v1="9"/>
+        <edge v0="13" v1="23"/>
+        <edge v0="3" v1="7"/>
+        <edge v0="3" v1="17"/>
+        <edge v0="3" v1="16"/>
+        <edge v0="4" v1="5"/>
+        <edge v0="1" v1="3"/>
+        <edge v0="6" v1="15"/>
+        <edge v0="4" v1="6"/>
+        <edge v0="21" v1="23"/>
+        <edge v0="4" v1="8"/>
+        <edge v0="4" v1="11"/>
+        <edge v0="16" v1="20"/>
+        <edge v0="5" v1="10"/>
+        <edge v0="6" v1="7"/>
+        <edge v0="18" v1="21"/>
+        <edge v0="3" v1="4"/>
+        <edge v0="6" v1="8"/>
+        <edge v0="0" v1="14"/>
+        <edge v0="7" v1="8"/>
+        <edge v0="6" v1="16"/>
+        <edge v0="3" v1="6"/>
+        <edge v0="7" v1="9"/>
+        <edge v0="10" v1="18"/>
+        <edge v0="7" v1="17"/>
+    </edges>
+    <faces>
+        <indices>
+            <index>70</index>
+            <index>80</index>
+            <index>58</index>
+        </indices>
+        <indices>
+            <index>86</index>
+            <index>58</index>
+            <index>3</index>
+        </indices>
+        <indices>
+            <index>45</index>
+            <index>64</index>
+            <index>2</index>
+        </indices>
+        <indices>
+            <index>3</index>
+            <index>1</index>
+            <index>2</index>
+        </indices>
+        <indices>
+            <index>65</index>
+            <index>64</index>
+            <index>26</index>
+        </indices>
+        <indices>
+            <index>83</index>
+            <index>65</index>
+            <index>6</index>
+        </indices>
+        <indices>
+            <index>19</index>
+            <index>70</index>
+            <index>7</index>
+        </indices>
+        <indices>
+            <index>8</index>
+            <index>4</index>
+            <index>7</index>
+        </indices>
+        <indices>
+            <index>26</index>
+            <index>20</index>
+            <index>10</index>
+        </indices>
+        <indices>
+            <index>20</index>
+            <index>37</index>
+            <index>9</index>
+        </indices>
+        <indices>
+            <index>72</index>
+            <index>80</index>
+            <index>60</index>
+        </indices>
+        <indices>
+            <index>42</index>
+            <index>60</index>
+            <index>14</index>
+        </indices>
+        <indices>
+            <index>42</index>
+            <index>13</index>
+            <index>15</index>
+        </indices>
+        <indices>
+            <index>68</index>
+            <index>60</index>
+            <index>51</index>
+        </indices>
+        <indices>
+            <index>83</index>
+            <index>5</index>
+            <index>4</index>
+        </indices>
+        <indices>
+            <index>68</index>
+            <index>12</index>
+            <index>17</index>
+        </indices>
+        <indices>
+            <index>58</index>
+            <index>51</index>
+            <index>16</index>
+        </indices>
+        <indices>
+            <index>11</index>
+            <index>4</index>
+            <index>9</index>
+        </indices>
+        <indices>
+            <index>17</index>
+            <index>19</index>
+            <index>16</index>
+        </indices>
+        <indices>
+            <index>94</index>
+            <index>86</index>
+            <index>18</index>
+        </indices>
+        <indices>
+            <index>55</index>
+            <index>51</index>
+            <index>18</index>
+        </indices>
+        <indices>
+            <index>37</index>
+            <index>80</index>
+            <index>0</index>
+        </indices>
+        <indices>
+            <index>49</index>
+            <index>94</index>
+            <index>47</index>
+        </indices>
+        <indices>
+            <index>38</index>
+            <index>20</index>
+            <index>15</index>
+        </indices>
+        <indices>
+            <index>21</index>
+            <index>49</index>
+            <index>24</index>
+        </indices>
+        <indices>
+            <index>43</index>
+            <index>55</index>
+            <index>40</index>
+        </indices>
+        <indices>
+            <index>52</index>
+            <index>16</index>
+            <index>40</index>
+        </indices>
+        <indices>
+            <index>93</index>
+            <index>47</index>
+            <index>54</index>
+        </indices>
+        <indices>
+            <index>91</index>
+            <index>83</index>
+            <index>62</index>
+        </indices>
+        <indices>
+            <index>23</index>
+            <index>26</index>
+            <index>22</index>
+        </indices>
+        <indices>
+            <index>85</index>
+            <index>61</index>
+            <index>62</index>
+        </indices>
+        <indices>
+            <index>66</index>
+            <index>42</index>
+            <index>29</index>
+        </indices>
+        <indices>
+            <index>95</index>
+            <index>65</index>
+            <index>61</index>
+        </indices>
+        <indices>
+            <index>36</index>
+            <index>55</index>
+            <index>30</index>
+        </indices>
+        <indices>
+            <index>56</index>
+            <index>87</index>
+            <index>50</index>
+        </indices>
+        <indices>
+            <index>63</index>
+            <index>10</index>
+            <index>35</index>
+        </indices>
+        <indices>
+            <index>95</index>
+            <index>23</index>
+            <index>93</index>
+        </indices>
+        <indices>
+            <index>31</index>
+            <index>57</index>
+            <index>12</index>
+        </indices>
+        <indices>
+            <index>79</index>
+            <index>92</index>
+            <index>87</index>
+        </indices>
+        <indices>
+            <index>77</index>
+            <index>33</index>
+            <index>69</index>
+        </indices>
+        <indices>
+            <index>67</index>
+            <index>90</index>
+            <index>59</index>
+        </indices>
+        <indices>
+            <index>52</index>
+            <index>3</index>
+            <index>25</index>
+        </indices>
+        <indices>
+            <index>56</index>
+            <index>77</index>
+            <index>48</index>
+        </indices>
+        <indices>
+            <index>77</index>
+            <index>74</index>
+            <index>63</index>
+        </indices>
+        <indices>
+            <index>46</index>
+            <index>29</index>
+            <index>27</index>
+        </indices>
+        <indices>
+            <index>35</index>
+            <index>15</index>
+            <index>27</index>
+        </indices>
+        <indices>
+            <index>39</index>
+            <index>24</index>
+            <index>27</index>
+        </indices>
+        <indices>
+            <index>88</index>
+            <index>90</index>
+            <index>85</index>
+        </indices>
+        <indices>
+            <index>36</index>
+            <index>82</index>
+            <index>34</index>
+        </indices>
+        <indices>
+            <index>89</index>
+            <index>13</index>
+            <index>31</index>
+        </indices>
+        <indices>
+            <index>61</index>
+            <index>2</index>
+            <index>54</index>
+        </indices>
+        <indices>
+            <index>41</index>
+            <index>66</index>
+            <index>31</index>
+        </indices>
+        <indices>
+            <index>56</index>
+            <index>75</index>
+            <index>53</index>
+        </indices>
+        <indices>
+            <index>59</index>
+            <index>81</index>
+            <index>76</index>
+        </indices>
+        <indices>
+            <index>69</index>
+            <index>44</index>
+            <index>46</index>
+        </indices>
+        <indices>
+            <index>48</index>
+            <index>46</index>
+            <index>41</index>
+        </indices>
+        <indices>
+            <index>50</index>
+            <index>34</index>
+            <index>41</index>
+        </indices>
+        <indices>
+            <index>63</index>
+            <index>23</index>
+            <index>39</index>
+        </indices>
+        <indices>
+            <index>30</index>
+            <index>21</index>
+            <index>29</index>
+        </indices>
+        <indices>
+            <index>57</index>
+            <index>8</index>
+            <index>53</index>
+        </indices>
+        <indices>
+            <index>82</index>
+            <index>40</index>
+            <index>81</index>
+        </indices>
+        <indices>
+            <index>75</index>
+            <index>6</index>
+            <index>74</index>
+        </indices>
+        <indices>
+            <index>72</index>
+            <index>7</index>
+            <index>12</index>
+        </indices>
+        <indices>
+            <index>89</index>
+            <index>35</index>
+            <index>48</index>
+        </indices>
+        <indices>
+            <index>43</index>
+            <index>94</index>
+            <index>25</index>
+        </indices>
+        <indices>
+            <index>81</index>
+            <index>88</index>
+            <index>79</index>
+        </indices>
+        <indices>
+            <index>72</index>
+            <index>9</index>
+            <index>13</index>
+        </indices>
+        <indices>
+            <index>44</index>
+            <index>84</index>
+            <index>30</index>
+        </indices>
+        <indices>
+            <index>70</index>
+            <index>5</index>
+            <index>1</index>
+        </indices>
+        <indices>
+            <index>21</index>
+            <index>14</index>
+            <index>18</index>
+        </indices>
+        <indices>
+            <index>89</index>
+            <index>11</index>
+            <index>53</index>
+        </indices>
+        <indices>
+            <index>76</index>
+            <index>44</index>
+            <index>34</index>
+        </indices>
+        <indices>
+            <index>84</index>
+            <index>49</index>
+            <index>71</index>
+        </indices>
+        <indices>
+            <index>68</index>
+            <index>66</index>
+            <index>36</index>
+        </indices>
+        <indices>
+            <index>24</index>
+            <index>38</index>
+            <index>22</index>
+        </indices>
+        <indices>
+            <index>82</index>
+            <index>17</index>
+            <index>28</index>
+        </indices>
+        <indices>
+            <index>86</index>
+            <index>0</index>
+            <index>45</index>
+        </indices>
+        <indices>
+            <index>38</index>
+            <index>0</index>
+            <index>14</index>
+        </indices>
+        <indices>
+            <index>90</index>
+            <index>25</index>
+            <index>54</index>
+        </indices>
+        <indices>
+            <index>67</index>
+            <index>73</index>
+            <index>33</index>
+        </indices>
+        <indices>
+            <index>87</index>
+            <index>76</index>
+            <index>33</index>
+        </indices>
+        <indices>
+            <index>79</index>
+            <index>78</index>
+            <index>28</index>
+        </indices>
+        <indices>
+            <index>74</index>
+            <index>95</index>
+            <index>73</index>
+        </indices>
+        <indices>
+            <index>91</index>
+            <index>8</index>
+            <index>78</index>
+        </indices>
+        <indices>
+            <index>71</index>
+            <index>69</index>
+            <index>39</index>
+        </indices>
+        <indices>
+            <index>88</index>
+            <index>52</index>
+            <index>32</index>
+        </indices>
+        <indices>
+            <index>11</index>
+            <index>6</index>
+            <index>10</index>
+        </indices>
+        <indices>
+            <index>92</index>
+            <index>85</index>
+            <index>73</index>
+        </indices>
+        <indices>
+            <index>92</index>
+            <index>91</index>
+            <index>75</index>
+        </indices>
+        <indices>
+            <index>64</index>
+            <index>37</index>
+            <index>5</index>
+        </indices>
+        <indices>
+            <index>45</index>
+            <index>47</index>
+            <index>22</index>
+        </indices>
+        <indices>
+            <index>43</index>
+            <index>84</index>
+            <index>59</index>
+        </indices>
+        <indices>
+            <index>57</index>
+            <index>28</index>
+            <index>50</index>
+        </indices>
+        <indices>
+            <index>71</index>
+            <index>93</index>
+            <index>67</index>
+        </indices>
+        <indices>
+            <index>1</index>
+            <index>62</index>
+            <index>32</index>
+        </indices>
+        <indices>
+            <index>78</index>
+            <index>19</index>
+            <index>32</index>
+        </indices>
+    </faces>
+    <cells>
+        <indices>
+            <index>72</index>
+            <index>67</index>
+            <index>54</index>
+            <index>44</index>
+            <index>58</index>
+            <index>24</index>
+            <index>46</index>
+            <index>84</index>
+        </indices>
+        <indices>
+            <index>55</index>
+            <index>71</index>
+            <index>80</index>
+            <index>39</index>
+            <index>54</index>
+            <index>56</index>
+            <index>34</index>
+            <index>42</index>
+        </indices>
+        <indices>
+            <index>61</index>
+            <index>70</index>
+            <index>52</index>
+            <index>63</index>
+            <index>35</index>
+            <index>43</index>
+            <index>86</index>
+            <index>42</index>
+        </indices>
+        <indices>
+            <index>46</index>
+            <index>35</index>
+            <index>57</index>
+            <index>29</index>
+            <index>45</index>
+            <index>23</index>
+            <index>8</index>
+            <index>74</index>
+        </indices>
+        <indices>
+            <index>85</index>
+            <index>65</index>
+            <index>75</index>
+            <index>95</index>
+            <index>18</index>
+            <index>81</index>
+            <index>26</index>
+            <index>60</index>
+        </indices>
+        <indices>
+            <index>26</index>
+            <index>41</index>
+            <index>19</index>
+            <index>1</index>
+            <index>16</index>
+            <index>64</index>
+            <index>20</index>
+            <index>25</index>
+        </indices>
+        <indices>
+            <index>67</index>
+            <index>53</index>
+            <index>71</index>
+            <index>60</index>
+            <index>91</index>
+            <index>25</index>
+            <index>33</index>
+            <index>48</index>
+        </indices>
+        <indices>
+            <index>21</index>
+            <index>76</index>
+            <index>89</index>
+            <index>1</index>
+            <index>0</index>
+            <index>3</index>
+            <index>68</index>
+            <index>2</index>
+        </indices>
+        <indices>
+            <index>88</index>
+            <index>83</index>
+            <index>81</index>
+            <index>92</index>
+            <index>59</index>
+            <index>52</index>
+            <index>34</index>
+            <index>38</index>
+        </indices>
+        <indices>
+            <index>32</index>
+            <index>4</index>
+            <index>29</index>
+            <index>90</index>
+            <index>2</index>
+            <index>50</index>
+            <index>27</index>
+            <index>36</index>
+        </indices>
+        <indices>
+            <index>75</index>
+            <index>73</index>
+            <index>51</index>
+            <index>56</index>
+            <index>15</index>
+            <index>92</index>
+            <index>37</index>
+            <index>48</index>
+        </indices>
+        <indices>
+            <index>76</index>
+            <index>69</index>
+            <index>90</index>
+            <index>24</index>
+            <index>74</index>
+            <index>19</index>
+            <index>77</index>
+            <index>22</index>
+        </indices>
+        <indices>
+            <index>51</index>
+            <index>49</index>
+            <index>63</index>
+            <index>55</index>
+            <index>44</index>
+            <index>31</index>
+            <index>45</index>
+            <index>12</index>
+        </indices>
+        <indices>
+            <index>16</index>
+            <index>13</index>
+            <index>15</index>
+            <index>10</index>
+            <index>6</index>
+            <index>62</index>
+            <index>18</index>
+            <index>0</index>
+        </indices>
+        <indices>
+            <index>93</index>
+            <index>82</index>
+            <index>36</index>
+            <index>79</index>
+            <index>57</index>
+            <index>43</index>
+            <index>39</index>
+            <index>84</index>
+        </indices>
+        <indices>
+            <index>9</index>
+            <index>23</index>
+            <index>12</index>
+            <index>21</index>
+            <index>10</index>
+            <index>66</index>
+            <index>77</index>
+            <index>11</index>
+        </indices>
+        <indices>
+            <index>88</index>
+            <index>87</index>
+            <index>32</index>
+            <index>61</index>
+            <index>28</index>
+            <index>30</index>
+            <index>82</index>
+            <index>5</index>
+        </indices>
+        <indices>
+            <index>68</index>
+            <index>14</index>
+            <index>95</index>
+            <index>7</index>
+            <index>94</index>
+            <index>83</index>
+            <index>28</index>
+            <index>6</index>
+        </indices>
+        <indices>
+            <index>94</index>
+            <index>50</index>
+            <index>47</index>
+            <index>3</index>
+            <index>85</index>
+            <index>30</index>
+            <index>41</index>
+            <index>78</index>
+        </indices>
+        <indices>
+            <index>49</index>
+            <index>37</index>
+            <index>70</index>
+            <index>59</index>
+            <index>62</index>
+            <index>7</index>
+            <index>17</index>
+            <index>66</index>
+        </indices>
+        <indices>
+            <index>38</index>
+            <index>53</index>
+            <index>87</index>
+            <index>65</index>
+            <index>80</index>
+            <index>47</index>
+            <index>40</index>
+            <index>79</index>
+        </indices>
+        <indices>
+            <index>72</index>
+            <index>40</index>
+            <index>91</index>
+            <index>64</index>
+            <index>93</index>
+            <index>27</index>
+            <index>22</index>
+            <index>78</index>
+        </indices>
+        <indices>
+            <index>69</index>
+            <index>58</index>
+            <index>20</index>
+            <index>31</index>
+            <index>33</index>
+            <index>11</index>
+            <index>13</index>
+            <index>73</index>
+        </indices>
+        <indices>
+            <index>89</index>
+            <index>17</index>
+            <index>9</index>
+            <index>86</index>
+            <index>8</index>
+            <index>4</index>
+            <index>5</index>
+            <index>14</index>
+        </indices>
+    </cells>
+    <tet_vertices>
+        <vec4 x="0" y="0" z="1" w="1"/>
+        <vec4 x="0" y="-1" z="1.1102230246251565e-16" w="1"/>
+        <vec4 x="-5.5511151231257827e-17" y="-0.99999999999999989" z="1" w="2.2204460492503131e-16"/>
+        <vec4 x="0.99999999999999978" y="5.5511151231257827e-17" z="1.1102230246251565e-16" w="1"/>
+        <vec4 x="0.99999999999999978" y="0" z="1" w="2.2204460492503131e-16"/>
+        <vec4 x="0.99999999999999978" y="-1" z="1.1102230246251565e-16" w="2.2204460492503131e-16"/>
+        <vec4 x="1" y="1" z="0" w="0"/>
+        <vec4 x="1" y="0" z="0.99999999999999989" w="0"/>
+        <vec4 x="1" y="1.1102230246251565e-16" z="0" w="0.99999999999999978"/>
+        <vec4 x="2.2204460492503131e-16" y="1" z="0" w="0.99999999999999978"/>
+        <vec4 x="2.2204460492503131e-16" y="0" z="0.99999999999999989" w="0.99999999999999978"/>
+        <vec4 x="2.2204460492503131e-16" y="1" z="0.99999999999999989" w="-1.1102230246251565e-16"/>
+        <vec4 x="0" y="1" z="1" w="0"/>
+        <vec4 x="5.5511151231257827e-17" y="1" z="1.1102230246251565e-16" w="-0.99999999999999978"/>
+        <vec4 x="5.5511151231257827e-17" y="1.1102230246251565e-16" z="1" w="-0.99999999999999978"/>
+        <vec4 x="0.99999999999999978" y="1" z="1.1102230246251565e-16" w="-5.5511151231257827e-17"/>
+        <vec4 x="1" y="0" z="1.1102230246251565e-16" w="-1"/>
+        <vec4 x="0.99999999999999978" y="1.1102230246251565e-16" z="1" w="-5.5511151231257827e-17"/>
+        <vec4 x="1" y="0" z="1" w="0"/>
+        <vec4 x="2.2204460492503131e-16" y="-0.99999999999999989" z="1" w="5.5511151231257827e-17"/>
+        <vec4 x="1" y="-1" z="1.1102230246251565e-16" w="0"/>
+        <vec4 x="2.2204460492503131e-16" y="0" z="1" w="-0.99999999999999978"/>
+        <vec4 x="1" y="5.5511151231257827e-17" z="1.1102230246251565e-16" w="-0.99999999999999978"/>
+        <vec4 x="2.2204460492503131e-16" y="-1" z="1.1102230246251565e-16" w="-0.99999999999999978"/>
+        <vec4 x="-1" y="1" z="0" w="0"/>
+        <vec4 x="-1" y="1.1102230246251565e-16" z="0" w="0.99999999999999978"/>
+        <vec4 x="-1" y="0" z="-0.99999999999999989" w="0"/>
+        <vec4 x="-2.2204460492503131e-16" y="1" z="0" w="0.99999999999999978"/>
+        <vec4 x="-2.2204460492503131e-16" y="0" z="-0.99999999999999989" w="0.99999999999999978"/>
+        <vec4 x="-2.2204460492503131e-16" y="1" z="-0.99999999999999989" w="-1.1102230246251565e-16"/>
+        <vec4 x="-1" y="0" z="0" w="1"/>
+        <vec4 x="-1" y="0" z="-0.99999999999999989" w="2.2204460492503131e-16"/>
+        <vec4 x="-2.2204460492503131e-16" y="0" z="-0.99999999999999989" w="1"/>
+        <vec4 x="-1" y="-0.99999999999999989" z="0" w="2.2204460492503131e-16"/>
+        <vec4 x="-2.2204460492503131e-16" y="-0.99999999999999989" z="0" w="1"/>
+        <vec4 x="0" y="-1" z="-0.99999999999999989" w="0"/>
+        <vec4 x="1" y="0" z="0" w="1"/>
+        <vec4 x="0" y="0" z="1" w="1"/>
+        <vec4 x="0" y="-1" z="0" w="1"/>
+        <vec4 x="-1" y="0" z="0" w="1"/>
+        <vec4 x="0" y="1" z="0" w="1"/>
+        <vec4 x="0" y="0" z="-1" w="1"/>
+        <vec4 x="0" y="-1" z="0" w="-1"/>
+        <vec4 x="0" y="0" z="-0.99999999999999989" w="-1"/>
+        <vec4 x="1.1102230246251565e-16" y="-1" z="-0.99999999999999989" w="-2.2204460492503131e-16"/>
+        <vec4 x="-0.99999999999999978" y="-1" z="0" w="-2.2204460492503131e-16"/>
+        <vec4 x="-0.99999999999999978" y="-1.1102230246251565e-16" z="0" w="-1"/>
+        <vec4 x="-0.99999999999999978" y="0" z="-0.99999999999999989" w="-2.2204460492503131e-16"/>
+        <vec4 x="0" y="1" z="1" w="0"/>
+        <vec4 x="-1" y="1" z="0" w="0"/>
+        <vec4 x="0" y="1" z="0" w="-1"/>
+        <vec4 x="0" y="1" z="-1" w="0"/>
+        <vec4 x="0" y="1" z="0" w="1"/>
+        <vec4 x="1" y="1" z="0" w="0"/>
+        <vec4 x="-1" y="0" z="1" w="0"/>
+        <vec4 x="-2.2204460492503131e-16" y="0" z="1" w="-0.99999999999999978"/>
+        <vec4 x="-1" y="5.5511151231257827e-17" z="1.1102230246251565e-16" w="-0.99999999999999978"/>
+        <vec4 x="-2.2204460492503131e-16" y="-1" z="1.1102230246251565e-16" w="-0.99999999999999978"/>
+        <vec4 x="-2.2204460492503131e-16" y="-0.99999999999999989" z="1" w="5.5511151231257827e-17"/>
+        <vec4 x="-1" y="-1" z="1.1102230246251565e-16" w="0"/>
+        <vec4 x="0" y="1" z="0" w="1"/>
+        <vec4 x="0" y="0" z="-0.99999999999999989" w="1"/>
+        <vec4 x="-1.1102230246251565e-16" y="1" z="-0.99999999999999989" w="2.2204460492503131e-16"/>
+        <vec4 x="0.99999999999999978" y="0" z="-0.99999999999999989" w="2.2204460492503131e-16"/>
+        <vec4 x="0.99999999999999978" y="1.1102230246251565e-16" z="0" w="1"/>
+        <vec4 x="0.99999999999999978" y="1" z="0" w="2.2204460492503131e-16"/>
+        <vec4 x="-1" y="-1" z="0" w="0"/>
+        <vec4 x="0" y="-1" z="-1" w="0"/>
+        <vec4 x="0" y="-1" z="0" w="-1"/>
+        <vec4 x="0" y="-1" z="0" w="1"/>
+        <vec4 x="1" y="-1" z="0" w="0"/>
+        <vec4 x="0" y="-1" z="1" w="0"/>
+        <vec4 x="1" y="1" z="0" w="0"/>
+        <vec4 x="1" y="0" z="0" w="1"/>
+        <vec4 x="1" y="0" z="-1" w="0"/>
+        <vec4 x="1" y="0" z="0" w="-1"/>
+        <vec4 x="1" y="0" z="1" w="0"/>
+        <vec4 x="1" y="-1" z="0" w="0"/>
+        <vec4 x="-1" y="0" z="-1" w="0"/>
+        <vec4 x="0" y="-1" z="-1" w="0"/>
+        <vec4 x="0" y="0" z="-1" w="1"/>
+        <vec4 x="1" y="0" z="-1" w="0"/>
+        <vec4 x="0" y="1" z="-1" w="0"/>
+        <vec4 x="0" y="0" z="-1" w="-1"/>
+        <vec4 x="0" y="0" z="1" w="1"/>
+        <vec4 x="0" y="-1" z="1" w="0"/>
+        <vec4 x="-1" y="0" z="1" w="0"/>
+        <vec4 x="0" y="1" z="1" w="0"/>
+        <vec4 x="0" y="0" z="1" w="-1"/>
+        <vec4 x="1" y="0" z="1" w="0"/>
+        <vec4 x="1" y="0" z="0" w="-1"/>
+        <vec4 x="2.2204460492503131e-16" y="-0.99999999999999989" z="0" w="-1"/>
+        <vec4 x="2.2204460492503131e-16" y="0" z="-0.99999999999999989" w="-1"/>
+        <vec4 x="1" y="-0.99999999999999989" z="0" w="-2.2204460492503131e-16"/>
+        <vec4 x="1" y="0" z="-0.99999999999999989" w="-2.2204460492503131e-16"/>
+        <vec4 x="0" y="-1" z="-0.99999999999999989" w="0"/>
+        <vec4 x="0" y="1" z="1" w="0"/>
+        <vec4 x="-0.99999999999999978" y="1" z="1.1102230246251565e-16" w="-5.5511151231257827e-17"/>
+        <vec4 x="-5.5511151231257827e-17" y="1" z="1.1102230246251565e-16" w="-0.99999999999999978"/>
+        <vec4 x="-0.99999999999999978" y="1.1102230246251565e-16" z="1" w="-5.5511151231257827e-17"/>
+        <vec4 x="-5.5511151231257827e-17" y="1.1102230246251565e-16" z="1" w="-0.99999999999999978"/>
+        <vec4 x="-1" y="0" z="1.1102230246251565e-16" w="-1"/>
+        <vec4 x="-1" y="0" z="-1" w="0"/>
+        <vec4 x="-2.2204460492503131e-16" y="0" z="-1" w="-0.99999999999999978"/>
+        <vec4 x="-1" y="-5.5511151231257827e-17" z="-1.1102230246251565e-16" w="-0.99999999999999978"/>
+        <vec4 x="-2.2204460492503131e-16" y="1" z="-1.1102230246251565e-16" w="-0.99999999999999978"/>
+        <vec4 x="-1" y="1" z="-1.1102230246251565e-16" w="0"/>
+        <vec4 x="-2.2204460492503131e-16" y="0.99999999999999989" z="-1" w="5.5511151231257827e-17"/>
+        <vec4 x="-1" y="0" z="-1" w="0"/>
+        <vec4 x="-1" y="0" z="0" w="-1"/>
+        <vec4 x="-1" y="1" z="0" w="0"/>
+        <vec4 x="-1" y="0" z="1" w="0"/>
+        <vec4 x="-1" y="-1" z="0" w="0"/>
+        <vec4 x="-1" y="0" z="0" w="1"/>
+        <vec4 x="1" y="1" z="0" w="0"/>
+        <vec4 x="1" y="1.1102230246251565e-16" z="0" w="-0.99999999999999978"/>
+        <vec4 x="1" y="0" z="-0.99999999999999989" w="0"/>
+        <vec4 x="2.2204460492503131e-16" y="1" z="-0.99999999999999989" w="1.1102230246251565e-16"/>
+        <vec4 x="2.2204460492503131e-16" y="1" z="0" w="-0.99999999999999978"/>
+        <vec4 x="2.2204460492503131e-16" y="0" z="-0.99999999999999989" w="-0.99999999999999978"/>
+        <vec4 x="0" y="1" z="0" w="1"/>
+        <vec4 x="-0.99999999999999978" y="1" z="0" w="2.2204460492503131e-16"/>
+        <vec4 x="1.1102230246251565e-16" y="1" z="0.99999999999999989" w="2.2204460492503131e-16"/>
+        <vec4 x="0" y="0" z="0.99999999999999989" w="1"/>
+        <vec4 x="-0.99999999999999978" y="1.1102230246251565e-16" z="0" w="1"/>
+        <vec4 x="-0.99999999999999978" y="0" z="0.99999999999999989" w="2.2204460492503131e-16"/>
+        <vec4 x="0" y="0" z="1" w="1"/>
+        <vec4 x="0" y="-1" z="1.1102230246251565e-16" w="1"/>
+        <vec4 x="5.5511151231257827e-17" y="-0.99999999999999989" z="1" w="2.2204460492503131e-16"/>
+        <vec4 x="-0.99999999999999978" y="0" z="1" w="2.2204460492503131e-16"/>
+        <vec4 x="-0.99999999999999978" y="5.5511151231257827e-17" z="1.1102230246251565e-16" w="1"/>
+        <vec4 x="-0.99999999999999978" y="-1" z="1.1102230246251565e-16" w="2.2204460492503131e-16"/>
+        <vec4 x="0" y="-1" z="0" w="1"/>
+        <vec4 x="0.99999999999999978" y="-1" z="0" w="2.2204460492503131e-16"/>
+        <vec4 x="-1.1102230246251565e-16" y="-1" z="-0.99999999999999989" w="2.2204460492503131e-16"/>
+        <vec4 x="0.99999999999999978" y="-1.1102230246251565e-16" z="0" w="1"/>
+        <vec4 x="0" y="0" z="-0.99999999999999989" w="1"/>
+        <vec4 x="0.99999999999999978" y="0" z="-0.99999999999999989" w="2.2204460492503131e-16"/>
+        <vec4 x="-1" y="0" z="0" w="-1"/>
+        <vec4 x="0" y="-1" z="0" w="-1"/>
+        <vec4 x="0" y="0" z="-1" w="-1"/>
+        <vec4 x="1" y="0" z="0" w="-1"/>
+        <vec4 x="0" y="1" z="0" w="-1"/>
+        <vec4 x="0" y="0" z="1" w="-1"/>
+    </tet_vertices>
+    <tets>
+        <tet cell="0" v0="5" v1="4" v2="2" v3="0"/>
+        <tet cell="0" v0="5" v1="4" v2="0" v3="3"/>
+        <tet cell="0" v0="0" v1="5" v2="3" v3="1"/>
+        <tet cell="0" v0="2" v1="5" v2="0" v3="1"/>
+        <tet cell="1" v0="6" v1="7" v2="10" v3="11"/>
+        <tet cell="1" v0="10" v1="6" v2="11" v3="9"/>
+        <tet cell="1" v0="10" v1="6" v2="9" v3="8"/>
+        <tet cell="1" v0="7" v1="6" v2="10" v3="8"/>
+        <tet cell="2" v0="14" v1="17" v2="13" v3="16"/>
+        <tet cell="2" v0="17" v1="15" v2="12" v3="13"/>
+        <tet cell="2" v0="14" v1="17" v2="12" v3="13"/>
+        <tet cell="2" v0="17" v1="15" v2="13" v3="16"/>
+        <tet cell="3" v0="18" v1="20" v2="22" v3="23"/>
+        <tet cell="3" v0="21" v1="18" v2="22" v3="23"/>
+        <tet cell="3" v0="20" v1="18" v2="19" v3="23"/>
+        <tet cell="3" v0="19" v1="18" v2="21" v3="23"/>
+        <tet cell="4" v0="24" v1="26" v2="29" v3="28"/>
+        <tet cell="4" v0="27" v1="24" v2="29" v3="28"/>
+        <tet cell="4" v0="26" v1="24" v2="25" v3="28"/>
+        <tet cell="4" v0="25" v1="24" v2="27" v3="28"/>
+        <tet cell="5" v0="31" v1="33" v2="34" v3="30"/>
+        <tet cell="5" v0="34" v1="31" v2="30" v3="32"/>
+        <tet cell="5" v0="33" v1="31" v2="34" v3="35"/>
+        <tet cell="5" v0="34" v1="31" v2="32" v3="35"/>
+        <tet cell="6" v0="37" v1="36" v2="40" v3="39"/>
+        <tet cell="6" v0="37" v1="36" v2="39" v3="38"/>
+        <tet cell="6" v0="36" v1="39" v2="38" v3="41"/>
+        <tet cell="6" v0="36" v1="40" v2="39" v3="41"/>
+        <tet cell="7" v0="47" v1="45" v2="42" v3="46"/>
+        <tet cell="7" v0="42" v1="47" v2="46" v3="43"/>
+        <tet cell="7" v0="45" v1="47" v2="42" v3="44"/>
+        <tet cell="7" v0="42" v1="47" v2="43" v3="44"/>
+        <tet cell="8" v0="48" v1="50" v2="51" v3="49"/>
+        <tet cell="8" v0="48" v1="53" v2="52" v3="51"/>
+        <tet cell="8" v0="48" v1="50" v2="53" v3="51"/>
+        <tet cell="8" v0="52" v1="48" v2="51" v3="49"/>
+        <tet cell="9" v0="57" v1="55" v2="58" v3="54"/>
+        <tet cell="9" v0="57" v1="55" v2="54" v3="56"/>
+        <tet cell="9" v0="54" v1="57" v2="56" v3="59"/>
+        <tet cell="9" v0="58" v1="57" v2="54" v3="59"/>
+        <tet cell="10" v0="60" v1="61" v2="62" v3="63"/>
+        <tet cell="10" v0="65" v1="60" v2="62" v3="63"/>
+        <tet cell="10" v0="61" v1="60" v2="64" v3="63"/>
+        <tet cell="10" v0="64" v1="60" v2="65" v3="63"/>
+        <tet cell="11" v0="67" v1="70" v2="66" v3="69"/>
+        <tet cell="11" v0="71" v1="68" v2="70" v3="66"/>
+        <tet cell="11" v0="70" v1="68" v2="67" v3="66"/>
+        <tet cell="11" v0="70" v1="71" v2="66" v3="69"/>
+        <tet cell="12" v0="72" v1="73" v2="74" v3="77"/>
+        <tet cell="12" v0="75" v1="72" v2="74" v3="77"/>
+        <tet cell="12" v0="76" v1="73" v2="72" v3="77"/>
+        <tet cell="12" v0="76" v1="72" v2="75" v3="77"/>
+        <tet cell="13" v0="81" v1="82" v2="80" v3="78"/>
+        <tet cell="13" v0="79" v1="81" v2="80" v3="78"/>
+        <tet cell="13" v0="83" v1="81" v2="79" v3="78"/>
+        <tet cell="13" v0="81" v1="83" v2="82" v3="78"/>
+        <tet cell="14" v0="89" v1="84" v2="87" v3="88"/>
+        <tet cell="14" v0="84" v1="87" v2="88" v3="86"/>
+        <tet cell="14" v0="88" v1="84" v2="86" v3="85"/>
+        <tet cell="14" v0="89" v1="84" v2="88" v3="85"/>
+        <tet cell="15" v0="93" v1="91" v2="94" v3="95"/>
+        <tet cell="15" v0="91" v1="92" v2="90" v3="94"/>
+        <tet cell="15" v0="93" v1="91" v2="90" v3="94"/>
+        <tet cell="15" v0="91" v1="92" v2="94" v3="95"/>
+        <tet cell="16" v0="97" v1="99" v2="100" v3="96"/>
+        <tet cell="16" v0="100" v1="97" v2="96" v3="98"/>
+        <tet cell="16" v0="99" v1="97" v2="100" v3="101"/>
+        <tet cell="16" v0="100" v1="97" v2="98" v3="101"/>
+        <tet cell="17" v0="103" v1="105" v2="104" v3="102"/>
+        <tet cell="17" v0="104" v1="105" v2="106" v3="102"/>
+        <tet cell="17" v0="105" v1="103" v2="107" v3="102"/>
+        <tet cell="17" v0="106" v1="105" v2="107" v3="102"/>
+        <tet cell="18" v0="111" v1="110" v2="109" v3="108"/>
+        <tet cell="18" v0="111" v1="113" v2="110" v3="108"/>
+        <tet cell="18" v0="113" v1="111" v2="112" v3="108"/>
+        <tet cell="18" v0="112" v1="111" v2="109" v3="108"/>
+        <tet cell="19" v0="114" v1="116" v2="117" v3="119"/>
+        <tet cell="19" v0="118" v1="114" v2="117" v3="119"/>
+        <tet cell="19" v0="116" v1="114" v2="115" v3="119"/>
+        <tet cell="19" v0="115" v1="114" v2="118" v3="119"/>
+        <tet cell="20" v0="120" v1="123" v2="125" v3="122"/>
+        <tet cell="20" v0="125" v1="120" v2="122" v3="121"/>
+        <tet cell="20" v0="125" v1="120" v2="121" v3="124"/>
+        <tet cell="20" v0="123" v1="120" v2="125" v3="124"/>
+        <tet cell="21" v0="131" v1="129" v2="128" v3="126"/>
+        <tet cell="21" v0="131" v1="129" v2="126" v3="130"/>
+        <tet cell="21" v0="126" v1="131" v2="130" v3="127"/>
+        <tet cell="21" v0="128" v1="131" v2="126" v3="127"/>
+        <tet cell="22" v0="133" v1="132" v2="137" v3="134"/>
+        <tet cell="22" v0="132" v1="136" v2="135" v3="137"/>
+        <tet cell="22" v0="133" v1="132" v2="135" v3="137"/>
+        <tet cell="22" v0="132" v1="136" v2="137" v3="134"/>
+        <tet cell="23" v0="138" v1="139" v2="140" v3="141"/>
+        <tet cell="23" v0="142" v1="138" v2="140" v3="141"/>
+        <tet cell="23" v0="138" v1="143" v2="139" v3="141"/>
+        <tet cell="23" v0="143" v1="138" v2="142" v3="141"/>
+    </tets>
+</mesh4>

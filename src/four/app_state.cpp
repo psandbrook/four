@@ -431,22 +431,22 @@ bool AppState::process_events_and_imgui() {
 
         auto button_size = ImVec2(ImGui::GetContentRegionAvailWidth(), 0);
         if (ImGui::Button("5-cell", button_size)) {
-            new_mesh_path = "5cell.mesh4";
+            new_mesh_path = "5-cell.mesh4";
         }
         if (ImGui::Button("Tesseract", button_size)) {
             new_mesh_path = "tesseract.mesh4";
         }
         if (ImGui::Button("16-cell", button_size)) {
-            new_mesh_path = "16cell.mesh4";
+            new_mesh_path = "16-cell.mesh4";
         }
         if (ImGui::Button("24-cell", button_size)) {
-            new_mesh_path = "24cell.mesh4";
+            new_mesh_path = "24-cell.mesh4";
         }
         if (ImGui::Button("120-cell", button_size)) {
-            new_mesh_path = "120cell.mesh4";
+            new_mesh_path = "120-cell.mesh4";
         }
         if (ImGui::Button("600-cell", button_size)) {
-            new_mesh_path = "600cell.mesh4";
+            new_mesh_path = "600-cell.mesh4";
         }
 
         if (new_mesh_path) {

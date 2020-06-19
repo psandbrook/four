@@ -27,10 +27,18 @@ using Face = std::vector<u32>;
 using Cell = std::vector<u32>;
 
 struct Mesh4 {
+    struct Tet {
+        u32 cell;
+        u32 vertices[4];
+    };
+
     std::vector<glm::dvec4> vertices;
     std::vector<Edge> edges;
     std::vector<Face> faces;
     std::vector<Cell> cells;
+
+    std::vector<glm::dvec4> tet_vertices;
+    std::vector<Tet> tets;
 };
 
 struct FaceHash {
@@ -50,6 +58,7 @@ using CellEquals = FaceEquals;
 
 bool operator==(const Edge& lhs, const Edge& rhs);
 
+void tetrahedralize(Mesh4& mesh);
 bool save_mesh_to_file(const Mesh4& mesh, const char* path);
 Mesh4 load_mesh_from_file(const char* path);
 

@@ -76,10 +76,12 @@ int main(int argc, char** argv) {
 
         } else if (strcmp(arg, "--generate") == 0) {
             CHECK_LT_F(i + 1, argc);
-            auto arg1 = argv[i + 1];
+            const char* arg1 = argv[i + 1];
             Mesh4 mesh = generate_regular_convex_mesh4(rc_mesh4_type(arg1));
+            tetrahedralize(mesh);
+
             auto path = std::string(arg1) + ".mesh4";
-            save_mesh_to_file(mesh, path.c_str());
+            CHECK_F(save_mesh_to_file(mesh, path.c_str()));
             return 0;
         }
     }
