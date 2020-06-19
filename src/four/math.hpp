@@ -232,7 +232,7 @@ inline Mat5 look_at(const hmm_vec4& eye, const hmm_vec4& target, const hmm_vec4&
     Mat5 m_t = translate(-1 * eye);
     hmm_vec4 f = HMM_Normalize(eye - target);
     hmm_vec4 l = HMM_Normalize(cross(up, over, f));
-    hmm_vec4 u = HMM_Normalize(cross(over, f, l));
+    hmm_vec4 u = HMM_Normalize(cross(over, l, f));
     hmm_vec4 o = cross(f, l, u);
     Mat5 m_r = mat5(vec5(l.X, u.X, o.X, f.X, 0), vec5(l.Y, u.Y, o.Y, f.Y, 0), vec5(l.Z, u.Z, o.Z, f.Z, 0),
                     vec5(l.W, u.W, o.W, f.W, 0), vec5(0, 0, 0, 0, 1));
@@ -243,7 +243,7 @@ inline Mat5 look_at_inverse(const hmm_vec4& eye, const hmm_vec4& target, const h
     Mat5 m_t = translate(eye);
     hmm_vec4 f = HMM_Normalize(eye - target);
     hmm_vec4 l = HMM_Normalize(cross(up, over, f));
-    hmm_vec4 u = HMM_Normalize(cross(over, f, l));
+    hmm_vec4 u = HMM_Normalize(cross(over, l, f));
     hmm_vec4 o = cross(f, l, u);
     Mat5 m_r = mat5(vec5(l, 0), vec5(u, 0), vec5(o, 0), vec5(f, 0), vec5(0, 0, 0, 0, 1));
     return m_t * m_r;
