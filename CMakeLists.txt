@@ -18,6 +18,7 @@ set(SOURCES
   four/mesh.cpp
   four/render.cpp
   four/app_state.cpp
+  four/triangulate.cpp
 )
 
 # Add prefix

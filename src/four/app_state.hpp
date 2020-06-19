@@ -3,8 +3,8 @@
 #include <four/math.hpp>
 #include <four/mesh.hpp>
 
-#include <SDL.h>
-#include <imgui.h>
+struct SDL_Window;
+struct ImGuiIO;
 
 namespace four {
 

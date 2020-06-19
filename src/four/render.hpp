@@ -1,18 +1,12 @@
 #pragma once
 
 #include <four/app_state.hpp>
-#include <four/mesh.hpp>
+#include <four/triangulate.hpp>
 #include <four/utility.hpp>
 
-#include <Eigen/Core>
-#include <SDL.h>
-#include <boost/bimap.hpp>
-#include <boost/bimap/unordered_set_of.hpp>
 #include <glad/glad.h>
-#include <loguru.hpp>
 
-#include <unordered_map>
-#include <vector>
+struct SDL_Window;
 
 namespace four {
 
@@ -107,18 +101,7 @@ private:
     std::vector<f32> projected_vertices_f32;
     std::vector<u32> selected_cell_tri_faces;
 
-    // Variables used in triangulate()
-    struct TriangulateState {
-        using VertexIMapping = boost::bimap<boost::bimaps::unordered_set_of<u32>, boost::bimaps::unordered_set_of<u32>>;
-        VertexIMapping face2_vertex_i_mapping;
-
-        std::vector<hmm_vec2> face2_vertices;
-        std::vector<Edge> face2_edges;
-        Eigen::MatrixX2d mesh_v;
-        Eigen::MatrixX2i mesh_e;
-        Eigen::MatrixX2d triangulate_out_v;
-        Eigen::MatrixX3i triangulate_out_f;
-    } triangulate_state;
+    TriangulateFn triangulate;
 
     // ------------------------------------------------
 
@@ -130,8 +113,5 @@ private:
     size_t add_vbo(GLenum usage);
     void update_window_size();
     void update_mesh_buffers();
-
-    void triangulate(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
-                     std::vector<u32>& out);
 };
 } // namespace four
