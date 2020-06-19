@@ -84,12 +84,12 @@ void GlBuffer::buffer_data_realloc(const void* data, size_t size) {
 }
 } // namespace gl_buffer_base
 
-ShaderProgram::ShaderProgram(u32 vertex_shader, Slice<u32> fragment_shaders) {
+ShaderProgram::ShaderProgram(u32 vertex_shader, std::initializer_list<u32> fragment_shaders) {
     id = glCreateProgram();
     glAttachShader(id, vertex_shader);
 
-    for (size_t i = 0; i < fragment_shaders.len; i++) {
-        glAttachShader(id, fragment_shaders[i]);
+    for (u32 e : fragment_shaders) {
+        glAttachShader(id, e);
     }
 
     glLinkProgram(id);
@@ -225,9 +225,9 @@ void Framebuffer::bind() {
     glBindFramebuffer(GL_FRAMEBUFFER, id);
 }
 
-VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, Slice<u32> vbos_, Slice<VertexSpec> specs,
-                                     ElementBufferObject ebo)
-        : shader_program(shader_program), vbos(vbos_.data, vbos_.data + vbos_.len), ebo(ebo) {
+VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, std::initializer_list<u32> vbos_,
+                                     std::initializer_list<VertexSpec> specs, ElementBufferObject ebo)
+        : shader_program(shader_program), vbos(vbos_.begin(), vbos_.end()), ebo(ebo) {
 
     for (size_t i = 0; i < vbos.size(); i++) {
         auto& vbo = get_vbo(i);
@@ -244,7 +244,7 @@ VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, Slice<u32> v
 
     for (size_t i = 0; i < vbos.size(); i++) {
         auto& vbo = get_vbo(i);
-        VertexSpec spec = specs[i];
+        VertexSpec spec = specs.begin()[i];
         glBindBuffer(vbo.type, vbo.id);
         glVertexAttribPointer(spec.index, spec.size, spec.type, false, spec.stride, (void*)spec.offset);
         glEnableVertexAttribArray(spec.index);
@@ -294,8 +294,7 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     {
         u32 vert_shader = compile_shader("n4d-vert.glsl", GL_VERTEX_SHADER);
         u32 frag_shader = compile_shader("n4d-frag.glsl", GL_FRAGMENT_SHADER);
-        u32 frag_shaders[] = {frag_shader};
-        n4d_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
+        n4d_shader_prog = ShaderProgram(vert_shader, {frag_shader});
 
         u32 wireframe_vertices = add_vbo(GL_STREAM_DRAW);
         VertexSpec vertex_spec = {
@@ -306,14 +305,11 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
                 .offset = 0,
         };
 
-        VertexSpec vertex_specs[] = {vertex_spec};
-        u32 vbos[] = {wireframe_vertices};
-
         ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
-        wireframe = VertexArrayObject(&n4d_shader_prog, AS_SLICE(vbos), AS_SLICE(vertex_specs), wireframe_ebo);
+        wireframe = VertexArrayObject(&n4d_shader_prog, {wireframe_vertices}, {vertex_spec}, wireframe_ebo);
 
         ElementBufferObject selected_cell_ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-        selected_cell = VertexArrayObject(&n4d_shader_prog, AS_SLICE(vbos), AS_SLICE(vertex_specs), selected_cell_ebo);
+        selected_cell = VertexArrayObject(&n4d_shader_prog, {wireframe_vertices}, {vertex_spec}, selected_cell_ebo);
     }
 
     // Cross-section
@@ -329,8 +325,7 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     {
         u32 vert_shader = compile_shader("cross-vert.glsl", GL_VERTEX_SHADER);
         u32 frag_shader = compile_shader("cross-frag.glsl", GL_FRAGMENT_SHADER);
-        u32 frag_shaders[] = {frag_shader};
-        cross_section_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
+        cross_section_shader_prog = ShaderProgram(vert_shader, {frag_shader});
 
         u32 vertices = add_vbo(GL_STREAM_DRAW);
         u32 colors = add_vbo(GL_STREAM_DRAW);
@@ -344,18 +339,15 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
         };
 
         ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-        u32 vbos[] = {vertices, colors};
-        VertexSpec vertex_specs[] = {cross_vertex_spec, color_spec};
-        cross_section = VertexArrayObject(&cross_section_shader_prog, AS_SLICE(vbos), AS_SLICE(vertex_specs), ebo);
+        cross_section =
+                VertexArrayObject(&cross_section_shader_prog, {vertices, colors}, {cross_vertex_spec, color_spec}, ebo);
     }
 
     // XZ grid
     {
         u32 vert_shader = compile_shader("xz-grid-vert.glsl", GL_VERTEX_SHADER);
         u32 frag_shader = compile_shader("xz-grid-frag.glsl", GL_FRAGMENT_SHADER);
-
-        u32 frag_shaders[] = {frag_shader};
-        xz_grid_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
+        xz_grid_shader_prog = ShaderProgram(vert_shader, {frag_shader});
 
         u32 xz_grid_vertices_vbo = add_vbo(GL_STATIC_DRAW);
         std::vector<f32> grid_vertices;
@@ -388,9 +380,7 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
         }
         ebo.buffer_elements(indices_vec.data(), (s32)indices_vec.size());
 
-        u32 vbos[] = {xz_grid_vertices_vbo};
-        VertexSpec vertex_specs[] = {cross_vertex_spec};
-        xz_grid = VertexArrayObject(&xz_grid_shader_prog, AS_SLICE(vbos), AS_SLICE(vertex_specs), ebo);
+        xz_grid = VertexArrayObject(&xz_grid_shader_prog, {xz_grid_vertices_vbo}, {cross_vertex_spec}, ebo);
     }
 
     ShaderProgram* shader_progs[] = {&n4d_shader_prog, &cross_section_shader_prog, &xz_grid_shader_prog};
@@ -402,8 +392,7 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     {
         u32 vert_shader = compile_shader("divider-vert.glsl", GL_VERTEX_SHADER);
         u32 frag_shader = compile_shader("divider-frag.glsl", GL_FRAGMENT_SHADER);
-        u32 frag_shaders[] = {frag_shader};
-        divider_bar_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
+        divider_bar_shader_prog = ShaderProgram(vert_shader, {frag_shader});
 
         u32 vertices_vbo = add_vbo(GL_STATIC_DRAW);
 
@@ -425,9 +414,7 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 
         ElementBufferObject ebo(GL_STATIC_DRAW, GL_TRIANGLES);
         ebo.buffer_elements(indices, ARRAY_SIZE(indices));
-        u32 vbos[] = {vertices_vbo};
-        VertexSpec vertex_specs[] = {cross_vertex_spec};
-        divider_bar = VertexArrayObject(&divider_bar_shader_prog, AS_SLICE(vbos), AS_SLICE(vertex_specs), ebo);
+        divider_bar = VertexArrayObject(&divider_bar_shader_prog, {vertices_vbo}, {cross_vertex_spec}, ebo);
     }
 }
 
@@ -460,17 +447,14 @@ void Renderer::do_mesh_changed() {
         if (cell.size() == 4) {
             // The cell is already a tetrahedron
 
-            size_t vertex_indices_size = 0;
-            u32 vertex_indices[4];
+            BoundedVector<u32, 4> vertex_indices;
             for (u32 f_i : cell) {
                 const Face& f = s.mesh.faces[f_i];
                 for (u32 e_i : f) {
                     const Edge& e = s.mesh.edges[e_i];
                     for (u32 v_i : e.vertices) {
-                        if (!contains(Slice(vertex_indices_size, vertex_indices), v_i)) {
-                            CHECK_LT_F(vertex_indices_size, 4u);
-                            vertex_indices[vertex_indices_size] = v_i;
-                            vertex_indices_size++;
+                        if (!contains(vertex_indices, v_i)) {
+                            vertex_indices.push_back(v_i);
                             out_tets.push_back((u32)tet_mesh_vertices.size());
                             tet_mesh_vertices.push_back(s.mesh.vertices[v_i]);
                         }
@@ -531,8 +515,7 @@ redo_cross_section:
         };
         // clang-format on
 
-        s32 intersect_len = 0;
-        hmm_vec3 intersect[6];
+        BoundedVector<hmm_vec3, 6> intersect;
 
         for (s32 i = 0; i < 6; i++) {
             const Edge& e = edges[i];
@@ -544,23 +527,21 @@ redo_cross_section:
                     // Edge intersects with hyperplane at a point
                     hmm_vec4 point = d * l + l_0;
                     DCHECK_F(float_eq(point.W, 0.0));
-                    intersect[intersect_len] = vec3(point);
-                    intersect_len++;
+                    intersect.push_back(vec3(point));
                 }
             }
         }
 
-        s32 merged_intersect_len = 0;
-        hmm_vec3 merged_intersect[6];
+        BoundedVector<hmm_vec3, 6> merged_intersect;
 
         {
             f64 merge_epsilon = epsilon;
-            for (s32 i = 0; i < intersect_len; i++) {
-                const auto& v = intersect[i];
+            for (s32 i = 0; i < (s32)intersect.len; i++) {
+                const auto& v = intersect[(size_t)i];
                 bool unique = true;
-                for (s32 j = 0; j < intersect_len; j++) {
+                for (s32 j = 0; j < (s32)intersect.len; j++) {
                     if (i != j) {
-                        const auto& u = intersect[j];
+                        const auto& u = intersect[(size_t)j];
                         if (float_eq(v.X, u.X, merge_epsilon) && float_eq(v.Y, u.Y, merge_epsilon)
                             && float_eq(v.Z, u.Z, merge_epsilon)) {
 
@@ -571,29 +552,28 @@ redo_cross_section:
                 }
 
                 if (unique) {
-                    if (merged_intersect_len >= 4) {
+                    if (merged_intersect.len >= 4) {
                         // Redo merging with a greater epsilon
                         merge_epsilon *= 10.0;
-                        merged_intersect_len = 0;
+                        merged_intersect.len = 0;
                         i = -1;
                         continue;
                     } else {
-                        merged_intersect[merged_intersect_len] = v;
-                        merged_intersect_len++;
+                        merged_intersect.push_back(v);
                     }
                 }
             }
         }
 
-        CHECK_LE_F(merged_intersect_len, 4);
+        CHECK_LE_F(merged_intersect.len, 4u);
 
-        if (merged_intersect_len == 3) {
+        if (merged_intersect.len == 3) {
             // Intersection is a triangle
 
             for (s32 i = 0; i < 3; i++) {
                 DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
                 cross_tris.push_back((u32)(cross_vertices.size() / 3));
-                for (f64 e : merged_intersect[i].Elements) {
+                for (f64 e : merged_intersect[(size_t)i].Elements) {
                     cross_vertices.push_back((f32)e);
                 }
                 for (f32 e : tet.color) {
@@ -601,7 +581,7 @@ redo_cross_section:
                 }
             }
 
-        } else if (merged_intersect_len == 4) {
+        } else if (merged_intersect.len == 4) {
             // Intersection is a quadrilateral
 
             hmm_vec3 p0 = merged_intersect[0];
@@ -613,7 +593,7 @@ redo_cross_section:
             for (s32 i = 0; i < 4; i++) {
                 DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
                 v_mapping[i] = (u32)(cross_vertices.size() / 3);
-                for (f64 e : merged_intersect[i].Elements) {
+                for (f64 e : merged_intersect[(size_t)i].Elements) {
                     cross_vertices.push_back((f32)e);
                 }
                 for (f32 e : tet.color) {

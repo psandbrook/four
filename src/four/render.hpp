@@ -5,6 +5,7 @@
 
 #include <glad/glad.h>
 
+#include <initializer_list>
 #include <memory>
 #include <random>
 
@@ -30,12 +31,12 @@ public:
 };
 } // namespace gl_buffer_base
 
-struct VertexBufferObject final : public gl_buffer_base::GlBuffer {
+struct VertexBufferObject : public gl_buffer_base::GlBuffer {
     VertexBufferObject() {}
     VertexBufferObject(GLenum usage) : GlBuffer(GL_ARRAY_BUFFER, usage) {}
 };
 
-struct ElementBufferObject final : public gl_buffer_base::GlBuffer {
+struct ElementBufferObject : public gl_buffer_base::GlBuffer {
     GLenum primitive;
     s32 primitive_count = 0;
 
@@ -47,7 +48,7 @@ struct ElementBufferObject final : public gl_buffer_base::GlBuffer {
     void buffer_elements_realloc(const void* data, s32 n);
 };
 
-struct UniformBufferObject final : public gl_buffer_base::GlBuffer {
+struct UniformBufferObject : public gl_buffer_base::GlBuffer {
     const char* name;
     u32 binding;
 
@@ -74,7 +75,7 @@ struct ShaderProgram {
     std::unordered_map<const char*, s32, CStrHash, CStrEquals> uniform_locations;
 
     ShaderProgram() {}
-    ShaderProgram(u32 vertex_shader, Slice<u32> fragment_shaders);
+    ShaderProgram(u32 vertex_shader, std::initializer_list<u32> fragment_shaders);
 
     void set_uniform_f32(const char* name, f32 value);
     void set_uniform_bool(const char* name, bool value);
@@ -101,7 +102,8 @@ struct VertexArrayObject {
     ElementBufferObject ebo;
 
     VertexArrayObject() {}
-    VertexArrayObject(ShaderProgram* shader_program, Slice<u32> vbos, Slice<VertexSpec> specs, ElementBufferObject ebo);
+    VertexArrayObject(ShaderProgram* shader_program, std::initializer_list<u32> vbos,
+                      std::initializer_list<VertexSpec> specs, ElementBufferObject ebo);
 
     VertexBufferObject& get_vbo(size_t index);
     void draw();

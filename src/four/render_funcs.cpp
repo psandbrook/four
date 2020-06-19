@@ -165,36 +165,27 @@ bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
 
     hmm_vec4 normal;
     {
-        u32 other_edge_indices[2];
+        bool found_edge = false;
+        u32 found_edge_i;
         hmm_vec4 other_edges[2];
-        s32 other_edges_size = 0;
 
         for (u32 f_i : cell) {
             const Face& f = faces[f_i];
             for (u32 e_i : f) {
 
-                if (e_i == edge0_i) {
-                    continue;
-                }
-
-                bool skip_edge = false;
-                for (s32 i = 0; i < other_edges_size; i++) {
-                    if (e_i == other_edge_indices[i]) {
-                        skip_edge = true;
-                    }
-                }
-
-                if (skip_edge) {
+                if (e_i == edge0_i || (found_edge && e_i == found_edge_i)) {
                     continue;
                 }
 
                 const Edge& e = edges[e_i];
                 if (e.v0 == v0_i || e.v1 == v0_i) {
                     u32 other_vi = e.v0 == v0_i ? e.v1 : e.v0;
-                    other_edge_indices[other_edges_size] = e_i;
-                    other_edges[other_edges_size] = vertices[other_vi] - v0;
-                    other_edges_size++;
-                    if (other_edges_size == ARRAY_SIZE(other_edges)) {
+                    if (!found_edge) {
+                        found_edge = true;
+                        found_edge_i = e_i;
+                        other_edges[0] = vertices[other_vi] - v0;
+                    } else {
+                        other_edges[1] = vertices[other_vi] - v0;
                         goto find_v0_edges_end;
                     }
                 }

@@ -38,31 +38,51 @@ inline bool float_eq(f64 a, f64 b, f64 epsilon = default_epsilon) {
     }
 }
 
-template <class T>
-struct Slice {
+template <class T, size_t N>
+struct BoundedVector {
     size_t len;
-    T* data;
+    T data[N];
 
-    Slice() noexcept {}
-    Slice(size_t len, T* data) noexcept : len(len), data(data) {}
+    BoundedVector() noexcept : len(0) {}
+
+    T* begin() noexcept {
+        return data;
+    }
+
+    T* end() noexcept {
+        return data + len;
+    }
+
+    const T* cbegin() const noexcept {
+        return data;
+    }
+
+    const T* cend() const noexcept {
+        return data + len;
+    }
 
     T& operator[](size_t index) noexcept {
-        CHECK_LT_F(index, len);
+        DCHECK_LT_F(index, len);
         return data[index];
     }
 
     const T& operator[](size_t index) const noexcept {
-        CHECK_LT_F(index, len);
+        DCHECK_LT_F(index, len);
         return data[index];
     }
+
+    void push_back(const T& value) {
+        DCHECK_LT_F(len, N);
+        data[len] = value;
+        len++;
+    }
+
+    void push_back(T&& value) {
+        DCHECK_LT_F(len, N);
+        data[len] = std::forward<T>(value);
+        len++;
+    }
 };
-
-#define AS_SLICE(arr) (four::Slice(ARRAY_SIZE((arr)), (arr)))
-
-template <class T>
-inline Slice<const T> c_slice(size_t len, const T* data) {
-    return Slice<const T>(len, data);
-}
 
 template <class T>
 inline void hash_combine(size_t& seed, const T& value) {
@@ -94,17 +114,9 @@ inline bool contains(const std::unordered_set<T>& set, const T& value) {
     return set.find(value) != set.cend();
 }
 
-template <class T>
-inline bool contains(Slice<const T> slice, const T& value) {
-    const T* begin = slice.data;
-    const T* end = &slice.data[slice.len];
-    return std::find(begin, end, value) != end;
-}
-
-template <class T>
-inline bool contains(Slice<T> slice, const T& value) {
-    Slice<const T> slice_(slice.len, slice.data);
-    return contains(slice_, value);
+template <class T, size_t N>
+inline bool contains(const BoundedVector<T, N>& vec, const T& value) {
+    return std::find(vec.cbegin(), vec.cend(), value) != vec.cend();
 }
 
 template <class K, class V, class Hash, class Equals>
