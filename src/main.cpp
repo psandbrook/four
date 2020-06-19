@@ -5,6 +5,9 @@
 #include <glad/glad.h>
 #include <loguru.hpp>
 
+#include <chrono>
+#include <thread>
+
 using namespace four;
 
 namespace {
@@ -31,8 +34,8 @@ struct SdlGuard {
             SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
 #endif
 
-        window = SDL_CreateWindow("four", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0,
-                                  SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN_DESKTOP);
+        window = SDL_CreateWindow("four", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480,
+                                  SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
 
         CHECK_NOTNULL_F(window, "%s", SDL_GetError());
 
@@ -92,8 +95,16 @@ int main(int argc, char** argv) {
         }
 
         // Render
-        renderer.render();
-        frames++;
+        if (steps == 0) {
+            f64 sleep_ms = step_ms - lag_ms - 1.0;
+            if (sleep_ms > 0.0) {
+                s64 sleep_ns = (s64)(sleep_ms * 1000000.0);
+                std::this_thread::sleep_for(std::chrono::nanoseconds(sleep_ns));
+            }
+        } else {
+            renderer.render();
+            frames++;
+        }
     }
 
     return 0;

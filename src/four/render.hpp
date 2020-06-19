@@ -80,7 +80,7 @@ struct VertexArrayObject {
 struct Renderer {
 private:
     SDL_Window* window;
-    const AppState* state;
+    AppState* state;
 
     // Variables initialized in the constructor
     // ----------------------------------------
@@ -92,7 +92,6 @@ private:
     VertexArrayObject wireframe;
     VertexArrayObject selected_cell;
     VertexArrayObject xz_grid;
-    VertexArrayObject camera_target;
 
     hmm_mat4 projection;
 
@@ -118,11 +117,12 @@ private:
     // ------------------------------------------------
 
 public:
-    Renderer(SDL_Window* window, const AppState* state);
+    Renderer(SDL_Window* window, AppState* state);
     void render();
 
 private:
     size_t add_vbo(GLenum usage);
+    void update_window_size();
 
     void triangulate(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
                      std::vector<u32>& out);

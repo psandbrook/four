@@ -94,11 +94,11 @@ void ElementBufferObject::buffer_data(const void* data, s32 n) {
     primitive_count = n;
 }
 
-VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, Slice<VertexBufferObject*> vbos,
+VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, Slice<VertexBufferObject*> vbos_,
                                      Slice<VertexSpec> specs, ElementBufferObject ebo)
-        : shader_program(shader_program), vbos(vbos.data, vbos.data + vbos.len), ebo(ebo) {
+        : shader_program(shader_program), vbos(vbos_.data, vbos_.data + vbos_.len), ebo(ebo) {
 
-    for (auto vbo : this->vbos) {
+    for (auto vbo : vbos) {
         CHECK_EQ_F(vbo->type, (u32)GL_ARRAY_BUFFER);
     }
 
@@ -110,8 +110,8 @@ VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, Slice<Vertex
     glGenVertexArrays(1, &id);
     glBindVertexArray(id);
 
-    for (size_t i = 0; i < this->vbos.size(); i++) {
-        auto vbo = this->vbos[i];
+    for (size_t i = 0; i < vbos.size(); i++) {
+        auto vbo = vbos[i];
         VertexSpec spec = specs[i];
         glBindBuffer(vbo->type, vbo->id);
         glVertexAttribPointer(spec.index, spec.size, spec.type, false, spec.stride, (void*)spec.offset);
@@ -134,15 +134,20 @@ size_t Renderer::add_vbo(GLenum usage) {
     return insert_back(vbos, new_vertex_buffer_object(usage));
 }
 
-Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), state(state) {
-    const auto& s = *state;
+void Renderer::update_window_size() {
+    s32 window_width, window_height;
+    SDL_GL_GetDrawableSize(window, &window_width, &window_height);
+    glViewport(0, 0, window_width, window_height);
+    projection = HMM_Perspective(90, (f64)window_width / (f64)window_height, 0.1, 100.0);
+}
+
+Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(state) {
+    auto& s = *state;
 
     SDL_GL_SetSwapInterval(1);
 
-    s32 window_width, window_height;
-    SDL_GL_GetDrawableSize(window, &window_width, &window_height);
+    update_window_size();
 
-    glViewport(0, 0, window_width, window_height);
     glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
     glEnable(GL_DEPTH_TEST);
 
@@ -223,12 +228,6 @@ Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), 
     }
     vbos[xz_grid_colors].buffer_data(xz_grid_colors_vec.data(), xz_grid_colors_vec.size() * sizeof(f32));
 
-    size_t camera_target_vertex = add_vbo(GL_STREAM_DRAW);
-
-    size_t camera_target_color = add_vbo(GL_STATIC_DRAW);
-    f32 camera_target_color_value[] = {1.0f, 1.0f, 1.0f};
-    vbos[camera_target_color].buffer_data(camera_target_color_value, sizeof(camera_target_color_value));
-
     ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
     wireframe_ebo.buffer_data(s.mesh.edges.data(), 2 * (s32)s.mesh.edges.size());
 
@@ -252,20 +251,15 @@ Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), 
 
     VertexBufferObject* xz_grid_vbos[] = {&vbos[xz_grid_vertices], &vbos[xz_grid_colors]};
     xz_grid = VertexArrayObject(&shader_program, AS_SLICE(xz_grid_vbos), AS_SLICE(wireframe_vertex_specs), xz_grid_ebo);
-
-    ElementBufferObject camera_target_ebo(GL_STATIC_DRAW, GL_POINTS);
-    u32 camera_target_index = 0;
-    camera_target_ebo.buffer_data(&camera_target_index, 1);
-
-    VertexBufferObject* camera_target_vbos[] = {&vbos[camera_target_vertex], &vbos[camera_target_color]};
-    camera_target = VertexArrayObject(&shader_program, AS_SLICE(camera_target_vbos), AS_SLICE(wireframe_vertex_specs),
-                                      camera_target_ebo);
-
-    projection = HMM_Perspective(90, (f64)window_width / (f64)window_height, 0.1, 100.0);
 }
 
 void Renderer::render() {
-    const auto& s = *state;
+    auto& s = *state;
+
+    if (s.window_size_changed) {
+        s.window_size_changed = false;
+        update_window_size();
+    }
 
     // Perform 4D to 3D projection
     {
@@ -296,12 +290,6 @@ void Renderer::render() {
         }
     }
 
-    f32 camera_target_v[3];
-    for (s32 i = 0; i < 3; i++) {
-        camera_target_v[i] = (f32)s.camera_target.Elements[i];
-    }
-    camera_target.vbos[0]->buffer_data(camera_target_v, sizeof(camera_target_v));
-
     wireframe.vbos[0]->buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * 3 * sizeof(f32));
     selected_cell.ebo.buffer_data(selected_cell_tri_faces.data(), (s32)selected_cell_tri_faces.size());
 
@@ -319,9 +307,6 @@ void Renderer::render() {
 
     glLineWidth(0.5f);
     xz_grid.draw();
-
-    glPointSize(5.0f);
-    camera_target.draw();
 
     selected_cell.draw();
 
@@ -379,7 +364,7 @@ void Renderer::triangulate(const std::vector<hmm_vec3>& vertices, const std::vec
             if (face2_vertex_i_mapping.left.find(v_i) == face2_vertex_i_mapping.left.end()) {
                 face2_vertex_i_mapping.left.insert(VertexIMapping::left_value_type(v_i, (u32)face2_vertices.size()));
                 hmm_vec3 v_ = transform(to_2d_trans, vertices[v_i]);
-                CHECK_F(float_eq(v_.Z, 0.0));
+                DCHECK_F(float_eq(v_.Z, 0.0, 0.00000000000001));
                 face2_vertices.push_back(vec2(v_));
             }
         }
@@ -395,7 +380,7 @@ void Renderer::triangulate(const std::vector<hmm_vec3>& vertices, const std::vec
 
             // NOTE: Consider floating-point error. See
             // https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
-            CHECK_F(float_eq(x, 0.0));
+            DCHECK_F(float_eq(x, 0.0));
         }
     }
 #endif

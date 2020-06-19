@@ -9,6 +9,10 @@
 
 namespace four {
 
+inline f64 sq(f64 x) {
+    return x * x;
+}
+
 union Vec5 {
     f64 elements[5];
     struct {
@@ -209,6 +213,148 @@ inline hmm_vec4 project_perspective(Vec5 v, f64 near) {
     return HMM_Vec4(d * v.X, d * v.Y, d * v.Z, HMM_Length(v_4 - d * v_4));
 }
 
+// 3D Rotors
+// =========
+
+// Code adapted from http://marctenbosch.com/quaternions/code.htm
+
+struct Bivec3 {
+    f64 xy, xz, yz;
+};
+
+struct Rotor3 {
+    f64 s;
+    Bivec3 B; // This stores (b `outer` a) for a rotor (ab)
+};
+
+inline Bivec3 bivec3(f64 xy, f64 xz, f64 yz) {
+    Bivec3 result = {};
+    result.xy = xy;
+    result.xz = xz;
+    result.yz = yz;
+    return result;
+}
+
+// Outer product
+inline Bivec3 outer(hmm_vec3 a, hmm_vec3 b) {
+    Bivec3 result = {};
+    result.xy = (a.X * b.Y) - (a.Y * b.X);
+    result.xz = (a.X * b.Z) - (a.Z * b.X);
+    result.yz = (a.Y * b.Z) - (a.Z * b.Y);
+    return result;
+}
+
+inline Bivec3 normalize(Bivec3 B) {
+    Bivec3 result = {};
+    f64 length = sqrt(sq(B.xy) + sq(B.xz) + sq(B.yz));
+    result.xy = B.xy / length;
+    result.xz = B.xz / length;
+    result.yz = B.yz / length;
+    return result;
+}
+
+inline f64 length_squared(Rotor3 r) {
+    const auto& B = r.B;
+    return sq(r.s) + sq(B.xy) + sq(B.xz) + sq(B.yz);
+}
+
+inline f64 length(Rotor3 r) {
+    return sqrt(length_squared(r));
+}
+
+inline Rotor3 normalize(Rotor3 r) {
+    const auto& B = r.B;
+    Rotor3 result = {};
+
+    f64 l = length(r);
+    result.s = r.s / l;
+    result.B.xy = B.xy / l;
+    result.B.xz = B.xz / l;
+    result.B.yz = B.yz / l;
+    return result;
+}
+
+inline Rotor3 rotor3(hmm_vec3 a, hmm_vec3 b) {
+    Rotor3 result = {};
+    result.s = HMM_Dot(a, b);
+
+    Bivec3 minus_B = outer(b, a);
+    result.B.xy = minus_B.xy;
+    result.B.xz = minus_B.xz;
+    result.B.yz = minus_B.yz;
+
+    result = normalize(result);
+    return result;
+}
+
+// Construct the rotor that rotates `angle` radians in the given plane.
+inline Rotor3 rotor3(f64 angle, Bivec3 plane) {
+    plane = normalize(plane);
+
+    Rotor3 result = {};
+    result.s = cos(angle / 2.0);
+
+    f64 sin_a = sin(angle / 2.0);
+    result.B.xy = -sin_a * plane.xy;
+    result.B.xz = -sin_a * plane.xz;
+    result.B.yz = -sin_a * plane.yz;
+
+    return result;
+}
+
+inline Rotor3 operator*(const Rotor3& lhs, const Rotor3& rhs) {
+    Rotor3 result;
+    result.s = (lhs.s * rhs.s) - (lhs.B.xy * rhs.B.xy) - (lhs.B.xz * rhs.B.xz) - (lhs.B.yz * rhs.B.yz);
+    result.B.xy = (lhs.B.xy * rhs.s) + (lhs.s * rhs.B.xy) + (lhs.B.yz * rhs.B.xz) - (lhs.B.xz * rhs.B.yz);
+    result.B.xz = (lhs.B.xz * rhs.s) + (lhs.s * rhs.B.xz) - (lhs.B.yz * rhs.B.xy) + (lhs.B.xy * rhs.B.yz);
+    result.B.yz = (lhs.B.yz * rhs.s) + (lhs.s * rhs.B.yz) + (lhs.B.xz * rhs.B.xy) - (lhs.B.xy * rhs.B.xz);
+    return result;
+}
+
+inline hmm_vec3 rotate(Rotor3 r, hmm_vec3 v) {
+    const auto& B = r.B;
+
+    // (ba)v -- vector part
+    hmm_vec3 q = {};
+    q.X = (r.s * v.X) + (v.Y * B.xy) + (v.Z * B.xz);
+    q.Y = (r.s * v.Y) - (v.X * B.xy) + (v.Z * B.yz);
+    q.Z = (r.s * v.Z) - (v.X * B.xz) - (v.Y * B.yz);
+
+    // (ba)v -- trivector part
+    f64 q_xyz = (-v.X * B.yz) + (v.Y * B.xz) - (v.Z * B.xy);
+
+    hmm_vec3 result = {};
+    result.X = (r.s * q.X) + (q.Y * B.xy) + (q.Z * B.xz) - (q_xyz * B.yz);
+    result.Y = (r.s * q.Y) - (q.X * B.xy) + (q_xyz * B.xz) + (q.Z * B.yz);
+    result.Z = (r.s * q.Z) - (q_xyz * B.xy) - (q.X * B.xz) - (q.Y * B.yz);
+
+    return result;
+}
+
+// Equivalent to conjugate for quaternions
+inline Rotor3 reverse(Rotor3 r) {
+    Rotor3 result = {};
+    result.s = r.s;
+    result.B.xy = -r.B.xy;
+    result.B.xz = -r.B.xz;
+    result.B.yz = -r.B.yz;
+    return result;
+}
+
+// Rotate a rotor `a` by a rotor `r`
+inline Rotor3 rotate(Rotor3 r, Rotor3 a) {
+    return r * a * reverse(r);
+}
+
+inline hmm_mat4 to_mat4(Rotor3 r) {
+    hmm_vec3 v_x = rotate(r, HMM_Vec3(1, 0, 0));
+    hmm_vec3 v_y = rotate(r, HMM_Vec3(0, 1, 0));
+    hmm_vec3 v_z = rotate(r, HMM_Vec3(0, 0, 1));
+    return mat4(HMM_Vec4v(v_x, 0), HMM_Vec4v(v_y, 0), HMM_Vec4v(v_z, 0), HMM_Vec4(0, 0, 0, 1));
+}
+
+// =========
+
 // 4D Rotors
 // =========
 
@@ -264,4 +410,7 @@ inline hmm_vec4 rotate(Rotor4 r, hmm_vec4 v) {
 
     return result;
 }
+
+// =========
+
 } // namespace four
