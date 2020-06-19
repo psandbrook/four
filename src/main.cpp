@@ -3,23 +3,19 @@
 
 #include <stdio.h>
 
-#include <stdexcept>
-
-// TODO: Change this so throwing an exception is not necessary
-class SdlContext {
+class SdlGuard {
 public:
-    SdlContext() {
-        if (SDL_Init(SDL_INIT_VIDEO)) {
-            throw std::runtime_error("SDL could not be initialised.");
-        }
-    }
-    ~SdlContext() {
+    ~SdlGuard() {
         SDL_Quit();
     }
 };
 
 int main() {
-    SdlContext sdl_context;
+    if (SDL_Init(SDL_INIT_VIDEO)) {
+        return 1;
+    }
+
+    SdlGuard sdl_guard;
 
     // FIXME: Check these function calls for errors
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
