@@ -233,8 +233,12 @@ void Renderer::calculate_cross_section() {
                     // this case. Instead, we bump the mesh's w position and
                     // hope for points of intersection instead.
                     s.bump_mesh_pos_w();
+
+                    // Recalculate all intersections
                     calc_tet_mesh_vertices_world();
-                    i--;
+                    intersect_len = 0;
+                    i = -1;
+                    continue;
                 }
             } else {
                 f64 d = HMM_Dot(p_0 - l_0, n) / HMM_Dot(l, n);
@@ -248,78 +252,80 @@ void Renderer::calculate_cross_section() {
             }
         }
 
-        if (intersect_len > 0) {
-            if (intersect_len == 3) {
-                for (s32 i = 0; i < 3; i++) {
-                    DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
-                    cross_tris.push_back((u32)(cross_vertices.size() / 3));
-                    for (f64 e : intersect[i].Elements) {
-                        cross_vertices.push_back((f32)e);
-                    }
-                    for (f32 e : tet.color) {
-                        cross_colors.push_back(e);
-                    }
+        if (intersect_len == 3) {
+            // Intersection is a triangle
+
+            for (s32 i = 0; i < 3; i++) {
+                DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
+                cross_tris.push_back((u32)(cross_vertices.size() / 3));
+                for (f64 e : intersect[i].Elements) {
+                    cross_vertices.push_back((f32)e);
                 }
-
-            } else if (intersect_len == 4) {
-                hmm_vec3 p0 = intersect[0];
-                hmm_vec3 p1 = intersect[1];
-                hmm_vec3 p2 = intersect[2];
-                hmm_vec3 p3 = intersect[3];
-                u32 p_mapping[4];
-
-                for (s32 i = 0; i < 4; i++) {
-                    DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
-                    p_mapping[i] = (u32)(cross_vertices.size() / 3);
-                    for (f64 e : intersect[i].Elements) {
-                        cross_vertices.push_back((f32)e);
-                    }
-                    for (f32 e : tet.color) {
-                        cross_colors.push_back(e);
-                    }
+                for (f32 e : tet.color) {
+                    cross_colors.push_back(e);
                 }
+            }
 
-                hmm_vec3 l0 = p1 - p0;
-                hmm_vec3 l1 = p2 - p0;
-                hmm_vec3 l2 = p3 - p0;
-                DCHECK_F(float_eq(HMM_Dot(HMM_Cross(l0, l1), l2), 0.0));
+        } else if (intersect_len == 4) {
+            // Intersection is a quadrilateral
 
-                f64 sum0 = HMM_LengthSquared(p1 - p0) + HMM_LengthSquared(p3 - p2);
-                f64 sum1 = HMM_LengthSquared(p2 - p0) + HMM_LengthSquared(p3 - p1);
-                f64 sum2 = HMM_LengthSquared(p3 - p0) + HMM_LengthSquared(p2 - p1);
-                u32 tris[6];
-                if (sum0 > sum1 && sum0 > sum2) {
-                    // p0 p1 is a diagonal
-                    tris[0] = 0;
-                    tris[1] = 1;
-                    tris[2] = 2;
+            hmm_vec3 p0 = intersect[0];
+            hmm_vec3 p1 = intersect[1];
+            hmm_vec3 p2 = intersect[2];
+            hmm_vec3 p3 = intersect[3];
+            u32 p_mapping[4];
 
-                    tris[3] = 0;
-                    tris[4] = 1;
-                    tris[5] = 3;
-                } else if (sum1 > sum0 && sum1 > sum2) {
-                    // p0 p2 is a diagonal
-                    tris[0] = 0;
-                    tris[1] = 2;
-                    tris[2] = 1;
-
-                    tris[3] = 0;
-                    tris[4] = 2;
-                    tris[5] = 3;
-                } else {
-                    // p0 p3 is a diagonal
-                    tris[0] = 0;
-                    tris[1] = 3;
-                    tris[2] = 1;
-
-                    tris[3] = 0;
-                    tris[4] = 3;
-                    tris[5] = 2;
+            for (s32 i = 0; i < 4; i++) {
+                DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
+                p_mapping[i] = (u32)(cross_vertices.size() / 3);
+                for (f64 e : intersect[i].Elements) {
+                    cross_vertices.push_back((f32)e);
                 }
-
-                for (u32 e : tris) {
-                    cross_tris.push_back(p_mapping[e]);
+                for (f32 e : tet.color) {
+                    cross_colors.push_back(e);
                 }
+            }
+
+            hmm_vec3 l0 = p1 - p0;
+            hmm_vec3 l1 = p2 - p0;
+            hmm_vec3 l2 = p3 - p0;
+            DCHECK_F(float_eq(HMM_Dot(HMM_Cross(l0, l1), l2), 0.0));
+
+            f64 sum0 = HMM_LengthSquared(p1 - p0) + HMM_LengthSquared(p3 - p2);
+            f64 sum1 = HMM_LengthSquared(p2 - p0) + HMM_LengthSquared(p3 - p1);
+            f64 sum2 = HMM_LengthSquared(p3 - p0) + HMM_LengthSquared(p2 - p1);
+            u32 tris[6];
+            if (sum0 > sum1 && sum0 > sum2) {
+                // p0 p1 is a diagonal
+                tris[0] = 0;
+                tris[1] = 1;
+                tris[2] = 2;
+
+                tris[3] = 0;
+                tris[4] = 1;
+                tris[5] = 3;
+            } else if (sum1 > sum0 && sum1 > sum2) {
+                // p0 p2 is a diagonal
+                tris[0] = 0;
+                tris[1] = 2;
+                tris[2] = 1;
+
+                tris[3] = 0;
+                tris[4] = 2;
+                tris[5] = 3;
+            } else {
+                // p0 p3 is a diagonal
+                tris[0] = 0;
+                tris[1] = 3;
+                tris[2] = 1;
+
+                tris[3] = 0;
+                tris[4] = 3;
+                tris[5] = 2;
+            }
+
+            for (u32 e : tris) {
+                cross_tris.push_back(p_mapping[e]);
             }
         }
     }
