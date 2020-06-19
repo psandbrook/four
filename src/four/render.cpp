@@ -157,7 +157,7 @@ void Renderer::update_window_size() {
     s32 window_width, window_height;
     SDL_GL_GetDrawableSize(window, &window_width, &window_height);
     glViewport(0, 0, window_width, window_height);
-    projection = HMM_Perspective(90, (f64)window_width / (f64)window_height, 0.1, 100.0);
+    projection = HMM_Perspective(90, (f64)window_width / (f64)window_height, 0.01, 1000.0);
 }
 
 void Renderer::do_mesh_changed() {
@@ -167,9 +167,12 @@ void Renderer::do_mesh_changed() {
     tet_mesh_vertices.clear();
     tet_mesh_tets.clear();
 
-    for (const Cell& cell : s.mesh.cells) {
+    for (s64 i = 0; i < (s64)s.mesh.cells.size(); i++) {
+        LOG_F(1, "Tetrahedralizing cell %li", i);
         out_tets.clear();
-        render_funcs.tetrahedralize(s.mesh.vertices, s.mesh.edges, s.mesh.faces, cell, tet_mesh_vertices, out_tets);
+        bool success = render_funcs.tetrahedralize(s.mesh.vertices, s.mesh.edges, s.mesh.faces, s.mesh.cells[(size_t)i],
+                                                   tet_mesh_vertices, out_tets);
+        CHECK_F(success);
         CHECK_EQ_F((s64)out_tets.size() % 4, 0);
 
         f32 color[3] = {color_dist(s.random_eng_32), color_dist(s.random_eng_32), color_dist(s.random_eng_32)};
@@ -233,6 +236,7 @@ void Renderer::calculate_cross_section() {
                     // this case. Instead, we bump the mesh's w position and
                     // hope for points of intersection instead.
                     s.bump_mesh_pos_w();
+                    LOG_F(WARNING, "New mesh w: %.16f", s.mesh_pos.W);
 
                     // Recalculate all intersections
                     calc_tet_mesh_vertices_world();
@@ -485,8 +489,6 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
                                 xz_grid_ebo);
 
     // -----------
-
-    do_mesh_changed();
 }
 
 void Renderer::render() {

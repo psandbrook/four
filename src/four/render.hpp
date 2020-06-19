@@ -89,7 +89,7 @@ public:
     void triangulate(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
                      std::vector<u32>& out);
 
-    void tetrahedralize(const std::vector<hmm_vec4>& vertices, const std::vector<Edge>& edges,
+    bool tetrahedralize(const std::vector<hmm_vec4>& vertices, const std::vector<Edge>& edges,
                         const std::vector<Face>& faces, const Cell& cell, std::vector<hmm_vec4>& out_vertices,
                         std::vector<u32>& out_tets);
 };

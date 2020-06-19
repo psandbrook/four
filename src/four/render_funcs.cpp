@@ -147,7 +147,7 @@ void RenderFuncs::triangulate(const std::vector<hmm_vec3>& vertices, const std::
     }
 }
 
-void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const std::vector<Edge>& edges,
+bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const std::vector<Edge>& edges,
                                  const std::vector<Face>& faces, const Cell& cell, std::vector<hmm_vec4>& out_vertices,
                                  std::vector<u32>& out_tets) {
 
@@ -226,7 +226,7 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
 
 #ifdef FOUR_DEBUG
     {
-        hmm_vec4 v0_ = vec4(to_3d_trans_inverse * to_3d_trans * vec5(v0, 1));
+        hmm_vec4 v0_ = transform(to_3d_trans_inverse * to_3d_trans, v0);
         DCHECK_F(float_eq(v0.X, v0_.X) && float_eq(v0.Y, v0_.Y) && float_eq(v0.Z, v0_.Z) && float_eq(v0.W, v0_.W));
     }
 #endif
@@ -241,10 +241,10 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
         for (u32 e_i : f) {
             const Edge& e = edges[e_i];
             for (u32 v_i : e.vertices) {
-                hmm_vec4 v = vertices[v_i];
                 if (!has_key(s.cell3_vertex_i_mapping, v_i)) {
                     s.cell3_vertex_i_mapping.emplace(v_i, s.tet_mesh_v.size());
-                    hmm_vec4 v_ = vec4(to_3d_trans * vec5(v, 1.0));
+                    hmm_vec4 v = vertices[v_i];
+                    hmm_vec4 v_ = transform(to_3d_trans, v);
                     DCHECK_F(float_eq(v_.W, 0.0));
                     hmm_vec3 v_3 = vec3(v_);
                     s.tet_mesh_v.push_back({v_3.X, v_3.Y, v_3.Z});
@@ -281,6 +281,25 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
         s.tet_mesh_f.push_back(std::move(this_mesh_f));
     }
 
+    hmm_vec3 centroid = HMM_Vec3(0, 0, 0);
+    for (const auto& v : s.tet_mesh_v) {
+        centroid += HMM_Vec3(v[0], v[1], v[2]);
+    }
+
+    centroid.X /= (f64)s.tet_mesh_v.size();
+    centroid.Y /= (f64)s.tet_mesh_v.size();
+    centroid.Z /= (f64)s.tet_mesh_v.size();
+
+    hmm_mat4 temp_transform = HMM_Translate(-1.0 * centroid);
+    hmm_mat4 temp_transform_inverse = HMM_Translate(centroid);
+
+    for (auto& v : s.tet_mesh_v) {
+        hmm_vec3 v_ = transform(temp_transform, HMM_Vec3(v[0], v[1], v[2]));
+        v[0] = v_.X;
+        v[1] = v_.Y;
+        v[2] = v_.Z;
+    }
+
 #ifdef FOUR_DEBUG
     // All vertices of the cell should be on the same hyperplane
     for (const auto& entry : s.cell3_vertex_i_mapping) {
@@ -297,7 +316,12 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
     s.tet_out_f.clear();
     int result = igl::copyleft::tetgen::tetrahedralize(s.tet_mesh_v, s.tet_mesh_f, "pY", s.tet_out_v, s.tet_out_t,
                                                        s.tet_out_f);
-    CHECK_EQ_F(result, 0, "TetGen failed");
+    fflush(stdout);
+    fflush(stderr);
+    if (result != 0) {
+        LOG_F(ERROR, "TetGen failed");
+        return false;
+    }
 
     s.tet_out_vertex_i_mapping.clear();
     for (size_t i = 0; i < s.tet_out_v.size(); i++) {
@@ -305,7 +329,8 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
         const auto& v = s.tet_out_v[i];
         CHECK_EQ_F(v.size(), 3u);
         hmm_vec3 v_ = HMM_Vec3(v[0], v[1], v[2]);
-        out_vertices.push_back(vec4(to_3d_trans_inverse * vec5(vec4(v_, 0), 1)));
+        v_ = transform(temp_transform_inverse, v_);
+        out_vertices.push_back(transform(to_3d_trans_inverse, vec4(v_, 0)));
     }
 
     for (const auto& tet : s.tet_out_t) {
@@ -314,5 +339,7 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
             out_tets.push_back(s.tet_out_vertex_i_mapping.at((u32)i));
         }
     }
+
+    return true;
 }
 } // namespace four
