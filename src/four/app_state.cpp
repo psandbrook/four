@@ -21,12 +21,12 @@ AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path)
     imgui_io->Fonts->AddFontFromFileTTF("data/DejaVuSans.ttf", 18.0f);
 }
 
-bool AppState::handle_events() {
+bool AppState::process_events_and_imgui() {
+
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
 
         ImGui_ImplSDL2_ProcessEvent(&event);
-
         if (imgui_io->WantCaptureKeyboard && event.type == SDL_KEYDOWN) {
             continue;
         }
@@ -117,37 +117,61 @@ bool AppState::handle_events() {
     ImGui::ShowDemoWindow();
 #endif
 
-    ImGui::Begin("Mesh selection", NULL, 0);
-    const char* new_mesh_path = NULL;
+    // Mesh selection window
+    {
+        ImGui::Begin("Mesh selection");
+        const char* new_mesh_path = NULL;
 
-    if (ImGui::Button("5-cell")) {
-        new_mesh_path = "data/5cell.mesh4";
-    }
-    if (ImGui::Button("Tesseract")) {
-        new_mesh_path = "data/tesseract.mesh4";
-    }
-    if (ImGui::Button("16-cell")) {
-        new_mesh_path = "data/16cell.mesh4";
-    }
-    if (ImGui::Button("24-cell")) {
-        new_mesh_path = "data/24cell.mesh4";
-    }
-    if (ImGui::Button("120-cell")) {
-        new_mesh_path = "data/120cell.mesh4";
-    }
-    if (ImGui::Button("600-cell")) {
-        new_mesh_path = "data/600cell.mesh4";
+        if (ImGui::Button("5-cell")) {
+            new_mesh_path = "data/5cell.mesh4";
+        }
+        if (ImGui::Button("Tesseract")) {
+            new_mesh_path = "data/tesseract.mesh4";
+        }
+        if (ImGui::Button("16-cell")) {
+            new_mesh_path = "data/16cell.mesh4";
+        }
+        if (ImGui::Button("24-cell")) {
+            new_mesh_path = "data/24cell.mesh4";
+        }
+        if (ImGui::Button("120-cell")) {
+            new_mesh_path = "data/120cell.mesh4";
+        }
+        if (ImGui::Button("600-cell")) {
+            new_mesh_path = "data/600cell.mesh4";
+        }
+
+        ImGui::End();
+        if (new_mesh_path) {
+            mesh = load_mesh_from_file(new_mesh_path);
+            mesh_changed = true;
+        }
     }
 
-    ImGui::End();
+    // Selected cell window
+    {
+        ImGui::Begin("Selected cell", NULL, ImGuiWindowFlags_NoScrollbar);
+        ImGui::PushItemWidth(-1);
+        auto list_box_size = ImVec2(0, ImGui::GetWindowHeight() - 1.5f * ImGui::GetWindowContentRegionMin().y);
+        if (ImGui::ListBoxHeader("##empty", list_box_size)) {
+            for (s32 i = 0; i < (s32)mesh.cells.size(); i++) {
+
+                const auto fmt_str = "%i";
+                s32 str_size = snprintf(NULL, 0, fmt_str, i);
+                selected_cell_str.resize((size_t)str_size + 1);
+                snprintf(selected_cell_str.data(), selected_cell_str.size(), fmt_str, i);
+
+                if (ImGui::Selectable(selected_cell_str.data(), selected_cell == i)) {
+                    selected_cell = i;
+                }
+            }
+            ImGui::ListBoxFooter();
+        }
+        ImGui::PopItemWidth();
+        ImGui::End();
+    }
 
     ImGui::EndFrame();
-
-    if (new_mesh_path) {
-        mesh = load_mesh_from_file(new_mesh_path);
-        mesh_changed = true;
-    }
-
     return false;
 }
 

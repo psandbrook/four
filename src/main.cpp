@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
         }
 
         // Process input
-        if (state.handle_events()) {
+        if (state.process_events_and_imgui()) {
             break;
         }
 

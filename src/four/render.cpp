@@ -332,7 +332,7 @@ void Renderer::render() {
 
     // Triangulate selected cell
     selected_cell_tri_faces.clear();
-    for (u32 face_i : s.mesh.cells[s.selected_cell]) {
+    for (u32 face_i : s.mesh.cells[(size_t)s.selected_cell]) {
         const auto& face = s.mesh.faces[face_i];
         triangulate(projected_vertices, s.mesh.edges, face, selected_cell_tri_faces);
     }
