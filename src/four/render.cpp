@@ -187,7 +187,7 @@ Framebuffer::Framebuffer(u32 width, u32 height) : width(width), height(height) {
 
     glGenRenderbuffers(2, rbos);
     glBindRenderbuffer(GL_RENDERBUFFER, color_rbo);
-    glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_RGB, width, height);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_SRGB8, width, height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color_rbo);
 
     glBindRenderbuffer(GL_RENDERBUFFER, depth_rbo);
