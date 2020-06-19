@@ -294,8 +294,9 @@ void AppState::step(const f64 ms) {
     }
 }
 
-Mat5 mk_model_view_mat(hmm_vec4 pos, hmm_vec4 v_scale, Bivec4 rotation, Camera4 camera) {
+Mat5 mk_model_view_mat(const hmm_vec4& pos, const hmm_vec4& v_scale, const Bivec4& rotation, const Camera4& camera) {
 
+#if 1
     Rotor4 rotation_r = rotor4(rotation.xy, outer(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0)))
                         * rotor4(rotation.xz, outer(vec4(1, 0, 0, 0), vec4(0, 0, 1, 0)))
                         * rotor4(rotation.xw, outer(vec4(1, 0, 0, 0), vec4(0, 0, 0, 1)))
@@ -304,6 +305,9 @@ Mat5 mk_model_view_mat(hmm_vec4 pos, hmm_vec4 v_scale, Bivec4 rotation, Camera4 
                         * rotor4(rotation.zw, outer(vec4(0, 0, 1, 0), vec4(0, 0, 0, 1)));
 
     Mat5 model = translate(pos) * to_mat5(rotation_r) * scale(v_scale);
+#else
+    Mat5 model = translate(pos) * rotate_euler(rotation) * scale(v_scale);
+#endif
     Mat5 view = look_at(camera.pos, camera.target, camera.up, camera.over);
     return view * model;
 }

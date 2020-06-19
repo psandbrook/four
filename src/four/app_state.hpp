@@ -59,6 +59,6 @@ private:
     void change_mesh(const char* path);
 };
 
-Mat5 mk_model_view_mat(hmm_vec4 pos, hmm_vec4 scale, Bivec4 rotation, Camera4 camera);
+Mat5 mk_model_view_mat(const hmm_vec4& pos, const hmm_vec4& scale, const Bivec4& rotation, const Camera4& camera);
 
 } // namespace four

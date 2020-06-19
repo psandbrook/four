@@ -542,4 +542,30 @@ inline Mat5 to_mat5(const Rotor4& r) {
 
 // =========
 
+inline Mat5 rotate_euler(const Bivec4& B) {
+    return
+            //  XY
+            mat5(vec5(cos(B.xy), -sin(B.xy), 0, 0, 0), vec5(sin(B.xy), cos(B.xy), 0, 0, 0), vec5(0, 0, 1, 0, 0),
+                 vec5(0, 0, 0, 1, 0), vec5(0, 0, 0, 0, 1))
+
+            // XZ
+            * mat5(vec5(cos(-B.xz), 0, sin(-B.xz), 0, 0), vec5(0, 1, 0, 0, 0), vec5(-sin(-B.xz), 0, cos(-B.xz), 0, 0),
+                   vec5(0, 0, 0, 1, 0), vec5(0, 0, 0, 0, 1))
+
+            // XW
+            * mat5(vec5(cos(B.xw), 0, 0, -sin(B.xw), 0), vec5(0, 1, 0, 0, 0), vec5(0, 0, 1, 0, 0),
+                   vec5(sin(B.xw), 0, 0, cos(B.xw), 0), vec5(0, 0, 0, 0, 1))
+
+            // YZ
+            * mat5(vec5(1, 0, 0, 0, 0), vec5(0, cos(B.yz), -sin(B.yz), 0, 0), vec5(0, sin(B.yz), cos(B.yz), 0, 0),
+                   vec5(0, 0, 0, 1, 0), vec5(0, 0, 0, 0, 1))
+
+            // YW
+            * mat5(vec5(1, 0, 0, 0, 0), vec5(0, cos(B.yw), 0, sin(B.yw), 0), vec5(0, 0, 1, 0, 0),
+                   vec5(0, -sin(B.yw), 0, cos(B.yw), 0), vec5(0, 0, 0, 0, 1))
+
+            // ZW
+            * mat5(vec5(1, 0, 0, 0, 0), vec5(0, 1, 0, 0, 0), vec5(0, 0, cos(B.zw), sin(B.zw), 0),
+                   vec5(0, 0, -sin(B.zw), cos(B.zw), 0), vec5(0, 0, 0, 0, 1));
+}
 } // namespace four

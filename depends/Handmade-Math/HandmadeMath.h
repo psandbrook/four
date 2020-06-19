@@ -337,6 +337,10 @@ typedef union hmm_vec2
     {
         return Elements[Index];
     }
+    inline double operator[](const int &Index) const
+    {
+        return Elements[Index];
+    }
 #endif
 } hmm_vec2;
 
@@ -388,7 +392,7 @@ typedef union hmm_vec3
     {
         return Elements[Index];
     }
-    inline const double &operator[](const int &Index) const
+    inline double operator[](const int &Index) const
     {
         return Elements[Index];
     }
@@ -457,7 +461,7 @@ typedef union hmm_vec4
         return Elements[Index];
     }
 
-    inline const double &operator[](const int &Index) const
+    inline double operator[](const int &Index) const
     {
         return Elements[Index];
     }
@@ -467,7 +471,8 @@ typedef union hmm_vec4
 typedef union hmm_mat4
 {
     double Elements[4][4];
-        
+    hmm_vec4 columns[4];
+
 #ifdef HANDMADE_MATH__USE_SSE
     __m128 Columns[4];
 
@@ -477,17 +482,13 @@ typedef union hmm_mat4
 #endif
 
 #ifdef __cplusplus
-    inline hmm_vec4 operator[](const int &Index)
+    inline hmm_vec4 &operator[](const int &Index)
     {
-        double* col = Elements[Index];
-
-        hmm_vec4 result;
-        result.Elements[0] = col[0];
-        result.Elements[1] = col[1];
-        result.Elements[2] = col[2];
-        result.Elements[3] = col[3];
-
-        return result;
+        return columns[Index];
+    }
+    inline const hmm_vec4 &operator[](const int &Index) const
+    {
+        return columns[Index];
     }
 #endif
 } hmm_mat4;
