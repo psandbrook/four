@@ -8,7 +8,7 @@ SOURCE_SUBDIRS := four
 BUILD_DIR := build
 BUILD_SUBDIRS := $(addprefix $(BUILD_DIR)/,$(SOURCE_SUBDIRS))
 
-SOURCES := main.cpp four/mesh.cpp four/utility.cpp four/math.cpp four/generate.cpp
+SOURCES := main.cpp four/mesh.cpp four/utility.cpp four/generate.cpp
 
 BIN := 4dtest
 PREFIXED_BIN := $(addprefix $(BUILD_DIR)/,$(BIN))
