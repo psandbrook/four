@@ -257,11 +257,11 @@ size_t Renderer::add_vbo(GLenum usage) {
 
 void Renderer::do_window_size_changed() {
     auto& s = *state;
-    cross_buffer.destroy();
+    combined_buffer.destroy();
     projection_buffer.destroy();
 
     vis_width_screen = (u32)(s.window_width - s.screen_x(1.0 - s.visualization_width));
-    cross_buffer = Framebuffer(vis_width_screen, (u32)s.window_height);
+    combined_buffer = Framebuffer(vis_width_screen, (u32)s.window_height);
     projection_buffer = Framebuffer(vis_width_screen, (u32)s.window_height);
 }
 
@@ -668,17 +668,17 @@ void Renderer::render() {
     hmm_mat4 view = HMM_LookAt(s.camera_pos, s.camera_target, s.camera_up);
     const f64 fov = 85.0;
 
+    combined_buffer.bind();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glViewport(0, 0, combined_buffer.width, combined_buffer.height);
+
+    hmm_mat4 vp = HMM_Perspective(fov, combined_buffer.width / (f64)combined_buffer.height, 0.01, 1000.0) * view;
+    f32 vp_f32[16];
+    mat4_to_f32(vp, vp_f32);
+    view_projection_ubo.buffer_data(vp_f32, sizeof(vp_f32));
+
     // Draw cross-section
     {
-        cross_buffer.bind();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        glViewport(0, 0, cross_buffer.width, cross_buffer.height);
-        hmm_mat4 vp = HMM_Perspective(fov, cross_buffer.width / (f64)cross_buffer.height, 0.01, 1000.0) * view;
-        f32 vp_f32[16];
-        mat4_to_f32(vp, vp_f32);
-        view_projection_ubo.buffer_data(vp_f32, sizeof(vp_f32));
-
         glLineWidth(0.5f);
         xz_grid.draw();
 
@@ -693,15 +693,17 @@ void Renderer::render() {
 
     // Draw projection
     {
-        projection_buffer.bind();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        if (s.split) {
+            projection_buffer.bind();
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glViewport(0, 0, projection_buffer.width, projection_buffer.height);
 
-        glViewport(0, 0, projection_buffer.width, projection_buffer.height);
-        hmm_mat4 vp =
-                HMM_Perspective(fov, projection_buffer.width / (f64)projection_buffer.height, 0.01, 1000.0) * view;
-        f32 vp_f32[16];
-        mat4_to_f32(vp, vp_f32);
-        view_projection_ubo.buffer_data(vp_f32, sizeof(vp_f32));
+            hmm_mat4 vp =
+                    HMM_Perspective(fov, projection_buffer.width / (f64)projection_buffer.height, 0.01, 1000.0) * view;
+            f32 vp_f32[16];
+            mat4_to_f32(vp, vp_f32);
+            view_projection_ubo.buffer_data(vp_f32, sizeof(vp_f32));
+        }
 
         glLineWidth(0.5f);
         xz_grid.draw();
@@ -756,19 +758,28 @@ void Renderer::render() {
         wireframe.draw();
     }
 
-    f64 cross_width = std::round(vis_width_screen * s.divider);
-    f64 projection_width = vis_width_screen - cross_width;
+    if (s.split) {
+        f64 cross_width = std::round(vis_width_screen * s.divider);
+        f64 projection_width = vis_width_screen - cross_width;
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, cross_buffer.id);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glBlitFramebuffer((s32)(cross_buffer.width / 2.0 - cross_width / 2.0), 0,
-                      (s32)(cross_buffer.width / 2.0 + cross_width / 2.0), s.window_height, 0, 0, (s32)cross_width,
-                      s.window_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, combined_buffer.id);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glBlitFramebuffer((s32)(combined_buffer.width / 2.0 - cross_width / 2.0), 0,
+                          (s32)(combined_buffer.width / 2.0 + cross_width / 2.0), s.window_height, 0, 0,
+                          (s32)cross_width, s.window_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, projection_buffer.id);
-    glBlitFramebuffer((s32)(projection_buffer.width / 2.0 - projection_width / 2.0), 0,
-                      (s32)(projection_buffer.width / 2.0 + projection_width / 2.0), s.window_height, (s32)cross_width,
-                      0, (s32)(cross_width + projection_width), s.window_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, projection_buffer.id);
+        glBlitFramebuffer((s32)(projection_buffer.width / 2.0 - projection_width / 2.0), 0,
+                          (s32)(projection_buffer.width / 2.0 + projection_width / 2.0), s.window_height,
+                          (s32)cross_width, 0, (s32)(cross_width + projection_width), s.window_height,
+                          GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    } else {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, combined_buffer.id);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glBlitFramebuffer(0, 0, combined_buffer.width, s.window_height, 0, 0, combined_buffer.width, s.window_height,
+                          GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    }
 
     bind_default_framebuffer();
     ImGui::Render();

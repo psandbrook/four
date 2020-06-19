@@ -191,9 +191,14 @@ bool AppState::process_events_and_imgui() {
     hmm_vec4 prev_new_mesh_scale = new_mesh_scale;
     Rotation4 prev_new_mesh_rotation = new_mesh_rotation;
 
-    // 4D Transform window
+    ImGui::BeginChild("ui_left", ImVec2(ImGui::GetContentRegionAvailWidth() * 0.5f, 0), true, window_flags);
+
+    ImGui::Checkbox("Split", &split);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
     {
-        ImGui::BeginChild("transform", ImVec2(ImGui::GetContentRegionAvailWidth() * 0.5f, 0), true, window_flags);
         const f32 speed = 0.01f;
         const auto fmt = "%.3f";
 
@@ -262,17 +267,14 @@ bool AppState::process_events_and_imgui() {
             }
             ImGui::EndTabBar();
         }
-
-        ImGui::EndChild();
     }
 
+    ImGui::EndChild();
+
     ImGui::SameLine(0.0f, 0.0f);
-    ImGui::BeginChild("ui_right", ImVec2(0, 0), false, window_flags | ImGuiWindowFlags_NoScrollbar);
+    ImGui::BeginChild("ui_right", ImVec2(0, 0), true, window_flags);
 
-    // Mesh selection
     {
-        ImGui::BeginChild("load_mesh", ImVec2(0, ImGui::GetContentRegionAvail().y * 0.2f), true, window_flags);
-
         const char* new_mesh_path = NULL;
         ImGui::Text("Load");
 
@@ -296,15 +298,15 @@ bool AppState::process_events_and_imgui() {
             new_mesh_path = "600cell.mesh4";
         }
 
-        ImGui::EndChild();
         if (new_mesh_path) {
             change_mesh(new_mesh_path);
         }
     }
 
-    // Selected cell window
+    ImGui::Spacing();
+    ImGui::Separator();
+
     {
-        ImGui::BeginChild("selected_cell", ImVec2(0, 0), true, window_flags | ImGuiWindowFlags_NoScrollbar);
         ImGui::Text("Selected cell");
         ImGui::Checkbox("Cycle", &selected_cell_cycle);
 
@@ -325,7 +327,6 @@ bool AppState::process_events_and_imgui() {
             ImGui::ListBoxFooter();
         }
         ImGui::PopItemWidth();
-        ImGui::EndChild();
     }
 
     ImGui::EndChild();

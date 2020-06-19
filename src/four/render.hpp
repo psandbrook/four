@@ -138,7 +138,7 @@ private:
 
     UniformBufferObject view_projection_ubo;
 
-    Framebuffer cross_buffer;
+    Framebuffer combined_buffer;
     Framebuffer projection_buffer;
 
     ShaderProgram n4d_shader_prog;

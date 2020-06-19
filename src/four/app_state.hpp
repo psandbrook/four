@@ -46,7 +46,9 @@ public:
 
     s32 window_width;
     s32 window_height;
+
     f64 visualization_width = 0.85;
+    bool split = true;
     f64 divider = 0.5;
 
     Mesh4 mesh;
