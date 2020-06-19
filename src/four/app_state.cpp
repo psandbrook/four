@@ -22,7 +22,7 @@ inline bool imgui_drag_f64(const char* label, f64* value, f32 speed, const char*
 
 void AppState::change_mesh(const char* path) {
     mesh = load_mesh_from_file(path);
-    mesh_pos = {0, 0, 0, 2.5};
+    mesh_pos = {0, 0, 0, 8};
     mesh_scale = {1, 1, 1, 1};
     if (mesh_rotation.is_rotor) {
         mesh_rotation.rotor = rotor4();
@@ -286,19 +286,32 @@ bool AppState::process_events_and_imgui() {
         ImGui::End();
     }
 
+    {
+        ImGui::Begin("Visualization mode", NULL, default_window_flags);
+        if (ImGui::Button("Projection")) {
+            cross_section = false;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cross section")) {
+            cross_section = true;
+        }
+        ImGui::End();
+    }
+
     ImGui::EndFrame();
 
     bool transform_is_valid = true;
-#if 0
-    Mat5 mv = mk_model_view_mat(new_mesh_pos, new_mesh_scale, new_mesh_rotation, camera4);
-    for (const auto& v : mesh.vertices) {
-        Vec5 view_v = mv * vec5(v, 1);
-        if (view_v.W > -camera4.near) {
-            transform_is_valid = false;
-            break;
+    if (!cross_section) {
+        Mat5 model = mk_model_mat(new_mesh_pos, new_mesh_scale, new_mesh_rotation);
+        Mat5 mv = mk_model_view_mat(model, camera4);
+        for (const auto& v : mesh.vertices) {
+            Vec5 view_v = mv * vec5(v, 1);
+            if (view_v.W > -camera4.near) {
+                transform_is_valid = false;
+                break;
+            }
         }
     }
-#endif
 
     if (transform_is_valid) {
         mesh_pos = new_mesh_pos;

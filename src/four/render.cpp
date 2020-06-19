@@ -356,12 +356,30 @@ void Renderer::render() {
         do_mesh_changed();
     }
 
-    // Cross-section
-    // Hyperplane is p_0 = (0, 0, 0, 0), n = (0, 0, 0, 1)
-    cross_vertices.clear();
-    cross_colors.clear();
-    cross_tris.clear();
-    {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    hmm_mat4 view = HMM_LookAt(s.camera_pos, s.camera_target, s.camera_up);
+    hmm_mat4 vp = projection * view;
+
+    f32 vp_f32[16];
+    for (s32 col = 0; col < 4; col++) {
+        for (s32 row = 0; row < 4; row++) {
+            vp_f32[col * 4 + row] = (f32)vp[col][row];
+        }
+    }
+
+    xz_grid_shader_prog.set_uniform_mat4("vp", vp_f32);
+
+    glLineWidth(0.5f);
+    xz_grid.draw();
+
+    if (s.cross_section) {
+        // Cross-section
+        // Hyperplane is p_0 = (0, 0, 0, 0), n = (0, 0, 0, 1)
+        cross_vertices.clear();
+        cross_colors.clear();
+        cross_tris.clear();
+
         struct Intersect {
             enum Type { none = 0, point, line } type;
             union {
@@ -551,15 +569,22 @@ void Renderer::render() {
                 }
             }
         }
-    }
 
-#if 0
-    // Perform 4D to 3D projection
-    {
+        CHECK_EQ_F(cross_vertices.size(), cross_colors.size());
+        cross_section.vbos[0]->buffer_data(cross_vertices.data(), cross_vertices.size() * sizeof(f32));
+        cross_section.vbos[1]->buffer_data(cross_colors.data(), cross_colors.size() * sizeof(f32));
+        cross_section.ebo.buffer_data(cross_tris.data(), (s32)cross_tris.size());
+
+        cross_section_shader_prog.set_uniform_mat4("vp", vp_f32);
+        cross_section.draw();
+
+    } else {
+        // Perform 4D to 3D projection
         projected_vertices.clear();
         projected_vertices3.clear();
 
-        Mat5 mv = mk_model_view_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation, s.camera4);
+        Mat5 model = mk_model_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation);
+        Mat5 mv = mk_model_view_mat(model, s.camera4);
         for (const hmm_vec4& v : s.mesh.vertices) {
             Vec5 view_v = mv * vec5(v, 1);
             hmm_vec4 v_ = project_perspective(view_v, s.camera4.near);
@@ -567,72 +592,41 @@ void Renderer::render() {
             projected_vertices3.push_back(vec3(v_));
         }
         DCHECK_EQ_F(s.mesh.vertices.size(), projected_vertices.size());
-    }
 
-    // Triangulate selected cell
-    selected_cell_tri_faces.clear();
-    for (u32 face_i : s.mesh.cells[(size_t)s.selected_cell]) {
-        const auto& face = s.mesh.faces[face_i];
-        render_funcs.triangulate(projected_vertices3, s.mesh.edges, face, selected_cell_tri_faces);
-    }
-#endif
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    CHECK_EQ_F(cross_vertices.size(), cross_colors.size());
-    cross_section.vbos[0]->buffer_data(cross_vertices.data(), cross_vertices.size() * sizeof(f32));
-    cross_section.vbos[1]->buffer_data(cross_colors.data(), cross_colors.size() * sizeof(f32));
-    cross_section.ebo.buffer_data(cross_tris.data(), (s32)cross_tris.size());
-
-#if 0
-    f32 max_depth = 0.0f;
-    projected_vertices_f32.clear();
-    for (const hmm_vec4& v : projected_vertices) {
-        if (v.W > max_depth) {
-            max_depth = (f32)v.W;
+        // Triangulate selected cell
+        selected_cell_tri_faces.clear();
+        for (u32 face_i : s.mesh.cells[(size_t)s.selected_cell]) {
+            const auto& face = s.mesh.faces[face_i];
+            render_funcs.triangulate(projected_vertices3, s.mesh.edges, face, selected_cell_tri_faces);
         }
-        for (f64 element : v.Elements) {
-            projected_vertices_f32.push_back((f32)element);
+
+        f32 max_depth = 0.0f;
+        projected_vertices_f32.clear();
+        for (const hmm_vec4& v : projected_vertices) {
+            if (v.W > max_depth) {
+                max_depth = (f32)v.W;
+            }
+            for (f64 element : v.Elements) {
+                projected_vertices_f32.push_back((f32)element);
+            }
         }
+
+        // wireframe.vbos[0]->buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * 3 *
+        // sizeof(f32));
+        wireframe.vbos[0]->buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * sizeof(f32));
+        selected_cell.ebo.buffer_data(selected_cell_tri_faces.data(), (s32)selected_cell_tri_faces.size());
+
+        wireframe_shader_prog.set_uniform_mat4("vp", vp_f32);
+        wireframe_shader_prog.set_uniform_f32("max_depth", max_depth);
+
+        selected_cell_shader_prog.set_uniform_mat4("vp", vp_f32);
+        selected_cell_shader_prog.set_uniform_f32("max_depth", max_depth);
+
+        selected_cell.draw();
+
+        glLineWidth(2.0f);
+        wireframe.draw();
     }
-
-    //wireframe.vbos[0]->buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * 3 * sizeof(f32));
-    wireframe.vbos[0]->buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * sizeof(f32));
-    selected_cell.ebo.buffer_data(selected_cell_tri_faces.data(), (s32)selected_cell_tri_faces.size());
-#endif
-
-    hmm_mat4 view = HMM_LookAt(s.camera_pos, s.camera_target, s.camera_up);
-    hmm_mat4 vp = projection * view;
-
-    f32 vp_f32[16];
-    for (s32 col = 0; col < 4; col++) {
-        for (s32 row = 0; row < 4; row++) {
-            vp_f32[col * 4 + row] = (f32)vp[col][row];
-        }
-    }
-
-#if 0
-    wireframe_shader_prog.set_uniform_mat4("vp", vp_f32);
-    wireframe_shader_prog.set_uniform_f32("max_depth", max_depth);
-
-    selected_cell_shader_prog.set_uniform_mat4("vp", vp_f32);
-    selected_cell_shader_prog.set_uniform_f32("max_depth", max_depth);
-#endif
-
-    cross_section_shader_prog.set_uniform_mat4("vp", vp_f32);
-    xz_grid_shader_prog.set_uniform_mat4("vp", vp_f32);
-
-    glLineWidth(0.5f);
-    xz_grid.draw();
-
-    cross_section.draw();
-
-#if 0
-    selected_cell.draw();
-
-    glLineWidth(2.0f);
-    wireframe.draw();
-#endif
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
