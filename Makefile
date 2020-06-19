@@ -26,7 +26,10 @@ RELEASE_CXXFLAGS := \
 	-DNDEBUG -D_FORTIFY_SOURCE=2 -ffunction-sections -fdata-sections -Wl,--gc-sections,-O1 -flto -fuse-linker-plugin \
 	-march=x86-64 -mtune=generic -O3 -g0
 
-CXXFLAGS := $(WARN_CXXFLAGS)
+DEP_CXXFLAGS_IN := $(shell pkg-config --cflags --libs sdl2)
+DEP_CXXFLAGS := $(DEP_CXXFLAGS_IN:-I%=-isystem %)
+
+CXXFLAGS := $(WARN_CXXFLAGS) $(DEP_CXXFLAGS)
 
 ifdef RELEASE
 	CXXFLAGS += $(RELEASE_CXXFLAGS)
