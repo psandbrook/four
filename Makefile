@@ -16,7 +16,9 @@ OBJECTS := $(addprefix $(BUILD_DIR)/,$(SOURCES:.cpp=.o))
 WARN_CXXFLAGS := \
 	-Wall -Wextra -Wpedantic -Wcast-align -Wcast-qual -Wunused -Wdisabled-optimization -Wformat=2 -Winit-self \
 	-Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wredundant-decls -Wshadow -Wundef -Wfloat-equal \
-	-Wstack-protector -Wwrite-strings -Wrestrict -Wconversion -Wvla
+	-Wstack-protector -Wwrite-strings -Wrestrict -Wconversion -Wvla -Wuninitialized -Wctor-dtor-privacy -Wnoexcept \
+	-Wold-style-cast -Woverloaded-virtual -Wsign-promo -Wstrict-null-sentinel -Wuseless-cast \
+	-Wzero-as-null-pointer-constant
 
 DEBUG_CXXFLAGS := -O0 -g3 -fvar-tracking-assignments -fsanitize=undefined
 
