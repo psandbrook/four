@@ -71,30 +71,30 @@ int main(int argc, char** argv) {
     for (s32 i = 0; i < argc; i++) {
         auto arg = argv[i];
 
-        if (strcmp(arg, "-d") == 0) {
+        if (c_str_eq(arg, "-d")) {
             debug = true;
 
-        } else if (strcmp(arg, "--generate") == 0) {
+        } else if (c_str_eq(arg, "--generate")) {
             CHECK_LT_F(i + 1, argc);
             const char* arg1 = argv[i + 1];
 
             Mesh4 mesh;
-            if (strcmp(arg1, "5-cell") == 0) {
+            if (c_str_eq(arg1, "5-cell")) {
                 mesh = generate_5cell();
 
-            } else if (strcmp(arg1, "tesseract") == 0) {
+            } else if (c_str_eq(arg1, "tesseract")) {
                 mesh = generate_tesseract();
 
-            } else if (strcmp(arg1, "16-cell") == 0) {
+            } else if (c_str_eq(arg1, "16-cell")) {
                 mesh = generate_16cell();
 
-            } else if (strcmp(arg1, "24-cell") == 0) {
+            } else if (c_str_eq(arg1, "24-cell")) {
                 mesh = generate_24cell();
 
-            } else if (strcmp(arg1, "120-cell") == 0) {
+            } else if (c_str_eq(arg1, "120-cell")) {
                 mesh = generate_120cell();
 
-            } else if (strcmp(arg1, "600-cell") == 0) {
+            } else if (c_str_eq(arg1, "600-cell")) {
                 mesh = generate_600cell();
 
             } else {

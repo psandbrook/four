@@ -422,15 +422,15 @@ Mesh4 load_mesh_from_file(const char* path) {
     Mesh4 result;
 
     txml::XMLElement* root = doc.RootElement();
-    CHECK_EQ_F(strcmp(root->Name(), "mesh4"), 0);
+    CHECK_F(c_str_eq(root->Name(), "mesh4"));
 
     txml::XMLElement* vertices_xmle = root->FirstChildElement();
-    CHECK_EQ_F(strcmp(vertices_xmle->Name(), "vertices"), 0);
+    CHECK_F(c_str_eq(vertices_xmle->Name(), "vertices"));
 
     for (txml::XMLElement* v_xmle = vertices_xmle->FirstChildElement(); v_xmle != NULL;
          v_xmle = v_xmle->NextSiblingElement()) {
 
-        CHECK_EQ_F(strcmp(v_xmle->Name(), "vec4"), 0);
+        CHECK_F(c_str_eq(v_xmle->Name(), "vec4"));
 
         glm::dvec4 v = {};
         v_xmle->QueryDoubleAttribute("x", &v.x);
@@ -441,12 +441,12 @@ Mesh4 load_mesh_from_file(const char* path) {
     }
 
     txml::XMLElement* edges_xmle = vertices_xmle->NextSiblingElement();
-    CHECK_EQ_F(strcmp(edges_xmle->Name(), "edges"), 0);
+    CHECK_F(c_str_eq(edges_xmle->Name(), "edges"));
 
     for (txml::XMLElement* e_xmle = edges_xmle->FirstChildElement(); e_xmle != NULL;
          e_xmle = e_xmle->NextSiblingElement()) {
 
-        CHECK_EQ_F(strcmp(e_xmle->Name(), "edge"), 0);
+        CHECK_F(c_str_eq(e_xmle->Name(), "edge"));
 
         Edge e = {};
         e_xmle->QueryUnsignedAttribute("v0", &e.v0);
@@ -455,19 +455,19 @@ Mesh4 load_mesh_from_file(const char* path) {
     }
 
     txml::XMLElement* faces_xmle = edges_xmle->NextSiblingElement();
-    CHECK_EQ_F(strcmp(faces_xmle->Name(), "faces"), 0);
+    CHECK_F(c_str_eq(faces_xmle->Name(), "faces"));
 
     for (txml::XMLElement* f_xmle = faces_xmle->FirstChildElement(); f_xmle != NULL;
          f_xmle = f_xmle->NextSiblingElement()) {
 
-        CHECK_EQ_F(strcmp(f_xmle->Name(), "indices"), 0);
+        CHECK_F(c_str_eq(f_xmle->Name(), "indices"));
 
         std::vector<u32> face;
 
         for (txml::XMLElement* index_xmle = f_xmle->FirstChildElement(); index_xmle != NULL;
              index_xmle = index_xmle->NextSiblingElement()) {
 
-            CHECK_EQ_F(strcmp(index_xmle->Name(), "index"), 0);
+            CHECK_F(c_str_eq(index_xmle->Name(), "index"));
 
             u32 value = 0;
             index_xmle->QueryUnsignedText(&value);
@@ -478,19 +478,19 @@ Mesh4 load_mesh_from_file(const char* path) {
     }
 
     txml::XMLElement* cells_xmle = faces_xmle->NextSiblingElement();
-    CHECK_EQ_F(strcmp(cells_xmle->Name(), "cells"), 0);
+    CHECK_F(c_str_eq(cells_xmle->Name(), "cells"));
 
     for (txml::XMLElement* c_xmle = cells_xmle->FirstChildElement(); c_xmle != NULL;
          c_xmle = c_xmle->NextSiblingElement()) {
 
-        CHECK_EQ_F(strcmp(c_xmle->Name(), "indices"), 0);
+        CHECK_F(c_str_eq(c_xmle->Name(), "indices"));
 
         std::vector<u32> cell;
 
         for (txml::XMLElement* index_xmle = c_xmle->FirstChildElement(); index_xmle != NULL;
              index_xmle = index_xmle->NextSiblingElement()) {
 
-            CHECK_EQ_F(strcmp(index_xmle->Name(), "index"), 0);
+            CHECK_F(c_str_eq(index_xmle->Name(), "index"));
 
             u32 value = 0;
             index_xmle->QueryUnsignedText(&value);
@@ -501,12 +501,12 @@ Mesh4 load_mesh_from_file(const char* path) {
     }
 
     txml::XMLElement* tet_vertices_xmle = cells_xmle->NextSiblingElement();
-    CHECK_EQ_F(strcmp(tet_vertices_xmle->Name(), "tet_vertices"), 0);
+    CHECK_F(c_str_eq(tet_vertices_xmle->Name(), "tet_vertices"));
 
     for (txml::XMLElement* v_xmle = tet_vertices_xmle->FirstChildElement(); v_xmle != NULL;
          v_xmle = v_xmle->NextSiblingElement()) {
 
-        CHECK_EQ_F(strcmp(v_xmle->Name(), "vec4"), 0);
+        CHECK_F(c_str_eq(v_xmle->Name(), "vec4"));
 
         glm::dvec4 v = {};
         v_xmle->QueryDoubleAttribute("x", &v.x);
@@ -517,12 +517,12 @@ Mesh4 load_mesh_from_file(const char* path) {
     }
 
     txml::XMLElement* tets_xmle = tet_vertices_xmle->NextSiblingElement();
-    CHECK_EQ_F(strcmp(tets_xmle->Name(), "tets"), 0);
+    CHECK_F(c_str_eq(tets_xmle->Name(), "tets"));
 
     for (txml::XMLElement* tet_xmle = tets_xmle->FirstChildElement(); tet_xmle != NULL;
          tet_xmle = tet_xmle->NextSiblingElement()) {
 
-        CHECK_EQ_F(strcmp(tet_xmle->Name(), "tet"), 0);
+        CHECK_F(c_str_eq(tet_xmle->Name(), "tet"));
 
         Mesh4::Tet tet;
         tet_xmle->QueryUnsignedAttribute("cell", &tet.cell);

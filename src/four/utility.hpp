@@ -125,6 +125,10 @@ inline bool has_key(const std::unordered_map<K, V, Hash, Equals>& map, const K& 
     return map.find(value) != map.cend();
 }
 
+inline bool c_str_eq(const char* lhs, const char* rhs) {
+    return strcmp(lhs, rhs) == 0;
+}
+
 struct CStrHash {
     size_t operator()(const char* x) const {
         size_t hash = 0;
@@ -137,7 +141,7 @@ struct CStrHash {
 
 struct CStrEquals {
     bool operator()(const char* lhs, const char* rhs) const {
-        return strcmp(lhs, rhs) == 0;
+        return c_str_eq(lhs, rhs);
     }
 };
 } // namespace four
