@@ -124,11 +124,11 @@ public:
     RenderFuncs();
     ~RenderFuncs();
 
-    void triangulate(const std::vector<Vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
+    void triangulate(const std::vector<glm::dvec3>& vertices, const std::vector<Edge>& edges, const Face& face,
                      std::vector<u32>& out);
 
-    bool tetrahedralize(const std::vector<Vec4>& vertices, const std::vector<Edge>& edges,
-                        const std::vector<Face>& faces, const Cell& cell, std::vector<Vec4>& out_vertices,
+    bool tetrahedralize(const std::vector<glm::dvec4>& vertices, const std::vector<Edge>& edges,
+                        const std::vector<Face>& faces, const Cell& cell, std::vector<glm::dvec4>& out_vertices,
                         std::vector<u32>& out_tets);
 };
 
@@ -157,7 +157,7 @@ public:
     VertexArrayObject xz_grid;
     VertexArrayObject divider_bar;
 
-    std::vector<Vec4> tet_mesh_vertices;
+    std::vector<glm::dvec4> tet_mesh_vertices;
     std::uniform_real_distribution<f32> color_dist;
 
     struct Tet {
@@ -170,13 +170,13 @@ private:
     // Temporary storage
     // ------------------------------------------------
 
-    std::vector<Vec4> projected_vertices;
-    std::vector<Vec3> projected_vertices3;
+    std::vector<glm::dvec4> projected_vertices;
+    std::vector<glm::dvec3> projected_vertices3;
     std::vector<f32> projected_vertices_f32;
     std::vector<u32> selected_cell_tri_faces;
 
     std::vector<u32> out_tets;
-    std::vector<Vec4> tet_mesh_vertices_world;
+    std::vector<glm::dvec4> tet_mesh_vertices_world;
     std::vector<f32> cross_vertices;
     std::vector<f32> cross_colors;
     std::vector<u32> cross_tris;

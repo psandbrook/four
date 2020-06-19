@@ -126,7 +126,7 @@ Mesh4 load_mesh_from_file(const char* path) {
 
         DCHECK_EQ_F(strcmp(v_xmle->Name(), "vec4"), 0);
 
-        Vec4 v = {};
+        glm::dvec4 v = {};
         v_xmle->QueryDoubleAttribute("x", &v.x);
         v_xmle->QueryDoubleAttribute("y", &v.y);
         v_xmle->QueryDoubleAttribute("z", &v.z);

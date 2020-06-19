@@ -3,7 +3,6 @@
 
 #include <SDL.h>
 #include <glm/ext/matrix_clip_space.hpp>
-#include <glm/ext/matrix_transform.hpp>
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 
@@ -18,7 +17,7 @@ namespace {
 
 const f64 divider_width = 0.007;
 
-void mat4_to_f32(const Mat4& mat, f32* out) {
+void mat4_to_f32(const glm::dmat4& mat, f32* out) {
     for (s32 col = 0; col < 4; col++) {
         for (s32 row = 0; row < 4; row++) {
             out[col * 4 + row] = (f32)mat[col][row];
@@ -483,8 +482,8 @@ void Renderer::do_mesh_changed() {
 void Renderer::calculate_cross_section() {
     auto& s = *state;
 
-    const Vec4 p_0 = Vec4(0, 0, 0, 0);
-    const Vec4 n = Vec4(0, 0, 0, 1);
+    const glm::dvec4 p_0 = glm::dvec4(0, 0, 0, 0);
+    const glm::dvec4 n = glm::dvec4(0, 0, 0, 1);
 
 redo_cross_section:
     cross_vertices.clear();
@@ -511,22 +510,22 @@ redo_cross_section:
         };
         // clang-format on
 
-        BoundedVector<Vec3, 6> intersect;
+        BoundedVector<glm::dvec3, 6> intersect;
 
         for (s32 i = 0; i < 6; i++) {
             const Edge& e = edges[i];
-            Vec4 l_0 = tet_mesh_vertices_world[e.v0];
-            Vec4 l = tet_mesh_vertices_world[e.v1] - l_0;
+            glm::dvec4 l_0 = tet_mesh_vertices_world[e.v0];
+            glm::dvec4 l = tet_mesh_vertices_world[e.v1] - l_0;
 
             if (!float_eq(glm::dot(l, n), 0.0)) {
                 f64 d = glm::dot(p_0 - l_0, n) / glm::dot(l, n);
 
                 if ((d >= 0.0 && d <= 1.0) || float_eq(d, 0.0) || float_eq(d, 1.0)) {
                     // Edge intersects with hyperplane at a point
-                    Vec4 point = d * l + l_0;
+                    glm::dvec4 point = d * l + l_0;
                     DCHECK_F(float_eq(point.w, 0.0));
 
-                    Vec3 point3 = Vec3(point);
+                    glm::dvec3 point3 = glm::dvec3(point);
                     bool unique = true;
                     for (const auto& v : intersect) {
                         if (float_eq(point3.x, v.x) && float_eq(point3.y, v.y) && float_eq(point3.z, v.z)) {
@@ -571,10 +570,10 @@ redo_cross_section:
         } else if (intersect.len == 4) {
             // Intersection is a quadrilateral
 
-            Vec3 p0 = intersect[0];
-            Vec3 p1 = intersect[1];
-            Vec3 p2 = intersect[2];
-            Vec3 p3 = intersect[3];
+            glm::dvec3 p0 = intersect[0];
+            glm::dvec3 p1 = intersect[1];
+            glm::dvec3 p2 = intersect[2];
+            glm::dvec3 p3 = intersect[3];
             u32 v_mapping[4];
 
             for (s32 i = 0; i < 4; i++) {
@@ -589,9 +588,9 @@ redo_cross_section:
                 }
             }
 
-            Vec3 l0 = p1 - p0;
-            Vec3 l1 = p2 - p0;
-            Vec3 l2 = p3 - p0;
+            glm::dvec3 l0 = p1 - p0;
+            glm::dvec3 l1 = p2 - p0;
+            glm::dvec3 l2 = p3 - p0;
             DCHECK_F(float_eq(glm::dot(glm::cross(l0, l1), l2), 0.0));
 
             f64 sum0 = glm::length(p1 - p0) + glm::length(p3 - p2);
@@ -653,7 +652,7 @@ void Renderer::render() {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
 
-    Mat4 view = glm::lookAt(s.camera_pos, s.camera_target, s.camera_up);
+    glm::dmat4 view = glm::lookAt(s.camera_pos, s.camera_target, s.camera_up);
     const f64 fov = glm::radians(60.0);
 
     glEnable(GL_DEPTH_TEST);
@@ -665,7 +664,7 @@ void Renderer::render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, combined_buffer.width, combined_buffer.height);
 
-    Mat4 vp = glm::perspective(fov, combined_buffer.width / (f64)combined_buffer.height, 0.01, 1000.0) * view;
+    glm::dmat4 vp = glm::perspective(fov, combined_buffer.width / (f64)combined_buffer.height, 0.01, 1000.0) * view;
     f32 vp_f32[16];
     mat4_to_f32(vp, vp_f32);
     view_projection_ubo.buffer_data(vp_f32, sizeof(vp_f32));
@@ -691,7 +690,7 @@ void Renderer::render() {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             glViewport(0, 0, projection_buffer.width, projection_buffer.height);
 
-            Mat4 vp =
+            glm::dmat4 vp =
                     glm::perspective(fov, projection_buffer.width / (f64)projection_buffer.height, 0.01, 1000.0) * view;
             f32 vp_f32[16];
             mat4_to_f32(vp, vp_f32);
@@ -708,10 +707,10 @@ void Renderer::render() {
 
         Mat5 model = mk_model_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation);
         Mat5 mv = mk_model_view_mat(model, s.camera4);
-        for (const Vec4& v : s.mesh.vertices) {
+        for (const glm::dvec4& v : s.mesh.vertices) {
             Vec5 view_v = mv * Vec5(v, 1);
 
-            Vec4 v_;
+            glm::dvec4 v_;
             if (s.perspective_projection) {
                 v_ = project_perspective(view_v, s.camera4.near);
             } else {
@@ -719,7 +718,7 @@ void Renderer::render() {
             }
 
             projected_vertices.push_back(v_);
-            projected_vertices3.push_back(Vec3(v_));
+            projected_vertices3.push_back(glm::dvec3(v_));
         }
 
         DCHECK_EQ_F(s.mesh.vertices.size(), projected_vertices.size());
@@ -734,7 +733,7 @@ void Renderer::render() {
 
         f32 max_depth = 0.0f;
         projected_vertices_f32.clear();
-        for (const Vec4& v : projected_vertices) {
+        for (const glm::dvec4& v : projected_vertices) {
             if (v.w > max_depth) {
                 max_depth = (f32)v.w;
             }

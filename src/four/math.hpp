@@ -2,6 +2,7 @@
 
 #include <four/utility.hpp>
 
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
@@ -13,17 +14,11 @@
 
 namespace four {
 
-using Vec2 = glm::dvec2;
-using Vec3 = glm::dvec3;
-using Vec4 = glm::dvec4;
-using Mat3 = glm::dmat3;
-using Mat4 = glm::dmat4;
-
-static_assert(sizeof(Vec2) == sizeof(f64) * 2);
-static_assert(sizeof(Vec3) == sizeof(f64) * 3);
-static_assert(sizeof(Vec4) == sizeof(f64) * 4);
-static_assert(sizeof(Mat3) == sizeof(f64) * 3 * 3);
-static_assert(sizeof(Mat4) == sizeof(f64) * 4 * 4);
+static_assert(sizeof(glm::dvec2) == sizeof(f64) * 2);
+static_assert(sizeof(glm::dvec3) == sizeof(f64) * 3);
+static_assert(sizeof(glm::dvec4) == sizeof(f64) * 4);
+static_assert(sizeof(glm::dmat3) == sizeof(f64) * 3 * 3);
+static_assert(sizeof(glm::dmat4) == sizeof(f64) * 4 * 4);
 
 inline f64 sq(f64 x) {
     return x * x;
@@ -39,7 +34,7 @@ struct Vec5 {
 
     Vec5() = default;
     Vec5(f64 x, f64 y, f64 z, f64 w, f64 v) noexcept : x(x), y(y), z(z), w(w), v(v) {}
-    Vec5(const Vec4& vec, f64 v) noexcept : x(vec.x), y(vec.y), z(vec.z), w(vec.w), v(v) {}
+    Vec5(const glm::dvec4& vec, f64 v) noexcept : x(vec.x), y(vec.y), z(vec.z), w(vec.w), v(v) {}
 
     f64& operator[](size_t index) {
         return elements[index];
@@ -70,8 +65,8 @@ struct Mat5 {
     }
 };
 
-inline Vec4 to_vec4(const Vec5& v) {
-    return Vec4(v.x, v.y, v.z, v.w);
+inline glm::dvec4 to_vec4(const Vec5& v) {
+    return glm::dvec4(v.x, v.y, v.z, v.w);
 }
 
 inline Vec5 operator*(const Vec5& v, f64 s) {
@@ -112,65 +107,70 @@ inline Mat5 operator*(const Mat5& m1, const Mat5& m2) {
     return result;
 }
 
-inline Vec3 transform(const Mat4& m, const Vec3& v) {
-    return Vec3(m * Vec4(v, 1));
+inline glm::dvec3 transform(const glm::dmat4& m, const glm::dvec3& v) {
+    return glm::dvec3(m * glm::dvec4(v, 1));
 }
 
-inline Vec4 transform(const Mat5& m, const Vec4& v) {
+inline glm::dmat4 translate(const glm::dvec3& v) {
+    return glm::translate(glm::dmat4(1.0), v);
+}
+
+inline glm::dvec4 transform(const Mat5& m, const glm::dvec4& v) {
     return to_vec4(m * Vec5(v, 1));
 }
 
-inline Vec4 cross(const Vec4& u, const Vec4& v, const Vec4& w) {
-    Mat3 m1 = Mat3(Vec3(u.y, v.y, w.y), Vec3(u.z, v.z, w.z), Vec3(u.w, v.w, w.w));
-    Mat3 m2 = Mat3(Vec3(u.x, v.x, w.x), Vec3(u.z, v.z, w.z), Vec3(u.w, v.w, w.w));
-    Mat3 m3 = Mat3(Vec3(u.x, v.x, w.x), Vec3(u.y, v.y, w.y), Vec3(u.w, v.w, w.w));
-    Mat3 m4 = Mat3(Vec3(u.x, v.x, w.x), Vec3(u.y, v.y, w.y), Vec3(u.z, v.z, w.z));
-    return Vec4(glm::determinant(m1), -glm::determinant(m2), glm::determinant(m3), -glm::determinant(m4));
+inline glm::dvec4 cross(const glm::dvec4& u, const glm::dvec4& v, const glm::dvec4& w) {
+    glm::dmat3 m1 = glm::dmat3(glm::dvec3(u.y, v.y, w.y), glm::dvec3(u.z, v.z, w.z), glm::dvec3(u.w, v.w, w.w));
+    glm::dmat3 m2 = glm::dmat3(glm::dvec3(u.x, v.x, w.x), glm::dvec3(u.z, v.z, w.z), glm::dvec3(u.w, v.w, w.w));
+    glm::dmat3 m3 = glm::dmat3(glm::dvec3(u.x, v.x, w.x), glm::dvec3(u.y, v.y, w.y), glm::dvec3(u.w, v.w, w.w));
+    glm::dmat3 m4 = glm::dmat3(glm::dvec3(u.x, v.x, w.x), glm::dvec3(u.y, v.y, w.y), glm::dvec3(u.z, v.z, w.z));
+    return glm::dvec4(glm::determinant(m1), -glm::determinant(m2), glm::determinant(m3), -glm::determinant(m4));
 }
 
-inline Mat5 translate(const Vec4& v) {
+inline Mat5 translate(const glm::dvec4& v) {
     return Mat5(Vec5(1, 0, 0, 0, 0), Vec5(0, 1, 0, 0, 0), Vec5(0, 0, 1, 0, 0), Vec5(0, 0, 0, 1, 0),
                 Vec5(v.x, v.y, v.z, v.w, 1));
 }
 
-inline Mat5 scale(const Vec4& v) {
+inline Mat5 scale(const glm::dvec4& v) {
     return Mat5(Vec5(v.x, 0, 0, 0, 0), Vec5(0, v.y, 0, 0, 0), Vec5(0, 0, v.z, 0, 0), Vec5(0, 0, 0, v.w, 0),
                 Vec5(0, 0, 0, 0, 1));
 }
 
-inline Mat5 look_at(const Vec4& eye, const Vec4& target, const Vec4& up, const Vec4& over) {
+inline Mat5 look_at(const glm::dvec4& eye, const glm::dvec4& target, const glm::dvec4& up, const glm::dvec4& over) {
     Mat5 m_t = translate(-1.0 * eye);
-    Vec4 f = glm::normalize(eye - target);
-    Vec4 l = glm::normalize(cross(up, over, f));
-    Vec4 u = glm::normalize(cross(over, l, f));
-    Vec4 o = cross(f, l, u);
+    glm::dvec4 f = glm::normalize(eye - target);
+    glm::dvec4 l = glm::normalize(cross(up, over, f));
+    glm::dvec4 u = glm::normalize(cross(over, l, f));
+    glm::dvec4 o = cross(f, l, u);
     Mat5 m_r = Mat5(Vec5(l.x, u.x, o.x, f.x, 0), Vec5(l.y, u.y, o.y, f.y, 0), Vec5(l.z, u.z, o.z, f.z, 0),
                     Vec5(l.w, u.w, o.w, f.w, 0), Vec5(0, 0, 0, 0, 1));
     return m_r * m_t;
 }
 
-inline Mat5 look_at_inverse(const Vec4& eye, const Vec4& target, const Vec4& up, const Vec4& over) {
+inline Mat5 look_at_inverse(const glm::dvec4& eye, const glm::dvec4& target, const glm::dvec4& up,
+                            const glm::dvec4& over) {
     Mat5 m_t = translate(eye);
-    Vec4 f = glm::normalize(eye - target);
-    Vec4 l = glm::normalize(cross(up, over, f));
-    Vec4 u = glm::normalize(cross(over, l, f));
-    Vec4 o = cross(f, l, u);
+    glm::dvec4 f = glm::normalize(eye - target);
+    glm::dvec4 l = glm::normalize(cross(up, over, f));
+    glm::dvec4 u = glm::normalize(cross(over, l, f));
+    glm::dvec4 o = cross(f, l, u);
     Mat5 m_r = Mat5(Vec5(l, 0), Vec5(u, 0), Vec5(o, 0), Vec5(f, 0), Vec5(0, 0, 0, 0, 1));
     return m_t * m_r;
 }
 
-inline Vec4 project_orthographic(const Vec5& v, f64 near) {
+inline glm::dvec4 project_orthographic(const Vec5& v, f64 near) {
     DCHECK_GT_F(near, 0.0);
     DCHECK_LE_F(v.w, -near);
-    return Vec4(v.x, v.y, v.z, std::abs(v.w - (-near)));
+    return glm::dvec4(v.x, v.y, v.z, std::abs(v.w - (-near)));
 }
 
-inline Vec4 project_perspective(const Vec5& v, f64 near) {
+inline glm::dvec4 project_perspective(const Vec5& v, f64 near) {
     DCHECK_GT_F(near, 0.0);
     DCHECK_LE_F(v.w, -near);
     f64 d = near / -v.w;
-    Vec4 intersect = d * to_vec4(v);
-    return Vec4(intersect.x, intersect.y, intersect.z, glm::length(intersect - to_vec4(v)));
+    glm::dvec4 intersect = d * to_vec4(v);
+    return glm::dvec4(intersect.x, intersect.y, intersect.z, glm::length(intersect - to_vec4(v)));
 }
 
 // 3D Rotors
@@ -188,7 +188,7 @@ struct Rotor3 {
 };
 
 // Outer product
-inline Bivec3 outer(const Vec3& a, const Vec3& b) {
+inline Bivec3 outer(const glm::dvec3& a, const glm::dvec3& b) {
     Bivec3 result = {};
     result.xy = (a.x * b.y) - (a.y * b.x);
     result.xz = (a.x * b.z) - (a.z * b.x);
@@ -216,7 +216,7 @@ inline Rotor3 normalize(const Rotor3& r) {
     return result;
 }
 
-inline Rotor3 rotor3(const Vec3& a, const Vec3& b) {
+inline Rotor3 rotor3(const glm::dvec3& a, const glm::dvec3& b) {
     Rotor3 result = {};
     result.s = glm::dot(a, b);
 
@@ -253,11 +253,11 @@ inline Rotor3 operator*(const Rotor3& lhs, const Rotor3& rhs) {
     return result;
 }
 
-inline Vec3 rotate(const Rotor3& r, const Vec3& v) {
+inline glm::dvec3 rotate(const Rotor3& r, const glm::dvec3& v) {
     const auto& B = r.B;
 
     // (ba)v -- vector part
-    Vec3 q = {};
+    glm::dvec3 q = {};
     q.x = (r.s * v.x) + (v.y * B.xy) + (v.z * B.xz);
     q.y = (r.s * v.y) - (v.x * B.xy) + (v.z * B.yz);
     q.z = (r.s * v.z) - (v.x * B.xz) - (v.y * B.yz);
@@ -265,7 +265,7 @@ inline Vec3 rotate(const Rotor3& r, const Vec3& v) {
     // (ba)v -- trivector part
     f64 q_xyz = (-v.x * B.yz) + (v.y * B.xz) - (v.z * B.xy);
 
-    Vec3 result = {};
+    glm::dvec3 result = {};
     result.x = (r.s * q.x) + (q.y * B.xy) + (q.z * B.xz) - (q_xyz * B.yz);
     result.y = (r.s * q.y) - (q.x * B.xy) + (q_xyz * B.xz) + (q.z * B.yz);
     result.z = (r.s * q.z) - (q_xyz * B.xy) - (q.x * B.xz) - (q.y * B.yz);
@@ -288,11 +288,11 @@ inline Rotor3 rotate(const Rotor3& r, const Rotor3& a) {
     return r * a * reverse(r);
 }
 
-inline Mat4 to_mat4(const Rotor3& r) {
-    Vec3 v_x = rotate(r, Vec3(1, 0, 0));
-    Vec3 v_y = rotate(r, Vec3(0, 1, 0));
-    Vec3 v_z = rotate(r, Vec3(0, 0, 1));
-    return Mat4(Vec4(v_x, 0), Vec4(v_y, 0), Vec4(v_z, 0), Vec4(0, 0, 0, 1));
+inline glm::dmat4 to_mat4(const Rotor3& r) {
+    glm::dvec3 v_x = rotate(r, glm::dvec3(1, 0, 0));
+    glm::dvec3 v_y = rotate(r, glm::dvec3(0, 1, 0));
+    glm::dvec3 v_z = rotate(r, glm::dvec3(0, 0, 1));
+    return glm::dmat4(glm::dvec4(v_x, 0), glm::dvec4(v_y, 0), glm::dvec4(v_z, 0), glm::dvec4(0, 0, 0, 1));
 }
 
 // =========
@@ -324,7 +324,7 @@ struct Rotor4 {
 };
 
 // Outer product
-inline Bivec4 outer(const Vec4& a, const Vec4& b) {
+inline Bivec4 outer(const glm::dvec4& a, const glm::dvec4& b) {
     Bivec4 result = {};
     result.xy = (a.x * b.y) - (a.y * b.x);
     result.xz = (a.x * b.z) - (a.z * b.x);
@@ -368,7 +368,7 @@ inline Rotor4 rotor4() {
     return result;
 }
 
-inline Rotor4 rotor4(const Vec4& a, const Vec4& b) {
+inline Rotor4 rotor4(const glm::dvec4& a, const glm::dvec4& b) {
     Rotor4 result = {};
     result.s = glm::dot(a, b);
     result.B.xy = (b.x * a.y) - (b.y * a.x);
@@ -437,11 +437,11 @@ inline Rotor4 operator*(const Rotor4& lhs, const Rotor4& rhs) {
     return result;
 }
 
-inline Vec4 rotate(const Rotor4& r, const Vec4& v) {
+inline glm::dvec4 rotate(const Rotor4& r, const glm::dvec4& v) {
     const auto& B = r.B;
 
     // (ba)v -- vector part
-    Vec4 q = {};
+    glm::dvec4 q = {};
     q.x = (r.s * v.x) + (B.xy * v.y) + (B.xz * v.z) + (B.xw * v.w);
     q.y = (r.s * v.y) - (B.xy * v.x) + (B.yz * v.z) + (B.yw * v.w);
     q.z = (r.s * v.z) - (B.xz * v.x) - (B.yz * v.y) + (B.zw * v.w);
@@ -453,7 +453,7 @@ inline Vec4 rotate(const Rotor4& r, const Vec4& v) {
     f64 q_xzw = (B.xz * v.w) - (B.xw * v.z) + (B.zw * v.x) + (r.xyzw * v.y);
     f64 q_yzw = (B.yz * v.w) - (B.yw * v.z) + (B.zw * v.y) - (r.xyzw * v.x);
 
-    Vec4 result = {};
+    glm::dvec4 result = {};
     result.x = (r.s * q.x) + (q.y * B.xy) + (q.z * B.xz) + (q.w * B.xw) + (q_xyz * B.yz) + (q_xyw * B.yw)
                + (q_xzw * B.zw) - (q_yzw * r.xyzw);
 
@@ -489,20 +489,20 @@ inline Rotor4 rotate(const Rotor4& r, const Rotor4& a) {
 }
 
 inline Mat5 to_mat5(const Rotor4& r) {
-    Vec4 v_x = rotate(r, Vec4(1, 0, 0, 0));
-    Vec4 v_y = rotate(r, Vec4(0, 1, 0, 0));
-    Vec4 v_z = rotate(r, Vec4(0, 0, 1, 0));
-    Vec4 v_w = rotate(r, Vec4(0, 0, 0, 1));
+    glm::dvec4 v_x = rotate(r, glm::dvec4(1, 0, 0, 0));
+    glm::dvec4 v_y = rotate(r, glm::dvec4(0, 1, 0, 0));
+    glm::dvec4 v_z = rotate(r, glm::dvec4(0, 0, 1, 0));
+    glm::dvec4 v_w = rotate(r, glm::dvec4(0, 0, 0, 1));
     return Mat5(Vec5(v_x, 0), Vec5(v_y, 0), Vec5(v_z, 0), Vec5(v_w, 0), Vec5(0, 0, 0, 0, 1));
 }
 
 inline Rotor4 euler_to_rotor(const Bivec4& B) {
-    Rotor4 result = rotor4(B.xy, outer(Vec4(1, 0, 0, 0), Vec4(0, 1, 0, 0)))
-                    * rotor4(B.xz, outer(Vec4(1, 0, 0, 0), Vec4(0, 0, 1, 0)))
-                    * rotor4(B.xw, outer(Vec4(1, 0, 0, 0), Vec4(0, 0, 0, 1)))
-                    * rotor4(B.yz, outer(Vec4(0, 1, 0, 0), Vec4(0, 0, 1, 0)))
-                    * rotor4(B.yw, outer(Vec4(0, 1, 0, 0), Vec4(0, 0, 0, 1)))
-                    * rotor4(B.zw, outer(Vec4(0, 0, 1, 0), Vec4(0, 0, 0, 1)));
+    Rotor4 result = rotor4(B.xy, outer(glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 1, 0, 0)))
+                    * rotor4(B.xz, outer(glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 1, 0)))
+                    * rotor4(B.xw, outer(glm::dvec4(1, 0, 0, 0), glm::dvec4(0, 0, 0, 1)))
+                    * rotor4(B.yz, outer(glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 1, 0)))
+                    * rotor4(B.yw, outer(glm::dvec4(0, 1, 0, 0), glm::dvec4(0, 0, 0, 1)))
+                    * rotor4(B.zw, outer(glm::dvec4(0, 0, 1, 0), glm::dvec4(0, 0, 0, 1)));
 
     return result;
 }

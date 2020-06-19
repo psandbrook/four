@@ -2,7 +2,6 @@
 
 #include <four/math.hpp>
 
-#include <glm/ext/matrix_transform.hpp>
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_sdl.h>
@@ -125,8 +124,8 @@ bool AppState::is_new_transformation_valid() {
     return true;
 }
 
-void AppState::apply_new_transformation(const Vec4& prev_pos, const Vec4& prev_scale, const Rotation4& prev_rotation,
-                                        const Camera4& prev_camera4) {
+void AppState::apply_new_transformation(const glm::dvec4& prev_pos, const glm::dvec4& prev_scale,
+                                        const Rotation4& prev_rotation, const Camera4& prev_camera4) {
 
     if (!is_new_transformation_valid()) {
         new_mesh_pos = prev_pos;
@@ -190,19 +189,19 @@ bool AppState::process_events_and_imgui() {
                 if (SDL_GetModState() & KMOD_SHIFT) {
                     // Pan the 3D camera
 
-                    Vec3 front = camera_target - camera_pos;
+                    glm::dvec3 front = camera_target - camera_pos;
                     f64 distance_fac = 0.25 * glm::length(front);
 
-                    Vec3 f = glm::normalize(front);
-                    Vec3 left = glm::normalize(glm::cross(Vec3(0, 1, 0), f));
-                    Vec3 up = glm::cross(f, left);
+                    glm::dvec3 f = glm::normalize(front);
+                    glm::dvec3 left = glm::normalize(glm::cross(glm::dvec3(0, 1, 0), f));
+                    glm::dvec3 up = glm::cross(f, left);
 
                     f64 x_move = mouse_motion_fac * distance_fac * event.motion.xrel;
                     f64 y_move = mouse_motion_fac * distance_fac * event.motion.yrel;
 
-                    Mat4 y_trans = glm::translate(Mat4(1.0), y_move * up);
-                    Mat4 x_trans = glm::translate(Mat4(1.0), x_move * left);
-                    Mat4 translation = y_trans * x_trans;
+                    glm::dmat4 y_trans = translate(y_move * up);
+                    glm::dmat4 x_trans = translate(x_move * left);
+                    glm::dmat4 translation = y_trans * x_trans;
 
                     camera_pos = transform(translation, camera_pos);
                     camera_target = transform(translation, camera_target);
@@ -211,17 +210,16 @@ bool AppState::process_events_and_imgui() {
                     // Rotate the 3D camera
 
                     f64 x_angle = mouse_motion_fac * event.motion.xrel;
-                    Rotor3 x_rotor = rotor3(x_angle, outer(Vec3(0, 0, -1), Vec3(1, 0, 0)));
+                    Rotor3 x_rotor = rotor3(x_angle, outer(glm::dvec3(0, 0, -1), glm::dvec3(1, 0, 0)));
 
                     f64 y_angle = mouse_motion_fac * event.motion.yrel;
-                    Rotor3 y_rotor = rotor3(y_angle, outer(Vec3(0, 1, 0), camera_target - camera_pos));
+                    Rotor3 y_rotor = rotor3(y_angle, outer(glm::dvec3(0, 1, 0), camera_target - camera_pos));
 
-                    Mat4 rotation = to_mat4(y_rotor * x_rotor);
-                    Mat4 m = glm::translate(Mat4(1.0), camera_target) * rotation
-                             * glm::translate(Mat4(1.0), -1.0 * camera_target);
+                    glm::dmat4 rotation = to_mat4(y_rotor * x_rotor);
+                    glm::dmat4 m = translate(camera_target) * rotation * translate(-1.0 * camera_target);
 
-                    Vec3 new_camera_pos = transform(m, camera_pos);
-                    Vec3 front = glm::normalize(camera_target - new_camera_pos);
+                    glm::dvec3 new_camera_pos = transform(m, camera_pos);
+                    glm::dvec3 front = glm::normalize(camera_target - new_camera_pos);
                     if (!float_eq(std::abs(front.y), 1.0, 0.001)) {
                         camera_pos = new_camera_pos;
                     }
@@ -237,10 +235,10 @@ bool AppState::process_events_and_imgui() {
                 y *= -1;
             }
 
-            Vec3 front = camera_target - camera_pos;
+            glm::dvec3 front = camera_target - camera_pos;
             f64 distance_fac = 0.1 * glm::length(front);
-            Vec3 f = glm::normalize(front);
-            Mat4 translation = glm::translate(Mat4(1.0), y * distance_fac * f);
+            glm::dvec3 f = glm::normalize(front);
+            glm::dmat4 translation = translate(y * distance_fac * f);
             camera_pos = transform(translation, camera_pos);
 
         } break;
@@ -299,8 +297,8 @@ bool AppState::process_events_and_imgui() {
     ImGui::SetNextWindowBgAlpha(0xff);
     ImGui::Begin("four", NULL, window_flags);
 
-    Vec4 prev_new_mesh_pos = new_mesh_pos;
-    Vec4 prev_new_mesh_scale = new_mesh_scale;
+    glm::dvec4 prev_new_mesh_pos = new_mesh_pos;
+    glm::dvec4 prev_new_mesh_scale = new_mesh_scale;
     Rotation4 prev_new_mesh_rotation = new_mesh_rotation;
     Camera4 prev_new_camera4 = new_camera4;
 
@@ -507,8 +505,8 @@ void AppState::step(const f64 ms) {
         selected_cell_cycle_acc = 0.0;
     }
 
-    Vec4 prev_new_mesh_pos = new_mesh_pos;
-    Vec4 prev_new_mesh_scale = new_mesh_scale;
+    glm::dvec4 prev_new_mesh_pos = new_mesh_pos;
+    glm::dvec4 prev_new_mesh_scale = new_mesh_scale;
     Rotation4 prev_new_mesh_rotation = new_mesh_rotation;
     Camera4 prev_new_camera4 = new_camera4;
 
@@ -530,7 +528,7 @@ void AppState::bump_mesh_pos_w() {
     LOG_F(WARNING, "New mesh w: %+.16f", mesh_pos.w);
 }
 
-Mat5 mk_model_mat(const Vec4& pos, const Vec4& v_scale, const Rotation4& rotation) {
+Mat5 mk_model_mat(const glm::dvec4& pos, const glm::dvec4& v_scale, const Rotation4& rotation) {
     Mat5 m_r;
     if (rotation.is_rotor) {
         m_r = to_mat5(rotation.rotor);

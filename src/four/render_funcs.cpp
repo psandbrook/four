@@ -5,7 +5,6 @@
 #include <boost/bimap.hpp>
 #include <boost/bimap/unordered_set_of.hpp>
 #include <earcut.hpp>
-#include <glm/ext/matrix_transform.hpp>
 #include <igl/copyleft/tetgen/tetrahedralize.h>
 #include <loguru.hpp>
 
@@ -15,7 +14,7 @@ namespace four {
 
 namespace {
 
-struct ConstFaceRef final : public std::reference_wrapper<const std::vector<Vec2>> {
+struct ConstFaceRef final : public std::reference_wrapper<const std::vector<glm::dvec2>> {
     using value_type = type::value_type;
 
     explicit ConstFaceRef(const type& a) noexcept : std::reference_wrapper<type>(a) {}
@@ -38,7 +37,7 @@ struct RenderFuncs::Impl {
     using VertexIMapping = boost::bimap<boost::bimaps::unordered_set_of<u32>, boost::bimaps::unordered_set_of<u32>>;
     VertexIMapping face2_vertex_i_mapping;
 
-    std::vector<Vec2> face2_vertices;
+    std::vector<glm::dvec2> face2_vertices;
 
     std::unordered_map<u32, u32> cell3_vertex_i_mapping;
     std::unordered_map<u32, u32> tet_out_vertex_i_mapping;
@@ -53,7 +52,7 @@ RenderFuncs::RenderFuncs() : impl(std::make_unique<Impl>()) {}
 
 RenderFuncs::~RenderFuncs() {}
 
-void RenderFuncs::triangulate(const std::vector<Vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
+void RenderFuncs::triangulate(const std::vector<glm::dvec3>& vertices, const std::vector<Edge>& edges, const Face& face,
                               std::vector<u32>& out) {
 
     auto& st = *this->impl;
@@ -65,11 +64,11 @@ void RenderFuncs::triangulate(const std::vector<Vec3>& vertices, const std::vect
     u32 edge0_i = face[0];
     const Edge& edge0 = edges[edge0_i];
     u32 v0_i = edge0.v0;
-    Vec3 v0 = vertices[v0_i];
+    glm::dvec3 v0 = vertices[v0_i];
 
-    Vec3 normal;
+    glm::dvec3 normal;
     {
-        Vec3 other_edge;
+        glm::dvec3 other_edge;
         for (u32 e_i : face) {
             if (e_i == edge0_i) {
                 continue;
@@ -94,22 +93,22 @@ void RenderFuncs::triangulate(const std::vector<Vec3>& vertices, const std::vect
 
     // Calculate transformation to 2D
 
-    Vec3 up;
+    glm::dvec3 up;
     if (float_eq(std::abs(normal.y), 1.0, 0.001)) {
         up = {1, 0, 0};
     } else {
         up = {0, 1, 0};
     }
 
-    Mat4 to_2d_trans = glm::lookAt(v0, v0 + normal, up);
+    glm::dmat4 to_2d_trans = glm::lookAt(v0, v0 + normal, up);
 
     st.face2_vertex_i_mapping.clear();
     st.face2_vertices.clear();
 
     const auto add_face2_vertex = [&](u32 v_i) -> bool {
-        Vec3 v = vertices[v_i];
+        glm::dvec3 v = vertices[v_i];
         for (const auto& entry : st.face2_vertex_i_mapping.left) {
-            Vec3 u = vertices[entry.first];
+            glm::dvec3 u = vertices[entry.first];
             if (float_eq(v.x, u.x) && float_eq(v.y, u.y) && float_eq(v.z, u.z)) {
                 // Don't triangulate if there are duplicate vertices.
                 return false;
@@ -118,9 +117,9 @@ void RenderFuncs::triangulate(const std::vector<Vec3>& vertices, const std::vect
 
         st.face2_vertex_i_mapping.left.insert(VertexIMapping::left_value_type(v_i, (u32)st.face2_vertices.size()));
 
-        Vec3 v_ = transform(to_2d_trans, v);
+        glm::dvec3 v_ = transform(to_2d_trans, v);
         DCHECK_F(float_eq(v_.z, 0.0));
-        st.face2_vertices.push_back(Vec2(v_));
+        st.face2_vertices.push_back(glm::dvec2(v_));
         return true;
     };
 
@@ -163,7 +162,7 @@ end_face2_loop:
     // All vertices should be coplanar
     for (const auto& entry : st.face2_vertex_i_mapping.left) {
         if (entry.first != edge0.v0) {
-            Vec3 v = vertices[entry.first];
+            glm::dvec3 v = vertices[entry.first];
             f64 x = glm::dot(v - v0, normal);
 
             // NOTE: Consider floating-point error. See
@@ -181,9 +180,9 @@ end_face2_loop:
     }
 }
 
-bool RenderFuncs::tetrahedralize(const std::vector<Vec4>& vertices, const std::vector<Edge>& edges,
-                                 const std::vector<Face>& faces, const Cell& cell, std::vector<Vec4>& out_vertices,
-                                 std::vector<u32>& out_tets) {
+bool RenderFuncs::tetrahedralize(const std::vector<glm::dvec4>& vertices, const std::vector<Edge>& edges,
+                                 const std::vector<Face>& faces, const Cell& cell,
+                                 std::vector<glm::dvec4>& out_vertices, std::vector<u32>& out_tets) {
 
     auto& s = *this->impl;
 
@@ -193,13 +192,13 @@ bool RenderFuncs::tetrahedralize(const std::vector<Vec4>& vertices, const std::v
     u32 edge0_i = face0[0];
     const Edge& edge0 = edges[edge0_i];
     u32 v0_i = edge0.v0;
-    Vec4 v0 = vertices[v0_i];
+    glm::dvec4 v0 = vertices[v0_i];
 
-    Vec4 normal;
+    glm::dvec4 normal;
     {
         bool found_edge = false;
         u32 found_edge_i = (u32)-1;
-        Vec4 other_edges[2];
+        glm::dvec4 other_edges[2];
 
         for (u32 f_i : cell) {
             const Face& f = faces[f_i];
@@ -230,8 +229,8 @@ bool RenderFuncs::tetrahedralize(const std::vector<Vec4>& vertices, const std::v
 
     // Calculate transformation to 3D
 
-    Vec4 up;
-    Vec4 over;
+    glm::dvec4 up;
+    glm::dvec4 over;
     if (float_eq(std::abs(normal.y), 1.0, 0.001)) {
         up = {1, 0, 0, 0};
         over = {0, 0, 1, 0};
@@ -251,7 +250,7 @@ bool RenderFuncs::tetrahedralize(const std::vector<Vec4>& vertices, const std::v
 
 #ifdef FOUR_DEBUG
     {
-        Vec4 v0_ = transform(to_3d_trans_inverse * to_3d_trans, v0);
+        glm::dvec4 v0_ = transform(to_3d_trans_inverse * to_3d_trans, v0);
         DCHECK_F(float_eq(v0.x, v0_.x) && float_eq(v0.y, v0_.y) && float_eq(v0.z, v0_.z) && float_eq(v0.w, v0_.w));
     }
 #endif
@@ -268,10 +267,10 @@ bool RenderFuncs::tetrahedralize(const std::vector<Vec4>& vertices, const std::v
             for (u32 v_i : e.vertices) {
                 if (!has_key(s.cell3_vertex_i_mapping, v_i)) {
                     s.cell3_vertex_i_mapping.emplace(v_i, s.tet_mesh_v.size());
-                    Vec4 v = vertices[v_i];
-                    Vec4 v_ = transform(to_3d_trans, v);
+                    glm::dvec4 v = vertices[v_i];
+                    glm::dvec4 v_ = transform(to_3d_trans, v);
                     DCHECK_F(float_eq(v_.w, 0.0));
-                    Vec3 v_3 = Vec3(v_);
+                    glm::dvec3 v_3 = glm::dvec3(v_);
                     s.tet_mesh_v.push_back({v_3.x, v_3.y, v_3.z});
                 }
             }
@@ -306,34 +305,34 @@ bool RenderFuncs::tetrahedralize(const std::vector<Vec4>& vertices, const std::v
         s.tet_mesh_f.push_back(std::move(this_mesh_f));
     }
 
-    Mat4 temp_transform_inverse;
+    glm::dmat4 temp_transform_inverse;
     {
-        Vec3 centroid = Vec3(0, 0, 0);
+        glm::dvec3 centroid = glm::dvec3(0, 0, 0);
         for (const auto& v : s.tet_mesh_v) {
-            centroid += Vec3(v[0], v[1], v[2]);
+            centroid += glm::dvec3(v[0], v[1], v[2]);
         }
 
         centroid.x /= (f64)s.tet_mesh_v.size();
         centroid.y /= (f64)s.tet_mesh_v.size();
         centroid.z /= (f64)s.tet_mesh_v.size();
 
-        Mat4 temp_translate = glm::translate(Mat4(1.0), -1.0 * centroid);
+        glm::dmat4 temp_translate = translate(-1.0 * centroid);
 
         for (auto& v : s.tet_mesh_v) {
-            Vec3 v_ = transform(temp_translate, Vec3(v[0], v[1], v[2]));
+            glm::dvec3 v_ = transform(temp_translate, glm::dvec3(v[0], v[1], v[2]));
             v[0] = v_.x;
             v[1] = v_.y;
             v[2] = v_.z;
         }
 
-        temp_transform_inverse = glm::translate(Mat4(1.0), centroid);
+        temp_transform_inverse = translate(centroid);
     }
 
 #ifdef FOUR_DEBUG
     // All vertices of the cell should be on the same hyperplane
     for (const auto& entry : s.cell3_vertex_i_mapping) {
         if (entry.first != edge0.v0) {
-            Vec4 v = vertices[entry.first];
+            glm::dvec4 v = vertices[entry.first];
             f64 x = glm::dot(v - v0, normal);
             DCHECK_F(float_eq(x, 0.0));
         }
@@ -357,9 +356,9 @@ bool RenderFuncs::tetrahedralize(const std::vector<Vec4>& vertices, const std::v
         s.tet_out_vertex_i_mapping.emplace(i, out_vertices.size());
         const auto& v = s.tet_out_v[i];
         DCHECK_EQ_F(v.size(), 3u);
-        Vec3 v_ = Vec3(v[0], v[1], v[2]);
+        glm::dvec3 v_ = glm::dvec3(v[0], v[1], v[2]);
         v_ = transform(temp_transform_inverse, v_);
-        out_vertices.push_back(transform(to_3d_trans_inverse, Vec4(v_, 0)));
+        out_vertices.push_back(transform(to_3d_trans_inverse, glm::dvec4(v_, 0)));
     }
 
     for (const auto& tet : s.tet_out_t) {
@@ -377,15 +376,15 @@ namespace mapbox {
 namespace util {
 
 template <>
-struct nth<0, four::Vec2> {
-    static double get(const four::Vec2& v) {
+struct nth<0, glm::dvec2> {
+    static double get(const glm::dvec2& v) {
         return v.x;
     }
 };
 
 template <>
-struct nth<1, four::Vec2> {
-    static double get(const four::Vec2& v) {
+struct nth<1, glm::dvec2> {
+    static double get(const glm::dvec2& v) {
         return v.y;
     }
 };
