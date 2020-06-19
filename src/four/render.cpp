@@ -282,8 +282,6 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     glEnable(GL_POLYGON_OFFSET_LINE);
     glPolygonOffset(-1.0, -1.0);
 
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
     do_window_size_changed();
 
     view_projection_ubo = UniformBufferObject("ViewProjection", 0, GL_STREAM_DRAW);
@@ -645,6 +643,12 @@ void Renderer::render() {
     if (s.window_size_changed) {
         s.window_size_changed = false;
         do_window_size_changed();
+    }
+
+    if (s.wireframe_render) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    } else {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
 
     hmm_mat4 view = HMM_LookAt(s.camera_pos, s.camera_target, s.camera_up);

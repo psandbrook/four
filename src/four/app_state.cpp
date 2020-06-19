@@ -174,6 +174,10 @@ bool AppState::process_events_and_imgui() {
                 switch (event.key.keysym.sym) {
                 case SDLK_ESCAPE:
                     return true;
+
+                case SDLK_w: {
+                    wireframe_render = !wireframe_render;
+                } break;
                 }
             }
         } break;

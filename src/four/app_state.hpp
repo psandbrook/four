@@ -54,6 +54,7 @@ public:
     bool debug = false;
     bool mesh_changed = false;
     bool window_size_changed = false;
+    bool wireframe_render = false;
 
     s32 window_width;
     s32 window_height;
