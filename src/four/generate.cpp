@@ -2,7 +2,6 @@
 
 #include <four/utility.hpp>
 
-#include <HandmadeMath.h>
 #include <loguru.hpp>
 
 #include <assert.h>
@@ -25,7 +24,7 @@ namespace {
 const f64 golden_ratio = (1.0 + sqrt(5.0)) / 2.0;
 
 // Heap's algorithm (see https://en.wikipedia.org/wiki/Heap's_algorithm)
-void do_generate_permutations(s32 n, bool& even, hmm_vec4& temp, std::unordered_set<hmm_vec4>& out, bool only_even) {
+void do_generate_permutations(s32 n, bool& even, Vec4& temp, std::unordered_set<Vec4>& out, bool only_even) {
     if (n == 1) {
         if (!only_even || even) {
             out.insert(temp);
@@ -34,9 +33,9 @@ void do_generate_permutations(s32 n, bool& even, hmm_vec4& temp, std::unordered_
         for (s32 i = 0; i < n - 1; i++) {
             do_generate_permutations(n - 1, even, temp, out, only_even);
             if (n % 2 == 0) {
-                std::swap(temp.Elements[i], temp.Elements[n - 1]);
+                std::swap(temp[i], temp[n - 1]);
             } else {
-                std::swap(temp.Elements[0], temp.Elements[n - 1]);
+                std::swap(temp[0], temp[n - 1]);
             }
             even = !even;
         }
@@ -44,13 +43,13 @@ void do_generate_permutations(s32 n, bool& even, hmm_vec4& temp, std::unordered_
     }
 }
 
-inline void generate_permutations(hmm_vec4 in, std::unordered_set<hmm_vec4>& out, bool only_even = false) {
+inline void generate_permutations(Vec4 in, std::unordered_set<Vec4>& out, bool only_even = false) {
     bool even = true;
     do_generate_permutations(4, even, in, out, only_even);
 }
 
 // clang-format off
-const hmm_vec4 n5cell_vertices[5] = {
+const Vec4 n5cell_vertices[5] = {
     { 1.0/sqrt(10.0),     1.0/sqrt(6.0),  1.0/sqrt(3.0),  1.0},
     { 1.0/sqrt(10.0),     1.0/sqrt(6.0),  1.0/sqrt(3.0), -1.0},
     { 1.0/sqrt(10.0),     1.0/sqrt(6.0), -2.0/sqrt(3.0),  0.0},
@@ -65,7 +64,7 @@ const s32 n5cell_faces_per_cell = 4;
 const s32 n5cell_n_cells = 5;
 
 // clang-format off
-const hmm_vec4 tesseract_vertices[16] = {
+const Vec4 tesseract_vertices[16] = {
     {-1, -1, -1, -1},
     {-1, -1,  1, -1},
     {-1, -1, -1,  1},
@@ -91,7 +90,7 @@ const s32 tesseract_faces_per_cell = 6;
 const s32 tesseract_n_cells = 8;
 
 // clang-format off
-const hmm_vec4 n16cell_vertices[8] = {
+const Vec4 n16cell_vertices[8] = {
     { 1,  0,  0,  0},
     {-1,  0,  0,  0},
     { 0,  1,  0,  0},
@@ -109,7 +108,7 @@ const s32 n16cell_faces_per_cell = 4;
 const s32 n16cell_n_cells = 16;
 
 // clang-format off
-const hmm_vec4 n24cell_vertices[24] = {
+const Vec4 n24cell_vertices[24] = {
     { 1,  1,  0,  0},
     { 1,  0,  1,  0},
     { 1,  0,  0,  1},
@@ -143,22 +142,22 @@ const s32 n24cell_faces_per_cell = 8;
 const s32 n24cell_n_cells = 24;
 
 // clang-format off
-const hmm_vec4 n120cell_base_vertices[] = {
+const Vec4 n120cell_base_vertices[] = {
     {0, 0, 2, 2},
     {1, 1, 1, sqrt(5.0)},
     {pow(golden_ratio, -2.0), golden_ratio, golden_ratio, golden_ratio},
     {pow(golden_ratio, -1.0), pow(golden_ratio, -1.0), pow(golden_ratio, -1.0), pow(golden_ratio, 2.0)},
 };
 
-const hmm_vec4 n120cell_base_vertices_even[] = {
+const Vec4 n120cell_base_vertices_even[] = {
     {0, pow(golden_ratio, -2.0), 1, pow(golden_ratio, 2.0)},
     {0, pow(golden_ratio, -1.0), golden_ratio, sqrt(5.0)},
     {pow(golden_ratio, -1.0), 1, golden_ratio, 2},
 };
 // clang-format on
 
-std::vector<hmm_vec4> generate_120cell_vertices() {
-    std::unordered_set<hmm_vec4> permutations;
+std::vector<Vec4> generate_120cell_vertices() {
+    std::unordered_set<Vec4> permutations;
 
     for (const auto& v : n120cell_base_vertices) {
         generate_permutations(v, permutations);
@@ -168,9 +167,9 @@ std::vector<hmm_vec4> generate_120cell_vertices() {
         generate_permutations(v, permutations, true);
     }
 
-    std::vector<hmm_vec4> vertices;
-    std::unordered_set<hmm_vec4> seen;
-    for (hmm_vec4 v : permutations) {
+    std::vector<Vec4> vertices;
+    std::unordered_set<Vec4> seen;
+    for (Vec4 v : permutations) {
         for (s32 a = 0; a < 2; a++) {
             for (s32 b = 0; b < 2; b++) {
                 for (s32 c = 0; c < 2; c++) {
@@ -196,20 +195,20 @@ const s32 n120cell_edges_per_face = 5;
 const s32 n120cell_faces_per_cell = 12;
 const s32 n120cell_n_cells = 120;
 
-const hmm_vec4 n600cell_base_vertex0 = {0.5, 0.5, 0.5, 0.5};
-const hmm_vec4 n600cell_base_vertex1 = {0, 0, 0, 1};
-const hmm_vec4 n600cell_base_vertex2 = {golden_ratio / 2.0, 0.5, 1.0 / (2 * golden_ratio), 0};
+const Vec4 n600cell_base_vertex0 = {0.5, 0.5, 0.5, 0.5};
+const Vec4 n600cell_base_vertex1 = {0, 0, 0, 1};
+const Vec4 n600cell_base_vertex2 = {golden_ratio / 2.0, 0.5, 1.0 / (2 * golden_ratio), 0};
 
-std::vector<hmm_vec4> generate_600cell_vertices() {
-    std::unordered_set<hmm_vec4> permutations;
+std::vector<Vec4> generate_600cell_vertices() {
+    std::unordered_set<Vec4> permutations;
 
     permutations.insert(n600cell_base_vertex0);
     generate_permutations(n600cell_base_vertex1, permutations);
     generate_permutations(n600cell_base_vertex2, permutations, true);
 
-    std::vector<hmm_vec4> vertices;
-    std::unordered_set<hmm_vec4> seen;
-    for (hmm_vec4 v : permutations) {
+    std::vector<Vec4> vertices;
+    std::unordered_set<Vec4> seen;
+    for (Vec4 v : permutations) {
         for (s32 a = 0; a < 2; a++) {
             for (s32 b = 0; b < 2; b++) {
                 for (s32 c = 0; c < 2; c++) {
@@ -235,22 +234,20 @@ const s32 n600cell_edges_per_face = 3;
 const s32 n600cell_faces_per_cell = 4;
 const s32 n600cell_n_cells = 600;
 
-Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 edge_length, const s32 edges_per_face,
+Mesh4 generate_mesh4(const Vec4* vertices, const u32 n_vertices, const f64 edge_length, const s32 edges_per_face,
                      const s32 faces_per_cell, const s32 n_cells) {
     Mesh4 mesh;
 
-    mesh.vertices = std::vector<hmm_vec4>(vertices, vertices + n_vertices);
+    mesh.vertices = std::vector<Vec4>(vertices, vertices + n_vertices);
     LOG_F(INFO, "%lu vertices", mesh.vertices.size());
 
     // Calculate edges
     {
         std::unordered_set<Edge> edge_set;
 
-        const f64 edge_length_sq = edge_length * edge_length;
-
         for (u32 i = 0; i < mesh.vertices.size(); i++) {
             for (u32 j = 0; j < mesh.vertices.size(); j++) {
-                if (j != i && float_eq(HMM_LengthSquared(mesh.vertices[j] - mesh.vertices[i]), edge_length_sq)) {
+                if (j != i && float_eq(glm::length(mesh.vertices[j] - mesh.vertices[i]), edge_length)) {
                     edge_set.insert(edge(i, j));
                 }
             }
@@ -567,13 +564,13 @@ Mesh4 generate_24cell() {
 }
 
 Mesh4 generate_120cell() {
-    const std::vector<hmm_vec4> n120cell_vertices = generate_120cell_vertices();
+    const std::vector<Vec4> n120cell_vertices = generate_120cell_vertices();
     return generate_mesh4(n120cell_vertices.data(), (u32)n120cell_vertices.size(), n120cell_edge_length,
                           n120cell_edges_per_face, n120cell_faces_per_cell, n120cell_n_cells);
 }
 
 Mesh4 generate_600cell() {
-    const std::vector<hmm_vec4> n600cell_vertices = generate_600cell_vertices();
+    const std::vector<Vec4> n600cell_vertices = generate_600cell_vertices();
     return generate_mesh4(n600cell_vertices.data(), (u32)n600cell_vertices.size(), n600cell_edge_length,
                           n600cell_edges_per_face, n600cell_faces_per_cell, n600cell_n_cells);
 }

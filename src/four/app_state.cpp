@@ -1,6 +1,8 @@
 #include <four/app_state.hpp>
 
 #include <four/math.hpp>
+
+#include <glm/ext/matrix_transform.hpp>
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_sdl.h>
@@ -114,8 +116,8 @@ bool AppState::is_new_transformation_valid() {
     Mat5 mv = mk_model_view_mat(model, new_camera4);
 
     for (const auto& v : mesh.vertices) {
-        Vec5 view_v = mv * vec5(v, 1);
-        if (view_v.W > -camera4.near) {
+        Vec5 view_v = mv * Vec5(v, 1);
+        if (view_v.w > -camera4.near) {
             return false;
         }
     }
@@ -123,8 +125,8 @@ bool AppState::is_new_transformation_valid() {
     return true;
 }
 
-void AppState::apply_new_transformation(const hmm_vec4& prev_pos, const hmm_vec4& prev_scale,
-                                        const Rotation4& prev_rotation, const Camera4& prev_camera4) {
+void AppState::apply_new_transformation(const Vec4& prev_pos, const Vec4& prev_scale, const Rotation4& prev_rotation,
+                                        const Camera4& prev_camera4) {
 
     if (!is_new_transformation_valid()) {
         new_mesh_pos = prev_pos;
@@ -188,19 +190,19 @@ bool AppState::process_events_and_imgui() {
                 if (SDL_GetModState() & KMOD_SHIFT) {
                     // Pan the 3D camera
 
-                    hmm_vec3 front = camera_target - camera_pos;
-                    f64 distance_fac = 0.25 * HMM_Length(front);
+                    Vec3 front = camera_target - camera_pos;
+                    f64 distance_fac = 0.25 * glm::length(front);
 
-                    hmm_vec3 f = HMM_Normalize(front);
-                    hmm_vec3 left = HMM_Normalize(HMM_Cross(HMM_Vec3(0, 1, 0), f));
-                    hmm_vec3 up = HMM_Cross(f, left);
+                    Vec3 f = glm::normalize(front);
+                    Vec3 left = glm::normalize(glm::cross(Vec3(0, 1, 0), f));
+                    Vec3 up = glm::cross(f, left);
 
                     f64 x_move = mouse_motion_fac * distance_fac * event.motion.xrel;
                     f64 y_move = mouse_motion_fac * distance_fac * event.motion.yrel;
 
-                    hmm_mat4 y_trans = HMM_Translate(y_move * up);
-                    hmm_mat4 x_trans = HMM_Translate(x_move * left);
-                    hmm_mat4 translation = y_trans * x_trans;
+                    Mat4 y_trans = glm::translate(Mat4(1.0), y_move * up);
+                    Mat4 x_trans = glm::translate(Mat4(1.0), x_move * left);
+                    Mat4 translation = y_trans * x_trans;
 
                     camera_pos = transform(translation, camera_pos);
                     camera_target = transform(translation, camera_target);
@@ -209,17 +211,18 @@ bool AppState::process_events_and_imgui() {
                     // Rotate the 3D camera
 
                     f64 x_angle = mouse_motion_fac * event.motion.xrel;
-                    Rotor3 x_rotor = rotor3(x_angle, outer(HMM_Vec3(0, 0, -1), HMM_Vec3(1, 0, 0)));
+                    Rotor3 x_rotor = rotor3(x_angle, outer(Vec3(0, 0, -1), Vec3(1, 0, 0)));
 
                     f64 y_angle = mouse_motion_fac * event.motion.yrel;
-                    Rotor3 y_rotor = rotor3(y_angle, outer(HMM_Vec3(0, 1, 0), camera_target - camera_pos));
+                    Rotor3 y_rotor = rotor3(y_angle, outer(Vec3(0, 1, 0), camera_target - camera_pos));
 
-                    hmm_mat4 rotation = to_mat4(y_rotor * x_rotor);
-                    hmm_mat4 m = HMM_Translate(camera_target) * rotation * HMM_Translate(-1 * camera_target);
+                    Mat4 rotation = to_mat4(y_rotor * x_rotor);
+                    Mat4 m = glm::translate(Mat4(1.0), camera_target) * rotation
+                             * glm::translate(Mat4(1.0), -1.0 * camera_target);
 
-                    hmm_vec3 new_camera_pos = transform(m, camera_pos);
-                    hmm_vec3 front = HMM_Normalize(camera_target - new_camera_pos);
-                    if (!float_eq(std::abs(front.Y), 1.0, 0.001)) {
+                    Vec3 new_camera_pos = transform(m, camera_pos);
+                    Vec3 front = glm::normalize(camera_target - new_camera_pos);
+                    if (!float_eq(std::abs(front.y), 1.0, 0.001)) {
                         camera_pos = new_camera_pos;
                     }
                 }
@@ -234,10 +237,10 @@ bool AppState::process_events_and_imgui() {
                 y *= -1;
             }
 
-            hmm_vec3 front = camera_target - camera_pos;
-            f64 distance_fac = 0.1 * HMM_Length(front);
-            hmm_vec3 f = HMM_Normalize(front);
-            hmm_mat4 translation = HMM_Translate(y * distance_fac * f);
+            Vec3 front = camera_target - camera_pos;
+            f64 distance_fac = 0.1 * glm::length(front);
+            Vec3 f = glm::normalize(front);
+            Mat4 translation = glm::translate(Mat4(1.0), y * distance_fac * f);
             camera_pos = transform(translation, camera_pos);
 
         } break;
@@ -296,8 +299,8 @@ bool AppState::process_events_and_imgui() {
     ImGui::SetNextWindowBgAlpha(0xff);
     ImGui::Begin("four", NULL, window_flags);
 
-    hmm_vec4 prev_new_mesh_pos = new_mesh_pos;
-    hmm_vec4 prev_new_mesh_scale = new_mesh_scale;
+    Vec4 prev_new_mesh_pos = new_mesh_pos;
+    Vec4 prev_new_mesh_scale = new_mesh_scale;
     Rotation4 prev_new_mesh_rotation = new_mesh_rotation;
     Camera4 prev_new_camera4 = new_camera4;
 
@@ -319,17 +322,17 @@ bool AppState::process_events_and_imgui() {
                 perspective_projection = !perspective_projection;
             }
 
-            imgui_drag_f64("w##camera", &new_camera4.pos.W, speed, fmt);
+            imgui_drag_f64("w##camera", &new_camera4.pos.w, speed, fmt);
         }
 
         ImGui::Spacing();
         ImGui::Separator();
 
         ImGui::Text("Translate");
-        imgui_drag_f64("x##t", &new_mesh_pos.X, speed, fmt);
-        imgui_drag_f64("y##t", &new_mesh_pos.Y, speed, fmt);
-        imgui_drag_f64("z##t", &new_mesh_pos.Z, speed, fmt);
-        imgui_drag_f64("w##t", &new_mesh_pos.W, speed, fmt);
+        imgui_drag_f64("x##t", &new_mesh_pos.x, speed, fmt);
+        imgui_drag_f64("y##t", &new_mesh_pos.y, speed, fmt);
+        imgui_drag_f64("z##t", &new_mesh_pos.z, speed, fmt);
+        imgui_drag_f64("w##t", &new_mesh_pos.w, speed, fmt);
 
         ImGui::Spacing();
         ImGui::Separator();
@@ -339,22 +342,22 @@ bool AppState::process_events_and_imgui() {
 
             ImGui::Button("xyzw##s", ImVec2(ImGui::GetContentRegionAvailWidth(), 0));
             if (ImGui::IsItemActive()) {
-                f64 scale_magnitude = (std::abs(mesh_scale.X) + std::abs(mesh_scale.Y) + std::abs(mesh_scale.Z)
-                                       + std::abs(mesh_scale.W))
+                f64 scale_magnitude = (std::abs(mesh_scale.x) + std::abs(mesh_scale.y) + std::abs(mesh_scale.z)
+                                       + std::abs(mesh_scale.w))
                                       / 4.0;
                 f64 scale_speed = speed * scale_magnitude;
 
                 f64 xyzw_scale = scale_speed * imgui_io->MouseDelta.x;
-                new_mesh_scale.X += xyzw_scale;
-                new_mesh_scale.Y += xyzw_scale;
-                new_mesh_scale.Z += xyzw_scale;
-                new_mesh_scale.W += xyzw_scale;
+                new_mesh_scale.x += xyzw_scale;
+                new_mesh_scale.y += xyzw_scale;
+                new_mesh_scale.z += xyzw_scale;
+                new_mesh_scale.w += xyzw_scale;
             }
 
-            imgui_drag_f64("x##s", &new_mesh_scale.X, speed, fmt);
-            imgui_drag_f64("y##s", &new_mesh_scale.Y, speed, fmt);
-            imgui_drag_f64("z##s", &new_mesh_scale.Z, speed, fmt);
-            imgui_drag_f64("w##s", &new_mesh_scale.W, speed, fmt);
+            imgui_drag_f64("x##s", &new_mesh_scale.x, speed, fmt);
+            imgui_drag_f64("y##s", &new_mesh_scale.y, speed, fmt);
+            imgui_drag_f64("z##s", &new_mesh_scale.z, speed, fmt);
+            imgui_drag_f64("w##s", &new_mesh_scale.w, speed, fmt);
         }
 
         ImGui::Spacing();
@@ -504,8 +507,8 @@ void AppState::step(const f64 ms) {
         selected_cell_cycle_acc = 0.0;
     }
 
-    hmm_vec4 prev_new_mesh_pos = new_mesh_pos;
-    hmm_vec4 prev_new_mesh_scale = new_mesh_scale;
+    Vec4 prev_new_mesh_pos = new_mesh_pos;
+    Vec4 prev_new_mesh_scale = new_mesh_scale;
     Rotation4 prev_new_mesh_rotation = new_mesh_rotation;
     Camera4 prev_new_camera4 = new_camera4;
 
@@ -522,12 +525,12 @@ void AppState::step(const f64 ms) {
 
 void AppState::bump_mesh_pos_w() {
     const f64 mag = 0.0000001;
-    mesh_pos.W += mag;
-    new_mesh_pos.W += mag;
-    LOG_F(WARNING, "New mesh w: %+.16f", mesh_pos.W);
+    mesh_pos.w += mag;
+    new_mesh_pos.w += mag;
+    LOG_F(WARNING, "New mesh w: %+.16f", mesh_pos.w);
 }
 
-Mat5 mk_model_mat(const hmm_vec4& pos, const hmm_vec4& v_scale, const Rotation4& rotation) {
+Mat5 mk_model_mat(const Vec4& pos, const Vec4& v_scale, const Rotation4& rotation) {
     Mat5 m_r;
     if (rotation.is_rotor) {
         m_r = to_mat5(rotation.rotor);

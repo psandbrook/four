@@ -11,10 +11,10 @@ struct ImGuiIO;
 namespace four {
 
 struct Camera4 {
-    hmm_vec4 pos = {0, 0, 0, 4};
-    hmm_vec4 target = {0, 0, 0, 0};
-    hmm_vec4 up = {0, 1, 0, 0};
-    hmm_vec4 over = {0, 0, 1, 0};
+    Vec4 pos = {0, 0, 0, 4};
+    Vec4 target = {0, 0, 0, 0};
+    Vec4 up = {0, 1, 0, 0};
+    Vec4 over = {0, 0, 1, 0};
     f64 near = 1.0;
 };
 
@@ -65,8 +65,8 @@ public:
     f64 divider = 0.5;
 
     Mesh4 mesh;
-    hmm_vec4 mesh_pos;
-    hmm_vec4 mesh_scale;
+    Vec4 mesh_pos;
+    Vec4 mesh_scale;
     Rotation4 mesh_rotation;
 
     s32 selected_cell;
@@ -79,13 +79,13 @@ public:
     bool perspective_projection = true;
     Camera4 camera4;
 
-    hmm_vec3 camera_pos = {-1.5, 2, 3.5};
-    hmm_vec3 camera_target = {0, 0, 0};
-    hmm_vec3 camera_up = {0, 1, 0};
+    Vec3 camera_pos = {-1.5, 2, 3.5};
+    Vec3 camera_target = {0, 0, 0};
+    Vec3 camera_up = {0, 1, 0};
 
 private:
-    hmm_vec4 new_mesh_pos;
-    hmm_vec4 new_mesh_scale;
+    Vec4 new_mesh_pos;
+    Vec4 new_mesh_scale;
     Rotation4 new_mesh_rotation;
     Camera4 new_camera4;
 
@@ -100,7 +100,7 @@ private:
     // -----------------
 
 public:
-    AppState() {}
+    AppState() = default;
     AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path);
 
     // Returns true if the application should exit
@@ -117,12 +117,12 @@ private:
     void change_mesh(const char* path);
     bool is_mouse_around_x(f64 x);
     bool is_new_transformation_valid();
-    void apply_new_transformation(const hmm_vec4& prev_pos, const hmm_vec4& prev_scale, const Rotation4& prev_rotation,
+    void apply_new_transformation(const Vec4& prev_pos, const Vec4& prev_scale, const Rotation4& prev_rotation,
                                   const Camera4& prev_camera4);
     void calc_ui_size_screen();
 };
 
-Mat5 mk_model_mat(const hmm_vec4& pos, const hmm_vec4& scale, const Rotation4& rotation);
+Mat5 mk_model_mat(const Vec4& pos, const Vec4& scale, const Rotation4& rotation);
 Mat5 mk_model_view_mat(const Mat5& model, const Camera4& camera);
 
 } // namespace four

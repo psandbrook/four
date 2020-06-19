@@ -55,7 +55,6 @@ endif()
 # Prefix: src/
 set(SOURCES
   main.cpp
-  impl.cpp
   four/generate.cpp
   four/mesh.cpp
   four/render.cpp
@@ -193,7 +192,13 @@ FetchContent_Declare(
   URL_HASH SHA256=8bfe45bc04df9b8fab4485c1fe09b9bf9a25e9998ce8133e2506a98863aa826c
 )
 
-make_available_no_add(sdl2 loguru eigen libigl tinyxml2 imgui earcut)
+FetchContent_Declare(
+  glm
+  URL "https://github.com/g-truc/glm/releases/download/0.9.9.7/glm-0.9.9.7.7z"
+  URL_HASH SHA256=9a2c05e0ca77139b43949ef7c3780854dcedaa6590a15ddc7532244469fb4fdf
+)
+
+make_available_no_add(sdl2 loguru eigen libigl tinyxml2 imgui earcut glm)
 
 set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
 set(SDL_STATIC_ENABLED_BY_DEFAULT ON)
@@ -204,8 +209,8 @@ get_property(SDL2_INCLUDE TARGET ${SDL2_TARGET} PROPERTY INTERFACE_INCLUDE_DIREC
 set_property(TARGET ${SDL2_TARGET} PROPERTY INTERFACE_SYSTEM_INCLUDE_DIRECTORIES ${SDL2_INCLUDE})
 target_compile_options(${SDL2_TARGET} PRIVATE -fno-lto)
 
-add_library(handmade-math INTERFACE)
-target_include_directories(handmade-math SYSTEM INTERFACE depends/Handmade-Math)
+add_library(glm INTERFACE)
+target_include_directories(glm SYSTEM INTERFACE "${glm_SOURCE_DIR}")
 
 add_library(eigen INTERFACE)
 target_include_directories(eigen SYSTEM INTERFACE "${eigen_SOURCE_DIR}")
@@ -260,7 +265,7 @@ target_link_options(four PRIVATE
   "$<$<CONFIG:Release>:${FLAGS_FOUR_RELEASE}>"
 )
 include_directories(src)
-target_link_libraries(four ${SDL2_TARGET} glad handmade-math eigen libigl loguru imgui tinyxml2 earcut tetgen)
+target_link_libraries(four ${SDL2_TARGET} glad glm eigen libigl loguru imgui tinyxml2 earcut tetgen)
 
 add_custom_command(
   TARGET four

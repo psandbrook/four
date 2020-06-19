@@ -2,6 +2,8 @@
 #include <four/render.hpp>
 
 #include <SDL.h>
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 
@@ -16,7 +18,7 @@ namespace {
 
 const f64 divider_width = 0.007;
 
-void mat4_to_f32(const hmm_mat4& mat, f32* out) {
+void mat4_to_f32(const Mat4& mat, f32* out) {
     for (s32 col = 0; col < 4; col++) {
         for (s32 row = 0; row < 4; row++) {
             out[col * 4 + row] = (f32)mat[col][row];
@@ -481,8 +483,8 @@ void Renderer::do_mesh_changed() {
 void Renderer::calculate_cross_section() {
     auto& s = *state;
 
-    const hmm_vec4 p_0 = HMM_Vec4(0, 0, 0, 0);
-    const hmm_vec4 n = HMM_Vec4(0, 0, 0, 1);
+    const Vec4 p_0 = Vec4(0, 0, 0, 0);
+    const Vec4 n = Vec4(0, 0, 0, 1);
 
 redo_cross_section:
     cross_vertices.clear();
@@ -509,25 +511,25 @@ redo_cross_section:
         };
         // clang-format on
 
-        BoundedVector<hmm_vec3, 6> intersect;
+        BoundedVector<Vec3, 6> intersect;
 
         for (s32 i = 0; i < 6; i++) {
             const Edge& e = edges[i];
-            hmm_vec4 l_0 = tet_mesh_vertices_world[e.v0];
-            hmm_vec4 l = tet_mesh_vertices_world[e.v1] - l_0;
+            Vec4 l_0 = tet_mesh_vertices_world[e.v0];
+            Vec4 l = tet_mesh_vertices_world[e.v1] - l_0;
 
-            if (!float_eq(HMM_Dot(l, n), 0.0)) {
-                f64 d = HMM_Dot(p_0 - l_0, n) / HMM_Dot(l, n);
+            if (!float_eq(glm::dot(l, n), 0.0)) {
+                f64 d = glm::dot(p_0 - l_0, n) / glm::dot(l, n);
 
                 if ((d >= 0.0 && d <= 1.0) || float_eq(d, 0.0) || float_eq(d, 1.0)) {
                     // Edge intersects with hyperplane at a point
-                    hmm_vec4 point = d * l + l_0;
-                    DCHECK_F(float_eq(point.W, 0.0));
+                    Vec4 point = d * l + l_0;
+                    DCHECK_F(float_eq(point.w, 0.0));
 
-                    hmm_vec3 point3 = vec3(point);
+                    Vec3 point3 = Vec3(point);
                     bool unique = true;
                     for (const auto& v : intersect) {
-                        if (float_eq(point3.X, v.X) && float_eq(point3.Y, v.Y) && float_eq(point3.Z, v.Z)) {
+                        if (float_eq(point3.x, v.x) && float_eq(point3.y, v.y) && float_eq(point3.z, v.z)) {
                             unique = false;
                             break;
                         }
@@ -538,7 +540,7 @@ redo_cross_section:
                     }
                 }
 
-            } else if (float_eq(HMM_Dot(p_0 - l_0, n), 0.0)) {
+            } else if (float_eq(glm::dot(p_0 - l_0, n), 0.0)) {
                 // Edge is within hyperplane
 
                 // Because of floating point error, we don't try to render
@@ -557,7 +559,8 @@ redo_cross_section:
             for (s32 i = 0; i < 3; i++) {
                 DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
                 cross_tris.push_back((u32)(cross_vertices.size() / 3));
-                for (f64 e : intersect[(size_t)i].Elements) {
+                for (s32 j = 0; j < 3; j++) {
+                    f64 e = intersect[(size_t)i][j];
                     cross_vertices.push_back((f32)e);
                 }
                 for (f32 e : tet.color) {
@@ -568,16 +571,17 @@ redo_cross_section:
         } else if (intersect.len == 4) {
             // Intersection is a quadrilateral
 
-            hmm_vec3 p0 = intersect[0];
-            hmm_vec3 p1 = intersect[1];
-            hmm_vec3 p2 = intersect[2];
-            hmm_vec3 p3 = intersect[3];
+            Vec3 p0 = intersect[0];
+            Vec3 p1 = intersect[1];
+            Vec3 p2 = intersect[2];
+            Vec3 p3 = intersect[3];
             u32 v_mapping[4];
 
             for (s32 i = 0; i < 4; i++) {
                 DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
                 v_mapping[i] = (u32)(cross_vertices.size() / 3);
-                for (f64 e : intersect[(size_t)i].Elements) {
+                for (s32 j = 0; j < 3; j++) {
+                    f64 e = intersect[(size_t)i][j];
                     cross_vertices.push_back((f32)e);
                 }
                 for (f32 e : tet.color) {
@@ -585,14 +589,14 @@ redo_cross_section:
                 }
             }
 
-            hmm_vec3 l0 = p1 - p0;
-            hmm_vec3 l1 = p2 - p0;
-            hmm_vec3 l2 = p3 - p0;
-            DCHECK_F(float_eq(HMM_Dot(HMM_Cross(l0, l1), l2), 0.0));
+            Vec3 l0 = p1 - p0;
+            Vec3 l1 = p2 - p0;
+            Vec3 l2 = p3 - p0;
+            DCHECK_F(float_eq(glm::dot(glm::cross(l0, l1), l2), 0.0));
 
-            f64 sum0 = HMM_Length(p1 - p0) + HMM_Length(p3 - p2);
-            f64 sum1 = HMM_Length(p2 - p0) + HMM_Length(p3 - p1);
-            f64 sum2 = HMM_Length(p3 - p0) + HMM_Length(p2 - p1);
+            f64 sum0 = glm::length(p1 - p0) + glm::length(p3 - p2);
+            f64 sum1 = glm::length(p2 - p0) + glm::length(p3 - p1);
+            f64 sum2 = glm::length(p3 - p0) + glm::length(p2 - p1);
             u32 tris[6];
             if (sum0 > sum1 && sum0 > sum2) {
                 // p0 p1 is a diagonal
@@ -649,8 +653,8 @@ void Renderer::render() {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
 
-    hmm_mat4 view = HMM_LookAt(s.camera_pos, s.camera_target, s.camera_up);
-    const f64 fov = 85.0;
+    Mat4 view = glm::lookAt(s.camera_pos, s.camera_target, s.camera_up);
+    const f64 fov = glm::radians(60.0);
 
     glEnable(GL_DEPTH_TEST);
 
@@ -661,7 +665,7 @@ void Renderer::render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, combined_buffer.width, combined_buffer.height);
 
-    hmm_mat4 vp = HMM_Perspective(fov, combined_buffer.width / (f64)combined_buffer.height, 0.01, 1000.0) * view;
+    Mat4 vp = glm::perspective(fov, combined_buffer.width / (f64)combined_buffer.height, 0.01, 1000.0) * view;
     f32 vp_f32[16];
     mat4_to_f32(vp, vp_f32);
     view_projection_ubo.buffer_data(vp_f32, sizeof(vp_f32));
@@ -687,8 +691,8 @@ void Renderer::render() {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             glViewport(0, 0, projection_buffer.width, projection_buffer.height);
 
-            hmm_mat4 vp =
-                    HMM_Perspective(fov, projection_buffer.width / (f64)projection_buffer.height, 0.01, 1000.0) * view;
+            Mat4 vp =
+                    glm::perspective(fov, projection_buffer.width / (f64)projection_buffer.height, 0.01, 1000.0) * view;
             f32 vp_f32[16];
             mat4_to_f32(vp, vp_f32);
             view_projection_ubo.buffer_data(vp_f32, sizeof(vp_f32));
@@ -704,10 +708,10 @@ void Renderer::render() {
 
         Mat5 model = mk_model_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation);
         Mat5 mv = mk_model_view_mat(model, s.camera4);
-        for (const hmm_vec4& v : s.mesh.vertices) {
-            Vec5 view_v = mv * vec5(v, 1);
+        for (const Vec4& v : s.mesh.vertices) {
+            Vec5 view_v = mv * Vec5(v, 1);
 
-            hmm_vec4 v_;
+            Vec4 v_;
             if (s.perspective_projection) {
                 v_ = project_perspective(view_v, s.camera4.near);
             } else {
@@ -715,7 +719,7 @@ void Renderer::render() {
             }
 
             projected_vertices.push_back(v_);
-            projected_vertices3.push_back(vec3(v_));
+            projected_vertices3.push_back(Vec3(v_));
         }
 
         DCHECK_EQ_F(s.mesh.vertices.size(), projected_vertices.size());
@@ -730,11 +734,12 @@ void Renderer::render() {
 
         f32 max_depth = 0.0f;
         projected_vertices_f32.clear();
-        for (const hmm_vec4& v : projected_vertices) {
-            if (v.W > max_depth) {
-                max_depth = (f32)v.W;
+        for (const Vec4& v : projected_vertices) {
+            if (v.w > max_depth) {
+                max_depth = (f32)v.w;
             }
-            for (f64 element : v.Elements) {
+            for (s32 i = 0; i < 4; i++) {
+                f64 element = v[i];
                 projected_vertices_f32.push_back((f32)element);
             }
         }

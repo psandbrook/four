@@ -52,10 +52,10 @@ bool save_mesh_to_file(const Mesh4& mesh, const char* path) {
 
     for (const auto& v : mesh.vertices) {
         txml::XMLElement* v_xmle = doc.NewElement("vec4");
-        v_xmle->SetAttribute("x", v.X);
-        v_xmle->SetAttribute("y", v.Y);
-        v_xmle->SetAttribute("z", v.Z);
-        v_xmle->SetAttribute("w", v.W);
+        v_xmle->SetAttribute("x", v.x);
+        v_xmle->SetAttribute("y", v.y);
+        v_xmle->SetAttribute("z", v.z);
+        v_xmle->SetAttribute("w", v.w);
         vertices_xmle->InsertEndChild(v_xmle);
     }
 
@@ -126,11 +126,11 @@ Mesh4 load_mesh_from_file(const char* path) {
 
         DCHECK_EQ_F(strcmp(v_xmle->Name(), "vec4"), 0);
 
-        hmm_vec4 v = {};
-        v_xmle->QueryDoubleAttribute("x", &v.X);
-        v_xmle->QueryDoubleAttribute("y", &v.Y);
-        v_xmle->QueryDoubleAttribute("z", &v.Z);
-        v_xmle->QueryDoubleAttribute("w", &v.W);
+        Vec4 v = {};
+        v_xmle->QueryDoubleAttribute("x", &v.x);
+        v_xmle->QueryDoubleAttribute("y", &v.y);
+        v_xmle->QueryDoubleAttribute("z", &v.z);
+        v_xmle->QueryDoubleAttribute("w", &v.w);
         result.vertices.push_back(v);
     }
 

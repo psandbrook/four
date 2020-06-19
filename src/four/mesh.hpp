@@ -1,8 +1,7 @@
 #pragma once
 
+#include <four/math.hpp>
 #include <four/utility.hpp>
-
-#include <HandmadeMath.h>
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -25,7 +24,7 @@ using Face = std::vector<u32>;
 using Cell = std::vector<u32>;
 
 struct Mesh4 {
-    std::vector<hmm_vec4> vertices;
+    std::vector<Vec4> vertices;
     std::vector<Edge> edges;
     std::vector<Face> faces;
     std::vector<Cell> cells;
@@ -78,11 +77,11 @@ struct hash<four::Edge> {
 };
 
 template <>
-struct hash<hmm_vec4> {
-    size_t operator()(const hmm_vec4& v) const {
+struct hash<four::Vec4> {
+    size_t operator()(const four::Vec4& v) const {
         size_t hash = 0;
-        for (four::f64 x : v.Elements) {
-            four::hash_combine(hash, x);
+        for (four::s32 i = 0; i < 4; i++) {
+            four::hash_combine(hash, v[i]);
         }
         return hash;
     }
