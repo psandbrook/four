@@ -23,7 +23,7 @@ public:
     size_t size = 0;
 
 protected:
-    GlBuffer() {}
+    GlBuffer() = default;
     GlBuffer(GLenum type, GLenum usage);
 
 public:
@@ -33,7 +33,7 @@ public:
 } // namespace gl_buffer_base
 
 struct VertexBufferObject : public gl_buffer_base::GlBuffer {
-    VertexBufferObject() {}
+    VertexBufferObject() = default;
     explicit VertexBufferObject(GLenum usage) : GlBuffer(GL_ARRAY_BUFFER, usage) {}
 };
 
@@ -41,7 +41,7 @@ struct ElementBufferObject : public gl_buffer_base::GlBuffer {
     GLenum primitive;
     s32 primitive_count = 0;
 
-    ElementBufferObject() {}
+    ElementBufferObject() = default;
     ElementBufferObject(GLenum usage, GLenum primitive)
             : GlBuffer(GL_ELEMENT_ARRAY_BUFFER, usage), primitive(primitive) {}
 
@@ -53,7 +53,7 @@ struct UniformBufferObject : public gl_buffer_base::GlBuffer {
     const char* name;
     u32 binding;
 
-    UniformBufferObject() {}
+    UniformBufferObject() = default;
     UniformBufferObject(const char* name, u32 binding, GLenum usage);
 };
 
@@ -69,7 +69,7 @@ struct Framebuffer {
         u32 rbos[2] = {};
     };
 
-    Framebuffer() {}
+    Framebuffer() = default;
     Framebuffer(u32 width, u32 height);
 
     void bind();
@@ -80,7 +80,7 @@ struct ShaderProgram {
     u32 id;
     std::unordered_map<const char*, s32, CStrHash, CStrEquals> uniform_locations;
 
-    ShaderProgram() {}
+    ShaderProgram() = default;
     ShaderProgram(u32 vertex_shader, std::initializer_list<u32> fragment_shaders);
 
     void set_uniform_f32(const char* name, f32 value);
@@ -107,7 +107,7 @@ struct VertexArrayObject {
     std::vector<u32> vbos; // Vertex buffer objects can be shared among many VAOs
     ElementBufferObject ebo;
 
-    VertexArrayObject() {}
+    VertexArrayObject() = default;
     VertexArrayObject(ShaderProgram* shader_program, std::initializer_list<u32> vbos,
                       std::initializer_list<VertexSpec> specs, ElementBufferObject ebo);
 

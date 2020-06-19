@@ -40,7 +40,7 @@ bool is_around(f64 target, f64 pos) {
 } // namespace
 
 AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path)
-        : window(window), imgui_io(imgui_io), random_dev(), random_eng_32(random_dev()), mesh_rotation(rotation4()) {
+        : window(window), imgui_io(imgui_io), random_dev(), random_eng_32(random_dev()) {
 
     SDL_GL_GetDrawableSize(window, &window_width, &window_height);
     calc_ui_size_screen();

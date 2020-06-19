@@ -18,6 +18,9 @@ struct Edge {
         };
         u32 vertices[2];
     };
+
+    Edge() = default;
+    Edge(u32 v0, u32 v1) noexcept : v0(v0), v1(v1) {}
 };
 
 using Face = std::vector<u32>;
@@ -46,13 +49,6 @@ using CellHash = FaceHash;
 using CellEquals = FaceEquals;
 
 bool operator==(const Edge& lhs, const Edge& rhs);
-
-inline Edge edge(u32 v0, u32 v1) {
-    Edge result = {};
-    result.v0 = v0;
-    result.v1 = v1;
-    return result;
-}
 
 bool save_mesh_to_file(const Mesh4& mesh, const char* path);
 Mesh4 load_mesh_from_file(const char* path);

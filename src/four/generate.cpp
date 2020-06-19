@@ -248,7 +248,7 @@ Mesh4 generate_mesh4(const Vec4* vertices, const u32 n_vertices, const f64 edge_
         for (u32 i = 0; i < mesh.vertices.size(); i++) {
             for (u32 j = 0; j < mesh.vertices.size(); j++) {
                 if (j != i && float_eq(glm::length(mesh.vertices[j] - mesh.vertices[i]), edge_length)) {
-                    edge_set.insert(edge(i, j));
+                    edge_set.insert(Edge(i, j));
                 }
             }
         }

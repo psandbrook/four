@@ -26,14 +26,6 @@ struct Rotation4 {
     };
 };
 
-inline Rotation4 rotation4() {
-    Rotation4 result = {};
-    result.is_rotor = false;
-    Bivec4 rot = {};
-    result.euler = rot;
-    return result;
-}
-
 enum class Plane {
     xy,
     xz,
@@ -56,38 +48,38 @@ public:
     bool window_size_changed = false;
     bool wireframe_render = false;
 
-    s32 window_width;
-    s32 window_height;
+    s32 window_width = 0;
+    s32 window_height = 0;
 
     f64 visualization_width = 0.83;
-    f64 ui_size_screen;
+    f64 ui_size_screen = 0;
     bool split = true;
     f64 divider = 0.5;
 
-    Mesh4 mesh;
-    Vec4 mesh_pos;
-    Vec4 mesh_scale;
-    Rotation4 mesh_rotation;
+    Mesh4 mesh = {};
+    Vec4 mesh_pos = {};
+    Vec4 mesh_scale = {};
+    Rotation4 mesh_rotation = {};
 
-    s32 selected_cell;
-    bool selected_cell_cycle;
-    f64 selected_cell_cycle_acc;
+    s32 selected_cell = 0;
+    bool selected_cell_cycle = false;
+    f64 selected_cell_cycle_acc = 0;
 
-    bool auto_rotate[(size_t)Plane::count];
-    f64 auto_rotate_mag[(size_t)Plane::count];
+    bool auto_rotate[(size_t)Plane::count] = {};
+    f64 auto_rotate_mag[(size_t)Plane::count] = {};
 
     bool perspective_projection = true;
-    Camera4 camera4;
+    Camera4 camera4 = {};
 
     Vec3 camera_pos = {-1.5, 2, 3.5};
     Vec3 camera_target = {0, 0, 0};
     Vec3 camera_up = {0, 1, 0};
 
 private:
-    Vec4 new_mesh_pos;
-    Vec4 new_mesh_scale;
-    Rotation4 new_mesh_rotation;
-    Camera4 new_camera4;
+    Vec4 new_mesh_pos = {};
+    Vec4 new_mesh_scale = {};
+    Rotation4 new_mesh_rotation = {};
+    Camera4 new_camera4 = {};
 
     bool dragging_ui = false;
     bool dragging_divider = false;
@@ -100,7 +92,6 @@ private:
     // -----------------
 
 public:
-    AppState() = default;
     AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path);
 
     // Returns true if the application should exit
