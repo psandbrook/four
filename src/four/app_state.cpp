@@ -30,7 +30,7 @@ f32 srgb_to_linear(f32 value) {
 
 void AppState::change_mesh(const char* path) {
     mesh = load_mesh_from_file(path);
-    mesh_pos = {0.0, 0.0, 0.0, 0.01};
+    mesh_pos = {0.0, 0.0, 0.0, 0.0};
     mesh_scale = {1, 1, 1, 1};
     if (mesh_rotation.is_rotor) {
         mesh_rotation.rotor = rotor4();
@@ -47,6 +47,8 @@ void AppState::change_mesh(const char* path) {
 
 AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path)
         : window(window), imgui_io(imgui_io), random_dev(), random_eng_32(random_dev()), mesh_rotation(rotation4()) {
+
+    SDL_GL_GetDrawableSize(window, &window_width, &window_height);
     change_mesh(mesh_path);
     CHECK_NOTNULL_F(imgui_io->Fonts->AddFontFromFileTTF("data/DejaVuSans.ttf", 18.0f, NULL, glyph_ranges));
 
@@ -77,6 +79,7 @@ bool AppState::process_events_and_imgui() {
 
         case SDL_WINDOWEVENT: {
             if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+                SDL_GL_GetDrawableSize(window, &window_width, &window_height);
                 window_size_changed = true;
                 // SDL_SetWindowResizable(window, SDL_FALSE);
             }
@@ -306,31 +309,17 @@ bool AppState::process_events_and_imgui() {
         ImGui::End();
     }
 
-    {
-        ImGui::Begin("Visualization mode", NULL, default_window_flags);
-        if (ImGui::Button("Projection")) {
-            cross_section = false;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cross section")) {
-            cross_section = true;
-        }
-        ImGui::End();
-    }
-
     ImGui::EndFrame();
 
-    if (!cross_section) {
-        Mat5 model = mk_model_mat(new_mesh_pos, new_mesh_scale, new_mesh_rotation);
-        Mat5 mv = mk_model_view_mat(model, camera4);
-        for (const auto& v : mesh.vertices) {
-            Vec5 view_v = mv * vec5(v, 1);
-            if (view_v.W > -camera4.near) {
-                new_mesh_pos = prev_new_mesh_pos;
-                new_mesh_scale = prev_new_mesh_scale;
-                new_mesh_rotation = prev_new_mesh_rotation;
-                break;
-            }
+    Mat5 model = mk_model_mat(new_mesh_pos, new_mesh_scale, new_mesh_rotation);
+    Mat5 mv = mk_model_view_mat(model, camera4);
+    for (const auto& v : mesh.vertices) {
+        Vec5 view_v = mv * vec5(v, 1);
+        if (view_v.W > -camera4.near) {
+            new_mesh_pos = prev_new_mesh_pos;
+            new_mesh_scale = prev_new_mesh_scale;
+            new_mesh_rotation = prev_new_mesh_rotation;
+            break;
         }
     }
 

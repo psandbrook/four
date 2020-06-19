@@ -4,7 +4,9 @@ layout (location = 0) in vec4 pos;
 
 out float depth4;
 
-uniform mat4 vp;
+layout (std140) uniform ViewProjection {
+    mat4 vp;
+};
 
 void main() {
     depth4 = pos.w;

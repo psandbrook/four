@@ -250,14 +250,14 @@ inline Mat5 look_at_inverse(const hmm_vec4& eye, const hmm_vec4& target, const h
 }
 
 inline hmm_vec4 project_orthographic(const Vec5& v, f64 near) {
-    CHECK_GT_F(near, 0.0);
-    CHECK_LE_F(v.W, -near);
+    DCHECK_GT_F(near, 0.0);
+    DCHECK_LE_F(v.W, -near);
     return vec4(v.X, v.Y, v.Z, v.W + near);
 }
 
 inline hmm_vec4 project_perspective(const Vec5& v, f64 near) {
-    CHECK_GT_F(near, 0.0);
-    CHECK_LE_F(v.W, -near);
+    DCHECK_GT_F(near, 0.0);
+    DCHECK_LE_F(v.W, -near);
     f64 d = near / -v.W;
     hmm_vec4 intersect = d * vec4(v);
     return vec4(intersect.X, intersect.Y, intersect.Z, HMM_Length(intersect - vec4(v)));
@@ -586,8 +586,8 @@ inline Rotor4 euler_to_rotor(const Bivec4& B) {
 
 inline Bivec4 rotor_to_euler(const Rotor4& r) {
     Bivec4 result = {};
-    f64 a = acos(r.s);
-    f64 sin_a = sin(a);
+    // f64 a = acos(r.s);
+    // f64 sin_a = sin(a);
     result = r.B;
     return result;
 }

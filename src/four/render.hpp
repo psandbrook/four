@@ -12,26 +12,6 @@ struct SDL_Window;
 
 namespace four {
 
-struct ShaderProgram {
-    u32 id;
-    std::unordered_map<const char*, s32, CStrHash, CStrEquals> uniform_locations;
-
-    ShaderProgram() {}
-    ShaderProgram(u32 vertex_shader, u32 fragment_shader);
-
-    void set_uniform_mat4(const char* name, const f32* data);
-    void set_uniform_f32(const char* name, f32 value);
-    s32 get_location(const char* name);
-};
-
-struct VertexSpec {
-    u32 index;
-    s32 size;
-    GLenum type;
-    GLsizei stride;
-    ptrdiff_t offset;
-};
-
 struct GlBuffer {
     u32 id;
     GLenum type;
@@ -60,8 +40,46 @@ struct ElementBufferObject {
     ElementBufferObject() {}
     ElementBufferObject(GLenum usage, GLenum primitive) : buf(GL_ELEMENT_ARRAY_BUFFER, usage), primitive(primitive) {}
 
-    void buffer_data(const void* data, s32 n);
-    void buffer_data_realloc(const void* data, s32 n);
+    void buffer_elements(const void* data, s32 n);
+    void buffer_elements_realloc(const void* data, s32 n);
+};
+
+struct UniformBufferObject {
+    GlBuffer buf;
+    const char* name;
+    u32 binding;
+
+    UniformBufferObject() {}
+    UniformBufferObject(const char* name, u32 binding, GLenum usage);
+
+    void buffer_data(const void* data, size_t size) {
+        buf.buffer_data(data, size);
+    }
+};
+
+struct ShaderProgram {
+    u32 id;
+    std::unordered_map<const char*, s32, CStrHash, CStrEquals> uniform_locations;
+
+    ShaderProgram() {}
+    ShaderProgram(u32 vertex_shader, Slice<u32> fragment_shaders);
+
+    void set_uniform_f32(const char* name, f32 value);
+    void set_uniform_bool(const char* name, bool value);
+    void set_uniform_mat4(const char* name, const f32* data);
+    void set_uniform_vec3(const char* name, const f32* data);
+
+    s32 get_location(const char* name);
+
+    void bind_uniform_block(const UniformBufferObject& ubo);
+};
+
+struct VertexSpec {
+    u32 index;
+    s32 size;
+    GLenum type;
+    GLsizei stride;
+    ptrdiff_t offset;
 };
 
 struct VertexArrayObject {
@@ -94,14 +112,15 @@ public:
                         std::vector<u32>& out_tets);
 };
 
-// TODO: Add SRGB support
 struct Renderer {
 private:
     SDL_Window* window;
     AppState* state;
 
-    ShaderProgram wireframe_shader_prog;
-    ShaderProgram selected_cell_shader_prog;
+    UniformBufferObject view_projection_ubo;
+    UniformBufferObject fragment_ubo;
+
+    ShaderProgram n4d_shader_prog;
     ShaderProgram cross_section_shader_prog;
     ShaderProgram xz_grid_shader_prog;
 

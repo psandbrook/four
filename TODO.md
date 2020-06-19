@@ -1,4 +1,4 @@
-* Simultaneous projection and cross-section visualization
+* Support OpenGl 3.3
 * Fix mouse position when dragging 4D transform widgets
 * Automatic rotation
 * 4D camera movement

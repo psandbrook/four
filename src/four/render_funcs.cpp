@@ -294,13 +294,6 @@ bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
         hmm_vec3 l1 = v1_ - v0_;
         hmm_vec3 n3d_normal = HMM_Normalize(HMM_Cross(l1, v2_ - v0_));
 
-        hmm_vec3 up;
-        if (float_eq(std::abs(n3d_normal.Y), 1.0, 0.001)) {
-            up = {1, 0, 0};
-        } else {
-            up = {0, 1, 0};
-        }
-
         hmm_mat4 temp_look_at = HMM_LookAt(v0_, v0_ + n3d_normal, l1);
         hmm_mat4 temp_look_at_inverse = look_at_inverse(v0_, v0_ + n3d_normal, l1);
 
@@ -346,7 +339,7 @@ bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
     s.tet_out_v.clear();
     s.tet_out_t.clear();
     s.tet_out_f.clear();
-    int result = igl::copyleft::tetgen::tetrahedralize(s.tet_mesh_v, s.tet_mesh_f, "pq1.2/18YV", s.tet_out_v,
+    int result = igl::copyleft::tetgen::tetrahedralize(s.tet_mesh_v, s.tet_mesh_f, "pq1.2/18YQ", s.tet_out_v,
                                                        s.tet_out_t, s.tet_out_f);
     fflush(stdout);
     fflush(stderr);

@@ -5,7 +5,9 @@ layout (location = 1) in vec3 color;
 
 out vec3 frag_color;
 
-uniform mat4 vp;
+layout (std140) uniform ViewProjection {
+    mat4 vp;
+};
 
 void main() {
     frag_color = color;

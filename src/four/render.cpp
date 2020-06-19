@@ -13,6 +13,19 @@ namespace four {
 
 namespace {
 
+struct FragmentUniforms {
+    u32 window_width;
+    f32 divider;
+};
+
+void mat4_to_f32(const hmm_mat4& mat, f32* out) {
+    for (s32 col = 0; col < 4; col++) {
+        for (s32 row = 0; row < 4; row++) {
+            out[col * 4 + row] = (f32)mat[col][row];
+        }
+    }
+}
+
 u32 compile_shader(const char* path, GLenum type) {
     auto full_path = std::string("data/shaders/") + path;
     std::ifstream stream(full_path);
@@ -41,10 +54,14 @@ u32 compile_shader(const char* path, GLenum type) {
 }
 } // namespace
 
-ShaderProgram::ShaderProgram(u32 vertex_shader, u32 fragment_shader) {
+ShaderProgram::ShaderProgram(u32 vertex_shader, Slice<u32> fragment_shaders) {
     id = glCreateProgram();
     glAttachShader(id, vertex_shader);
-    glAttachShader(id, fragment_shader);
+
+    for (size_t i = 0; i < fragment_shaders.len; i++) {
+        glAttachShader(id, fragment_shaders[i]);
+    }
+
     glLinkProgram(id);
 
     s32 success;
@@ -82,6 +99,21 @@ void ShaderProgram::set_uniform_f32(const char* name, f32 value) {
     glUniform1f(get_location(name), value);
 }
 
+void ShaderProgram::set_uniform_bool(const char* name, bool value) {
+    glUseProgram(id);
+    glUniform1i(get_location(name), (s32)value);
+}
+
+void ShaderProgram::set_uniform_vec3(const char* name, const f32* data) {
+    glUseProgram(id);
+    glUniform3fv(get_location(name), 1, data);
+}
+
+void ShaderProgram::bind_uniform_block(const UniformBufferObject& ubo) {
+    u32 index = glGetUniformBlockIndex(id, ubo.name);
+    glUniformBlockBinding(id, index, ubo.binding);
+}
+
 GlBuffer::GlBuffer(GLenum type, GLenum usage) : type(type), usage(usage) {
     glGenBuffers(1, &id);
 }
@@ -103,14 +135,20 @@ void GlBuffer::buffer_data_realloc(const void* data, size_t size) {
     this->size = size;
 }
 
-void ElementBufferObject::buffer_data(const void* data, s32 n) {
+void ElementBufferObject::buffer_elements(const void* data, s32 n) {
     buf.buffer_data(data, (u32)n * sizeof(u32));
     primitive_count = n;
 }
 
-void ElementBufferObject::buffer_data_realloc(const void* data, s32 n) {
+void ElementBufferObject::buffer_elements_realloc(const void* data, s32 n) {
     buf.buffer_data_realloc(data, (u32)n * sizeof(u32));
     primitive_count = n;
+}
+
+UniformBufferObject::UniformBufferObject(const char* name, u32 binding, GLenum usage)
+        : buf(GL_UNIFORM_BUFFER, usage), name(name), binding(binding) {
+
+    glBindBufferBase(GL_UNIFORM_BUFFER, binding, buf.id);
 }
 
 VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, Slice<VertexBufferObject*> vbos_,
@@ -154,15 +192,14 @@ size_t Renderer::add_vbo(GLenum usage) {
 }
 
 void Renderer::update_window_size() {
-    s32 window_width, window_height;
-    SDL_GL_GetDrawableSize(window, &window_width, &window_height);
-    glViewport(0, 0, window_width, window_height);
-    projection = HMM_Perspective(90, (f64)window_width / (f64)window_height, 0.01, 1000.0);
+    auto& s = *state;
+    glViewport(0, 0, s.window_width, s.window_height);
+    projection = HMM_Perspective(90, (f64)s.window_width / (f64)s.window_height, 0.01, 1000.0);
 }
 
 void Renderer::do_mesh_changed() {
     auto& s = *state;
-    wireframe.ebo.buffer_data_realloc(s.mesh.edges.data(), 2 * (s32)s.mesh.edges.size());
+    wireframe.ebo.buffer_elements_realloc(s.mesh.edges.data(), 2 * (s32)s.mesh.edges.size());
 
     tet_mesh_vertices.clear();
     tet_mesh_tets.clear();
@@ -420,15 +457,19 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+    view_projection_ubo = UniformBufferObject("ViewProjection", 0, GL_STREAM_DRAW);
+    fragment_ubo = UniformBufferObject("FragmentUniforms", 1, GL_STREAM_DRAW);
+    u32 common_frag_shader = compile_shader("common-frag.glsl", GL_FRAGMENT_SHADER);
+
     // Wireframe
-    // ---------
 
     u32 n4d_vert_shader = compile_shader("n4d-vert.glsl", GL_VERTEX_SHADER);
-    u32 wireframe_frag_shader = compile_shader("wireframe-frag.glsl", GL_FRAGMENT_SHADER);
-    wireframe_shader_prog = ShaderProgram(n4d_vert_shader, wireframe_frag_shader);
+    u32 n4d_frag_shader = compile_shader("n4d-frag.glsl", GL_FRAGMENT_SHADER);
+    u32 n4d_frag_shaders[] = {n4d_frag_shader, common_frag_shader};
+    n4d_shader_prog = ShaderProgram(n4d_vert_shader, AS_SLICE(n4d_frag_shaders));
 
     size_t wireframe_vertices = add_vbo(GL_STREAM_DRAW);
-    VertexSpec wireframe_vertices_spec = {
+    VertexSpec n4d_vertex_spec = {
             .index = 0,
             .size = 4,
             .type = GL_FLOAT,
@@ -436,26 +477,19 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
             .offset = 0,
     };
 
-    // ---------
-
-    // Selected cell
-    // -------------
-
-    u32 selected_cell_frag_shader = compile_shader("cell-frag.glsl", GL_FRAGMENT_SHADER);
-    selected_cell_shader_prog = ShaderProgram(n4d_vert_shader, selected_cell_frag_shader);
-
-    // -------------
-
     // Cross-section
-    // -------------
 
-    u32 cross_vert_shader = compile_shader("cross-vert.glsl", GL_VERTEX_SHADER);
-    u32 cross_frag_shader = compile_shader("cross-frag.glsl", GL_FRAGMENT_SHADER);
-    cross_section_shader_prog = ShaderProgram(cross_vert_shader, cross_frag_shader);
+    {
+        u32 vert_shader = compile_shader("cross-vert.glsl", GL_VERTEX_SHADER);
+        u32 frag_shader = compile_shader("cross-frag.glsl", GL_FRAGMENT_SHADER);
+        u32 frag_shaders[] = {frag_shader, common_frag_shader};
+        cross_section_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
+    }
+
     size_t cross_vertices = add_vbo(GL_STREAM_DRAW);
     size_t cross_colors = add_vbo(GL_STREAM_DRAW);
 
-    VertexSpec cross_spec = {
+    VertexSpec cross_vertex_spec = {
             .index = 0,
             .size = 3,
             .type = GL_FLOAT,
@@ -471,89 +505,86 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
             .offset = 0,
     };
 
-    // -------------
-
     // XZ grid
-    // -------
 
-    u32 xz_grid_vert_shader = compile_shader("xz-grid-vert.glsl", GL_VERTEX_SHADER);
-    u32 xz_grid_frag_shader = compile_shader("xz-grid-frag.glsl", GL_FRAGMENT_SHADER);
-    xz_grid_shader_prog = ShaderProgram(xz_grid_vert_shader, xz_grid_frag_shader);
+    {
+        u32 vert_shader = compile_shader("xz-grid-vert.glsl", GL_VERTEX_SHADER);
+        u32 frag_shader = compile_shader("xz-grid-frag.glsl", GL_FRAGMENT_SHADER);
+
+        u32 frag_shaders[] = {frag_shader, common_frag_shader};
+        xz_grid_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
+    }
+
     size_t xz_grid_vertices = add_vbo(GL_STATIC_DRAW);
     std::vector<f32> xz_grid_vertices_vec;
-    const s32 n_grid_lines = 20;
-    const f64 grid_lines_spacing = 0.2;
+    {
+        const s32 n_grid_lines = 20;
+        const f64 grid_lines_spacing = 0.2;
 
-    for (s32 i = 0; i <= n_grid_lines; i++) {
-        f64 end_pos = (n_grid_lines / 2.0) * grid_lines_spacing;
-        f64 i_pos = (i * grid_lines_spacing) - end_pos;
-        f64 vertices[][3] = {
-                {end_pos, 0, i_pos},
-                {-end_pos, 0, i_pos},
-                {i_pos, 0, -end_pos},
-                {i_pos, 0, end_pos},
-        };
+        for (s32 i = 0; i <= n_grid_lines; i++) {
+            f64 end_pos = (n_grid_lines / 2.0) * grid_lines_spacing;
+            f64 i_pos = (i * grid_lines_spacing) - end_pos;
+            f64 vertices[][3] = {
+                    {end_pos, 0, i_pos},
+                    {-end_pos, 0, i_pos},
+                    {i_pos, 0, -end_pos},
+                    {i_pos, 0, end_pos},
+            };
 
-        for (auto v : vertices) {
-            for (s32 i = 0; i < 3; i++) {
-                xz_grid_vertices_vec.push_back((f32)v[i]);
+            for (auto v : vertices) {
+                for (s32 i = 0; i < 3; i++) {
+                    xz_grid_vertices_vec.push_back((f32)v[i]);
+                }
             }
         }
-    }
-    vbos[xz_grid_vertices].buffer_data(xz_grid_vertices_vec.data(), xz_grid_vertices_vec.size() * sizeof(f32));
 
-    // -------
+        vbos[xz_grid_vertices].buffer_data(xz_grid_vertices_vec.data(), xz_grid_vertices_vec.size() * sizeof(f32));
+    }
+
+    ShaderProgram* all_shader_progs[] = {&n4d_shader_prog, &cross_section_shader_prog, &xz_grid_shader_prog};
+    for (auto prog : all_shader_progs) {
+        prog->bind_uniform_block(view_projection_ubo);
+        prog->bind_uniform_block(fragment_ubo);
+    }
 
     // Wireframe VAO
-    // -------------
 
-    ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
-
+    VertexSpec n4d_vertex_specs[] = {n4d_vertex_spec};
     VertexBufferObject* wireframe_vbos[] = {&vbos[wireframe_vertices]};
-    VertexSpec wireframe_vertex_specs[] = {wireframe_vertices_spec};
-    wireframe = VertexArrayObject(&wireframe_shader_prog, AS_SLICE(wireframe_vbos), AS_SLICE(wireframe_vertex_specs),
-                                  wireframe_ebo);
-    // -------------
+
+    {
+        ElementBufferObject ebo(GL_STATIC_DRAW, GL_LINES);
+        wireframe = VertexArrayObject(&n4d_shader_prog, AS_SLICE(wireframe_vbos), AS_SLICE(n4d_vertex_specs), ebo);
+    }
 
     // Selected cell VAO
-    // -----------------
-
-    ElementBufferObject cell_ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-
-    VertexBufferObject* selected_cell_vbos[] = {&vbos[wireframe_vertices]};
-    selected_cell = VertexArrayObject(&selected_cell_shader_prog, AS_SLICE(selected_cell_vbos),
-                                      AS_SLICE(wireframe_vertex_specs), cell_ebo);
-
-    // -----------------
+    {
+        ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
+        selected_cell = VertexArrayObject(&n4d_shader_prog, AS_SLICE(wireframe_vbos), AS_SLICE(n4d_vertex_specs), ebo);
+    }
 
     // Cross-section VAO
-    // -----------------
-
-    ElementBufferObject cross_ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-
-    VertexBufferObject* cross_vbos[] = {&vbos[cross_vertices], &vbos[cross_colors]};
-    VertexSpec cross_vertex_specs[] = {cross_spec, cross_color_spec};
-    cross_section = VertexArrayObject(&cross_section_shader_prog, AS_SLICE(cross_vbos), AS_SLICE(cross_vertex_specs),
-                                      cross_ebo);
-
-    // -----------------
+    {
+        ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
+        VertexBufferObject* cross_vbos[] = {&vbos[cross_vertices], &vbos[cross_colors]};
+        VertexSpec vertex_specs[] = {cross_vertex_spec, cross_color_spec};
+        cross_section =
+                VertexArrayObject(&cross_section_shader_prog, AS_SLICE(cross_vbos), AS_SLICE(vertex_specs), ebo);
+    }
 
     // XZ grid VAO
-    // -----------
+    {
+        ElementBufferObject ebo(GL_STATIC_DRAW, GL_LINES);
+        std::vector<u32> indices_vec;
+        for (u32 i = 0; i < xz_grid_vertices_vec.size(); i++) {
+            indices_vec.push_back(i);
+        }
+        ebo.buffer_elements(indices_vec.data(), (s32)indices_vec.size());
 
-    ElementBufferObject xz_grid_ebo(GL_STATIC_DRAW, GL_LINES);
-    std::vector<u32> xz_grid_indices_vec;
-    for (u32 i = 0; i < xz_grid_vertices_vec.size(); i++) {
-        xz_grid_indices_vec.push_back(i);
+        VertexBufferObject* xz_grid_vbos[] = {&vbos[xz_grid_vertices]};
+        VertexSpec vertex_specs[] = {cross_vertex_spec};
+        xz_grid = VertexArrayObject(&xz_grid_shader_prog, AS_SLICE(xz_grid_vbos), AS_SLICE(vertex_specs), ebo);
     }
-    xz_grid_ebo.buffer_data(xz_grid_indices_vec.data(), (s32)xz_grid_indices_vec.size());
-
-    VertexBufferObject* xz_grid_vbos[] = {&vbos[xz_grid_vertices]};
-    VertexSpec xz_grid_vertex_specs[] = {cross_spec};
-    xz_grid = VertexArrayObject(&xz_grid_shader_prog, AS_SLICE(xz_grid_vbos), AS_SLICE(xz_grid_vertex_specs),
-                                xz_grid_ebo);
-
-    // -----------
 }
 
 void Renderer::render() {
@@ -574,32 +605,53 @@ void Renderer::render() {
     hmm_mat4 view = HMM_LookAt(s.camera_pos, s.camera_target, s.camera_up);
     hmm_mat4 vp = projection * view;
 
-    f32 vp_f32[16];
-    for (s32 col = 0; col < 4; col++) {
-        for (s32 row = 0; row < 4; row++) {
-            vp_f32[col * 4 + row] = (f32)vp[col][row];
-        }
-    }
+    f32 ndc_divider = (f32)(s.render_divider * 2.0 - 1.0);
 
-    xz_grid_shader_prog.set_uniform_mat4("vp", vp_f32);
+    FragmentUniforms frag_uniforms = {
+            .window_width = (u32)s.window_width,
+            .divider = ndc_divider,
+    };
 
-    glLineWidth(0.5f);
-    xz_grid.draw();
+    fragment_ubo.buffer_data(&frag_uniforms, sizeof(frag_uniforms));
 
-    if (s.cross_section) {
-        // Hyperplane is p_0 = (0, 0, 0, 0), n = (0, 0, 0, 1)
+    // Draw cross-section
+    {
+        f64 cross_x = s.render_divider / 2.0;
+        hmm_mat4 vp_cross = HMM_Translate(HMM_Vec3(cross_x - 0.5, 0, 0)) * vp;
+        f32 vp_cross_f32[16];
+        mat4_to_f32(vp_cross, vp_cross_f32);
+
+        view_projection_ubo.buffer_data(vp_cross_f32, sizeof(vp_cross_f32));
+
+        xz_grid_shader_prog.set_uniform_bool("is_projection", false);
+        glLineWidth(0.5f);
+        xz_grid.draw();
+
         calculate_cross_section();
 
         CHECK_EQ_F(cross_vertices.size(), cross_colors.size());
         cross_section.vbos[0]->buffer_data(cross_vertices.data(), cross_vertices.size() * sizeof(f32));
         cross_section.vbos[1]->buffer_data(cross_colors.data(), cross_colors.size() * sizeof(f32));
-        cross_section.ebo.buffer_data(cross_tris.data(), (s32)cross_tris.size());
+        cross_section.ebo.buffer_elements(cross_tris.data(), (s32)cross_tris.size());
 
-        cross_section_shader_prog.set_uniform_mat4("vp", vp_f32);
         cross_section.draw();
+    }
 
-    } else {
+    // Draw projection
+    {
+        f64 projection_x = 1.0 - (1.0 - s.render_divider) / 2.0;
+        hmm_mat4 vp_projection = HMM_Translate(HMM_Vec3(projection_x - 0.5, 0, 0)) * vp;
+        f32 vp_projection_f32[16];
+        mat4_to_f32(vp_projection, vp_projection_f32);
+
+        view_projection_ubo.buffer_data(vp_projection_f32, sizeof(vp_projection_f32));
+
+        xz_grid_shader_prog.set_uniform_bool("is_projection", true);
+        glLineWidth(0.5f);
+        xz_grid.draw();
+
         // Perform 4D to 3D projection
+
         projected_vertices.clear();
         projected_vertices3.clear();
 
@@ -611,9 +663,11 @@ void Renderer::render() {
             projected_vertices.push_back(v_);
             projected_vertices3.push_back(vec3(v_));
         }
+
         DCHECK_EQ_F(s.mesh.vertices.size(), projected_vertices.size());
 
         // Triangulate selected cell
+
         selected_cell_tri_faces.clear();
         for (u32 face_i : s.mesh.cells[(size_t)s.selected_cell]) {
             const auto& face = s.mesh.faces[face_i];
@@ -632,16 +686,16 @@ void Renderer::render() {
         }
 
         wireframe.vbos[0]->buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * sizeof(f32));
-        selected_cell.ebo.buffer_data(selected_cell_tri_faces.data(), (s32)selected_cell_tri_faces.size());
+        selected_cell.ebo.buffer_elements(selected_cell_tri_faces.data(), (s32)selected_cell_tri_faces.size());
 
-        wireframe_shader_prog.set_uniform_mat4("vp", vp_f32);
-        wireframe_shader_prog.set_uniform_f32("max_depth", max_depth);
+        n4d_shader_prog.set_uniform_f32("max_depth", max_depth);
 
-        selected_cell_shader_prog.set_uniform_mat4("vp", vp_f32);
-        selected_cell_shader_prog.set_uniform_f32("max_depth", max_depth);
-
+        f32 selected_cell_color[3] = {1, 0, 1};
+        n4d_shader_prog.set_uniform_vec3("color1", selected_cell_color);
         selected_cell.draw();
 
+        f32 wireframe_color[3] = {1, 1, 0};
+        n4d_shader_prog.set_uniform_vec3("color1", wireframe_color);
         glLineWidth(2.0f);
         wireframe.draw();
     }
@@ -650,5 +704,28 @@ void Renderer::render() {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     SDL_GL_SwapWindow(window);
+
+    switch (glGetError()) {
+    case GL_NO_ERROR:
+        break;
+
+    case GL_INVALID_ENUM:
+        ABORT_F("GL_INVALID_ENUM");
+
+    case GL_INVALID_VALUE:
+        ABORT_F("GL_INVALID_VALUE");
+
+    case GL_INVALID_OPERATION:
+        ABORT_F("GL_INVALID_OPERATION");
+
+    case GL_INVALID_FRAMEBUFFER_OPERATION:
+        ABORT_F("GL_INVALID_FRAMEBUFFER_OPERATION");
+
+    case GL_OUT_OF_MEMORY:
+        ABORT_F("GL_OUT_OF_MEMORY");
+
+    default:
+        ABORT_F("Unknown OpenGL error");
+    }
 }
 } // namespace four

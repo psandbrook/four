@@ -11,8 +11,8 @@ struct ImGuiIO;
 namespace four {
 
 struct Camera4 {
-    hmm_vec4 pos = {0, 0, 0, 0};
-    hmm_vec4 target = {0, 0, 0, 1};
+    hmm_vec4 pos = {0, 0, 0, 4};
+    hmm_vec4 target = {0, 0, 0, 0};
     hmm_vec4 up = {0, 1, 0, 0};
     hmm_vec4 over = {0, 0, 1, 0};
     f64 near = 1.0;
@@ -44,7 +44,8 @@ public:
     bool window_size_changed = false;
     bool mesh_changed = false;
 
-    bool cross_section = true;
+    s32 window_width, window_height;
+    f64 render_divider = 0.5;
 
     Mesh4 mesh;
     hmm_vec4 mesh_pos;
@@ -57,7 +58,7 @@ public:
 
     Camera4 camera4;
 
-    hmm_vec3 camera_pos = {0, 0, 4};
+    hmm_vec3 camera_pos = {-1.5, 2, 3.5};
     hmm_vec3 camera_target = {0, 0, 0};
     hmm_vec3 camera_up = {0, 1, 0};
 
