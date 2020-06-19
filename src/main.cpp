@@ -26,8 +26,6 @@ using namespace four;
 
 namespace {
 
-const f64 look_at_y_epsilon = 0.0001;
-
 u32 compile_shader(const char* path, GLenum shader_type) {
 
     // FIXME: This is inefficient
@@ -174,7 +172,13 @@ int main(int argc, char** argv) {
         }
     }
 
-    Mesh4 mesh = generate_tesseract();
+    {
+        Mesh4 mesh = generate_tesseract();
+        CHECK_F(save_mesh_to_file(mesh, "tesseract.mesh4"));
+    }
+
+    Mesh4 mesh = load_mesh_from_file("tesseract.mesh4");
+
     hmm_vec4 mesh_pos = {0, 0, 0, 2.5};
     printf("%lu %lu %lu %lu\n", mesh.vertices.size(), mesh.edges.size(), mesh.faces.size(), mesh.cells.size());
 
@@ -263,7 +267,7 @@ int main(int argc, char** argv) {
         second_acc += elapsed_ms;
 
         if (second_acc >= 1000.0) {
-            printf("fps: %i\n", frames);
+            LOG_F(INFO, "fps: %i", frames);
             second_acc = 0.0;
             frames = 0;
         }

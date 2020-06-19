@@ -48,6 +48,10 @@ inline Edge edge(u32 v0, u32 v1) {
     result.v1 = v1;
     return result;
 }
+
+bool save_mesh_to_file(const Mesh4& mesh, const char* path);
+Mesh4 load_mesh_from_file(const char* path);
+
 } // namespace four
 
 namespace std {

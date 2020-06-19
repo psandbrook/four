@@ -22,6 +22,9 @@ target_compile_options(triangle PRIVATE -w -fno-lto)
 add_library(loguru STATIC depends/loguru/loguru.cpp)
 target_compile_options(loguru PRIVATE -w)
 
+add_library(tinyxml2 STATIC depends/tinyxml2/tinyxml2.cpp)
+target_compile_options(tinyxml2 PRIVATE -w)
+
 # ============
 
 # Prefix: src/
@@ -57,6 +60,7 @@ include_directories(SYSTEM
   depends/eigen
   depends/triangle
   depends/loguru
+  depends/tinyxml2
 )
 
 set(CXX_FLAGS_COMMON
@@ -105,7 +109,7 @@ set(CMAKE_C_FLAGS_DEBUG ${C_FLAGS_DEBUG_STR})
 set(CMAKE_C_FLAGS_RELEASE ${C_FLAGS_RELEASE_STR})
 
 add_executable(four ${SOURCES})
-target_link_libraries(four rt dl m pthread SDL2::SDL2 glad triangle loguru)
+target_link_libraries(four rt dl m pthread SDL2::SDL2 glad triangle loguru tinyxml2)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   add_custom_command(
