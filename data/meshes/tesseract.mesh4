@@ -200,6 +200,14 @@
     </faces>
     <cells>
         <indices>
+            <index>22</index>
+            <index>20</index>
+            <index>19</index>
+            <index>18</index>
+            <index>16</index>
+            <index>2</index>
+        </indices>
+        <indices>
             <index>23</index>
             <index>21</index>
             <index>20</index>
@@ -230,14 +238,6 @@
             <index>1</index>
             <index>21</index>
             <index>10</index>
-        </indices>
-        <indices>
-            <index>22</index>
-            <index>20</index>
-            <index>19</index>
-            <index>18</index>
-            <index>16</index>
-            <index>2</index>
         </indices>
         <indices>
             <index>23</index>
