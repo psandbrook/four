@@ -25,8 +25,8 @@ struct WindowGuard {
         CHECK_EQ_F(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER), 0, "%s", SDL_GetError());
 
         s32 error = SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1)
-                    | SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4)
-                    | SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5)
+                    | SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3)
+                    | SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3)
                     | SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE)
                     | SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24) | SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8)
                     | SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 1);
@@ -50,8 +50,8 @@ struct WindowGuard {
         ImGui::CreateContext();
         imgui_io = &ImGui::GetIO();
         ImGui::StyleColorsDark();
-        ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
-        ImGui_ImplOpenGL3_Init("#version 450");
+        CHECK_F(ImGui_ImplSDL2_InitForOpenGL(window, gl_context));
+        CHECK_F(ImGui_ImplOpenGL3_Init("#version 330 core"));
     }
 
     ~WindowGuard() {
