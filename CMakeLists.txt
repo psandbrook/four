@@ -76,6 +76,7 @@ endif()
 set(C_FLAGS_COMMON ${CXX_FLAGS_COMMON})
 list(REMOVE_ITEM C_FLAGS_COMMON
   -Wctor-dtor-privacy -Wnoexcept -Woverloaded-virtual -Wsign-promo -Wstrict-null-sentinel -Wuseless-cast -Wabi-tag
+  -fvisibility-inlines-hidden
 )
 
 set(C_FLAGS_DEBUG ${CXX_FLAGS_DEBUG})
@@ -100,7 +101,9 @@ add_executable(four ${SOURCES})
 # Dependencies
 # ============
 
-find_package(SDL2 2.0 REQUIRED)
+set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
+add_subdirectory(depends/SDL2)
+target_compile_options(SDL2-static PRIVATE -w -fno-lto)
 
 add_library(glad STATIC depends/glad/src/glad.c)
 target_compile_options(glad PRIVATE -w)
@@ -125,7 +128,7 @@ add_library(imgui STATIC
 )
 target_compile_options(imgui PRIVATE -w -fno-lto)
 add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
-target_link_libraries(imgui SDL2::SDL2)
+target_link_libraries(imgui SDL2-static)
 
 add_library(tetgen STATIC depends/tetgen/predicates.cxx depends/tetgen/tetgen.cxx)
 target_compile_options(tetgen PRIVATE -w)
@@ -133,7 +136,7 @@ add_compile_definitions(TETLIBRARY)
 
 # ============
 
-target_link_libraries(four rt dl m pthread SDL2::SDL2 glad triangle loguru tinyxml2 imgui tetgen)
+target_link_libraries(four rt dl m pthread SDL2-static glad triangle loguru tinyxml2 imgui tetgen)
 
 set_property(TARGET four PROPERTY COTIRE_PREFIX_HEADER_INCLUDE_PATH ${CMAKE_SOURCE_DIR}/depends)
 set_property(TARGET four PROPERTY COTIRE_PREFIX_HEADER_IGNORE_PATH
