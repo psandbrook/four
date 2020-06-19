@@ -4,9 +4,11 @@ ifeq ($(origin CXX),default)
 endif
 
 SOURCE_DIR := src
+SOURCE_SUBDIRS := four
 BUILD_DIR := build
+BUILD_SUBDIRS := $(addprefix $(BUILD_DIR)/,$(SOURCE_SUBDIRS))
 
-SOURCES := main.cpp
+SOURCES := main.cpp four/mesh.cpp four/utility.cpp four/math.cpp four/generate.cpp
 
 BIN := 4dtest
 PREFIXED_BIN := $(addprefix $(BUILD_DIR)/,$(BIN))
@@ -31,7 +33,7 @@ RELEASE_FLAGS := \
 DEP_FLAGS_IN := $(shell pkg-config --cflags --libs sdl2)
 DEP_FLAGS := $(DEP_FLAGS_IN:-I%=-isystem %) -ldl -isystem depends/glad/include -isystem depends/Handmade-Math
 
-FLAGS := $(WARN_FLAGS) $(DEP_FLAGS)
+FLAGS := $(WARN_FLAGS) $(DEP_FLAGS) -I$(SOURCE_DIR)
 
 ifdef RELEASE
 	FLAGS += $(RELEASE_FLAGS)
@@ -52,12 +54,11 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 $(PREFIXED_BIN): $(OBJECTS) $(GLAD_OBJECT)
-	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(FLAGS) -o $@ $^
 	$(STRIP_CMD) $@
 
 $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.cpp
-	@mkdir -p $(BUILD_DIR)
+	@mkdir -p $(BUILD_DIR) $(BUILD_SUBDIRS)
 	$(CXX) $(FLAGS) -c -o $@ $<
 
 $(GLAD_OBJECT): $(GLAD_SOURCE)

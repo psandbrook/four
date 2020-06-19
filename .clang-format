@@ -17,7 +17,7 @@ AllowShortFunctionsOnASingleLine: Empty
 #AlwaysBreakAfterDefinitionReturnType: None
 #AlwaysBreakAfterReturnType: None
 #AlwaysBreakBeforeMultilineStrings: false
-#AlwaysBreakTemplateDeclarations: MultiLine
+AlwaysBreakTemplateDeclarations: Yes
 #BinPackArguments: true
 #BinPackParameters: true
 BreakBeforeBinaryOperators: NonAssignment
