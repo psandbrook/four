@@ -14,6 +14,7 @@ struct AppState {
     bool window_size_changed = false;
 
     Mesh4 mesh;
+    bool mesh_changed = false;
 
     hmm_vec4 mesh_pos = {0, 0, 0, 2.5};
     u32 selected_cell = 0;

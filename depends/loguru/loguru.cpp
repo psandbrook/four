@@ -215,7 +215,8 @@ namespace loguru
 					|| 0 == strcmp(term, "xterm")
 					|| 0 == strcmp(term, "xterm-256color")
 					|| 0 == strcmp(term, "xterm-termite")
-					|| 0 == strcmp(term, "xterm-color");
+					|| 0 == strcmp(term, "xterm-color")
+					|| 0 == strcmp(term, "xterm-kitty");
 			} else {
 				return false;
 			}

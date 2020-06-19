@@ -44,6 +44,7 @@ struct GlBuffer {
     GlBuffer(GLenum type, GLenum usage);
 
     void buffer_data(const void* data, size_t size);
+    void buffer_data_realloc(const void* data, size_t size);
 };
 
 using VertexBufferObject = GlBuffer;
@@ -62,6 +63,7 @@ struct ElementBufferObject {
     ElementBufferObject(GLenum usage, GLenum primitive) : buf(GL_ELEMENT_ARRAY_BUFFER, usage), primitive(primitive) {}
 
     void buffer_data(const void* data, s32 n);
+    void buffer_data_realloc(const void* data, s32 n);
 };
 
 struct VertexArrayObject {
@@ -100,6 +102,7 @@ private:
     // Variables used for temporary storage in render()
     // ------------------------------------------------
 
+    std::vector<f32> mesh_colors;
     std::vector<hmm_vec3> projected_vertices;
     std::vector<f32> projected_vertices_f32;
     std::vector<u32> selected_cell_tri_faces;
@@ -126,6 +129,7 @@ public:
 private:
     size_t add_vbo(GLenum usage);
     void update_window_size();
+    void update_mesh_buffers();
 
     void triangulate(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
                      std::vector<u32>& out);

@@ -90,8 +90,19 @@ void GlBuffer::buffer_data(const void* data, size_t size) {
     }
 }
 
+void GlBuffer::buffer_data_realloc(const void* data, size_t size) {
+    glBindBuffer(type, id);
+    glBufferData(type, size, data, usage);
+    this->size = size;
+}
+
 void ElementBufferObject::buffer_data(const void* data, s32 n) {
     buf.buffer_data(data, (u32)n * sizeof(u32));
+    primitive_count = n;
+}
+
+void ElementBufferObject::buffer_data_realloc(const void* data, s32 n) {
+    buf.buffer_data_realloc(data, (u32)n * sizeof(u32));
     primitive_count = n;
 }
 
@@ -142,6 +153,30 @@ void Renderer::update_window_size() {
     projection = HMM_Perspective(90, (f64)window_width / (f64)window_height, 0.1, 100.0);
 }
 
+void Renderer::update_mesh_buffers() {
+    auto& s = *state;
+
+    mesh_colors.clear();
+    for (size_t i = 0; i < s.mesh.vertices.size(); i++) {
+        f32 color[3] = {1, 0, 0};
+        for (f32 e : color) {
+            mesh_colors.push_back(e);
+        }
+    }
+    wireframe.vbos[1]->buffer_data_realloc(mesh_colors.data(), mesh_colors.size() * sizeof(f32));
+
+    mesh_colors.clear();
+    for (size_t i = 0; i < s.mesh.vertices.size(); i++) {
+        f32 color[3] = {1, 1, 0};
+        for (f32 e : color) {
+            mesh_colors.push_back(e);
+        }
+    }
+    selected_cell.vbos[1]->buffer_data_realloc(mesh_colors.data(), mesh_colors.size() * sizeof(f32));
+
+    wireframe.ebo.buffer_data_realloc(s.mesh.edges.data(), 2 * (s32)s.mesh.edges.size());
+}
+
 Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(state) {
     auto& s = *state;
 
@@ -151,6 +186,9 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
 
     glClearColor(0.23f, 0.23f, 0.23f, 1.0f);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_MULTISAMPLE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // This is needed to render the wireframe without z-fighting.
     glEnable(GL_POLYGON_OFFSET_LINE);
@@ -179,30 +217,12 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
             .offset = 0,
     };
 
-    std::vector<f32> wireframe_colors_vec;
-    for (size_t i = 0; i < s.mesh.vertices.size(); i++) {
-        f32 color[3] = {1, 0, 0};
-        for (f32 e : color) {
-            wireframe_colors_vec.push_back(e);
-        }
-    }
-    vbos[wireframe_colors].buffer_data(wireframe_colors_vec.data(), wireframe_colors_vec.size() * sizeof(f32));
-
     // ---------
 
     // Selected cell
     // -------------
 
     size_t selected_cell_colors = add_vbo(GL_STATIC_DRAW);
-    std::vector<f32> selected_cell_colors_vec;
-    for (size_t i = 0; i < s.mesh.vertices.size(); i++) {
-        f32 color[3] = {1, 1, 0};
-        for (f32 e : color) {
-            selected_cell_colors_vec.push_back(e);
-        }
-    }
-    vbos[selected_cell_colors].buffer_data(selected_cell_colors_vec.data(),
-                                           selected_cell_colors_vec.size() * sizeof(f32));
 
     // -------------
 
@@ -248,7 +268,6 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
     // -------------
 
     ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
-    wireframe_ebo.buffer_data(s.mesh.edges.data(), 2 * (s32)s.mesh.edges.size());
 
     VertexBufferObject* wireframe_vbos[] = {&vbos[wireframe_vertices], &vbos[wireframe_colors]};
     VertexSpec wireframe_vertex_specs[] = {wireframe_vertices_spec, wireframe_colors_spec};
@@ -281,6 +300,8 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
     xz_grid = VertexArrayObject(&shader_program, AS_SLICE(xz_grid_vbos), AS_SLICE(wireframe_vertex_specs), xz_grid_ebo);
 
     // -----------
+
+    update_mesh_buffers();
 }
 
 void Renderer::render() {
@@ -289,6 +310,11 @@ void Renderer::render() {
     if (s.window_size_changed) {
         s.window_size_changed = false;
         update_window_size();
+    }
+
+    if (s.mesh_changed) {
+        s.mesh_changed = false;
+        update_mesh_buffers();
     }
 
     // Perform 4D to 3D projection
@@ -301,7 +327,7 @@ void Renderer::render() {
             hmm_vec3 v_ = vec3(project_perspective(mv * vec5(v, 1), 1.0));
             projected_vertices.push_back(v_);
         }
-        CHECK_EQ_F(s.mesh.vertices.size(), projected_vertices.size());
+        DCHECK_EQ_F(s.mesh.vertices.size(), projected_vertices.size());
     }
 
     // Triangulate selected cell
@@ -354,6 +380,7 @@ void Renderer::triangulate(const std::vector<hmm_vec3>& vertices, const std::vec
 
     using VertexIMapping = TriangulateState::VertexIMapping;
     auto& s = triangulate_s;
+    const f64 epsilon = 0.00000000000001;
 
     // Calculate normal vector
 
@@ -401,7 +428,7 @@ void Renderer::triangulate(const std::vector<hmm_vec3>& vertices, const std::vec
                 s.face2_vertex_i_mapping.left.insert(
                         VertexIMapping::left_value_type(v_i, (u32)s.face2_vertices.size()));
                 hmm_vec3 v_ = transform(to_2d_trans, vertices[v_i]);
-                DCHECK_F(float_eq(v_.Z, 0.0, 0.00000000000001));
+                DCHECK_F(float_eq(v_.Z, 0.0, epsilon));
                 s.face2_vertices.push_back(vec2(v_));
             }
         }
@@ -417,7 +444,7 @@ void Renderer::triangulate(const std::vector<hmm_vec3>& vertices, const std::vec
 
             // NOTE: Consider floating-point error. See
             // https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
-            DCHECK_F(float_eq(x, 0.0));
+            DCHECK_F(float_eq(x, 0.0, epsilon));
         }
     }
 #endif
@@ -445,12 +472,12 @@ void Renderer::triangulate(const std::vector<hmm_vec3>& vertices, const std::vec
     s.triangulate_out_f.resize(0, Eigen::NoChange);
     igl::triangle::triangulate(s.mesh_v, s.mesh_e, h, "Q", s.triangulate_out_v, s.triangulate_out_f);
 
-    CHECK_EQ_F((size_t)s.triangulate_out_v.rows(), s.face2_vertices.size());
+    DCHECK_EQ_F((size_t)s.triangulate_out_v.rows(), s.face2_vertices.size());
 
 #ifdef FOUR_DEBUG
     for (s32 i = 0; i < s.triangulate_out_v.rows(); i++) {
-        CHECK_F(float_eq(s.triangulate_out_v(i, 0), s.face2_vertices[(size_t)i].X));
-        CHECK_F(float_eq(s.triangulate_out_v(i, 1), s.face2_vertices[(size_t)i].Y));
+        DCHECK_F(float_eq(s.triangulate_out_v(i, 0), s.face2_vertices[(size_t)i].X));
+        DCHECK_F(float_eq(s.triangulate_out_v(i, 1), s.face2_vertices[(size_t)i].Y));
     }
 #endif
 

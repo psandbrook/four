@@ -113,9 +113,41 @@ bool AppState::handle_events() {
     ImGui_ImplSDL2_NewFrame(window);
     ImGui::NewFrame();
 
+#ifdef FOUR_DEBUG
     ImGui::ShowDemoWindow();
+#endif
+
+    ImGui::Begin("Mesh selection", NULL, 0);
+    const char* new_mesh_path = NULL;
+
+    if (ImGui::Button("5-cell")) {
+        new_mesh_path = "data/5cell.mesh4";
+    }
+    if (ImGui::Button("Tesseract")) {
+        new_mesh_path = "data/tesseract.mesh4";
+    }
+    if (ImGui::Button("16-cell")) {
+        new_mesh_path = "data/16cell.mesh4";
+    }
+    if (ImGui::Button("24-cell")) {
+        new_mesh_path = "data/24cell.mesh4";
+    }
+    if (ImGui::Button("120-cell")) {
+        new_mesh_path = "data/120cell.mesh4";
+    }
+    if (ImGui::Button("600-cell")) {
+        new_mesh_path = "data/600cell.mesh4";
+    }
+
+    ImGui::End();
 
     ImGui::EndFrame();
+
+    if (new_mesh_path) {
+        mesh = load_mesh_from_file(new_mesh_path);
+        mesh_changed = true;
+    }
+
     return false;
 }
 

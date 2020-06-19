@@ -3,8 +3,8 @@
 #include <four/utility.hpp>
 
 #include <HandmadeMath.h>
+#include <loguru.hpp>
 
-#include <assert.h>
 #include <stdlib.h>
 
 namespace four {
@@ -200,14 +200,14 @@ inline Mat5 look_at(hmm_vec4 eye, hmm_vec4 target, hmm_vec4 up, hmm_vec4 over) {
 }
 
 inline hmm_vec4 project_orthographic(Vec5 v, f64 near) {
-    assert(near > 0.0);
-    assert(v.W <= -near);
+    CHECK_GT_F(near, 0.0);
+    CHECK_LE_F(v.W, -near);
     return HMM_Vec4(v.X, v.Y, v.Z, -v.W - near);
 }
 
 inline hmm_vec4 project_perspective(Vec5 v, f64 near) {
-    assert(near > 0.0);
-    assert(v.W <= -near);
+    CHECK_GT_F(near, 0.0);
+    CHECK_LE_F(v.W, -near);
     f64 d = near / -v.W;
     hmm_vec4 v_4 = vec4(v);
     return HMM_Vec4(d * v.X, d * v.Y, d * v.Z, HMM_Length(v_4 - d * v_4));
