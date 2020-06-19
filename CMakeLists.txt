@@ -187,7 +187,13 @@ FetchContent_Declare(
   URL_HASH SHA256=2f5f2b789edb00260aa71f03189da5f21cf4b5617c4fbba709e9fbcfc76a2f1e
 )
 
-make_available_no_add(sdl2 loguru eigen libigl tinyxml2 imgui)
+FetchContent_Declare(
+  earcut
+  URL "https://github.com/mapbox/earcut.hpp/archive/5d554768316a7931bcc999dc8d7675d58be1ac45.zip"
+  URL_HASH SHA256=8bfe45bc04df9b8fab4485c1fe09b9bf9a25e9998ce8133e2506a98863aa826c
+)
+
+make_available_no_add(sdl2 loguru eigen libigl tinyxml2 imgui earcut)
 
 set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
 set(SDL_STATIC_ENABLED_BY_DEFAULT ON)
@@ -208,11 +214,8 @@ add_library(glad STATIC EXCLUDE_FROM_ALL depends/glad/src/glad.c)
 target_include_directories(glad SYSTEM PUBLIC depends/glad/include)
 target_link_libraries(glad dl)
 
-add_library(triangle STATIC EXCLUDE_FROM_ALL depends/triangle/triangle.c)
-target_include_directories(triangle SYSTEM PUBLIC depends/triangle)
-target_compile_definitions(triangle PUBLIC ANSI_DECLARATORS)
-target_compile_definitions(triangle PRIVATE LINUX TRILIBRARY)
-target_compile_options(triangle PRIVATE -fno-lto)
+add_library(earcut INTERFACE)
+target_include_directories(earcut SYSTEM INTERFACE "${earcut_SOURCE_DIR}/include/mapbox")
 
 add_library(imgui STATIC EXCLUDE_FROM_ALL
   "${imgui_SOURCE_DIR}/imgui.cpp"
@@ -257,7 +260,7 @@ target_link_options(four PRIVATE
   "$<$<CONFIG:Release>:${FLAGS_FOUR_RELEASE}>"
 )
 include_directories(src)
-target_link_libraries(four ${SDL2_TARGET} glad handmade-math eigen libigl loguru imgui tinyxml2 triangle tetgen)
+target_link_libraries(four ${SDL2_TARGET} glad handmade-math eigen libigl loguru imgui tinyxml2 earcut tetgen)
 
 add_custom_command(
   TARGET four

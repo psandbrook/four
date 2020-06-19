@@ -4,22 +4,40 @@
 
 #include <boost/bimap.hpp>
 #include <boost/bimap/unordered_set_of.hpp>
+#include <earcut.hpp>
 #include <igl/copyleft/tetgen/tetrahedralize.h>
-#include <igl/triangle/triangulate.h>
 #include <loguru.hpp>
 
+#include <functional>
+
 namespace four {
+
+namespace {
+
+struct ConstFaceRef final : public std::reference_wrapper<const std::vector<hmm_vec2>> {
+    using value_type = type::value_type;
+
+    explicit ConstFaceRef(const type& a) noexcept : std::reference_wrapper<type>(a) {}
+
+    type::size_type size() const noexcept {
+        return get().size();
+    }
+
+    bool empty() const noexcept {
+        return get().empty();
+    }
+
+    type::const_reference operator[](type::size_type pos) const {
+        return get()[pos];
+    }
+};
+} // namespace
 
 struct RenderFuncs::Impl {
     using VertexIMapping = boost::bimap<boost::bimaps::unordered_set_of<u32>, boost::bimaps::unordered_set_of<u32>>;
     VertexIMapping face2_vertex_i_mapping;
 
     std::vector<hmm_vec2> face2_vertices;
-    std::vector<Edge> face2_edges;
-    Eigen::MatrixX2d mesh_v;
-    Eigen::MatrixX2i mesh_e;
-    Eigen::MatrixX2d triangulate_out_v;
-    Eigen::MatrixX3i triangulate_out_f;
 
     std::unordered_map<u32, u32> cell3_vertex_i_mapping;
     std::unordered_map<u32, u32> tet_out_vertex_i_mapping;
@@ -37,7 +55,7 @@ RenderFuncs::~RenderFuncs() {}
 void RenderFuncs::triangulate(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
                               std::vector<u32>& out) {
 
-    auto& s = *this->impl;
+    auto& st = *this->impl;
 
     using VertexIMapping = Impl::VertexIMapping;
 
@@ -84,38 +102,65 @@ void RenderFuncs::triangulate(const std::vector<hmm_vec3>& vertices, const std::
 
     hmm_mat4 to_2d_trans = HMM_LookAt(v0, v0 + normal, up);
 
-    s.face2_vertex_i_mapping.clear();
-    s.face2_vertices.clear();
-    s.face2_edges.clear();
+    st.face2_vertex_i_mapping.clear();
+    st.face2_vertices.clear();
 
-    for (u32 edge_i : face) {
-        const auto& e = edges[edge_i];
-        for (u32 v_i : e.vertices) {
-            if (s.face2_vertex_i_mapping.left.find(v_i) == s.face2_vertex_i_mapping.left.end()) {
-
-                hmm_vec3 v = vertices[v_i];
-                for (const auto& entry : s.face2_vertex_i_mapping.left) {
-                    hmm_vec3 u = vertices[entry.first];
-                    if (float_eq(v.X, u.X) && float_eq(v.Y, u.Y) && float_eq(v.Z, u.Z)) {
-                        // Don't triangulate if there are duplicate vertices.
-                        return;
-                    }
-                }
-
-                s.face2_vertex_i_mapping.left.insert(
-                        VertexIMapping::left_value_type(v_i, (u32)s.face2_vertices.size()));
-
-                hmm_vec3 v_ = transform(to_2d_trans, v);
-                DCHECK_F(float_eq(v_.Z, 0.0));
-                s.face2_vertices.push_back(vec2(v_));
+    const auto add_face2_vertex = [&](u32 v_i) -> bool {
+        hmm_vec3 v = vertices[v_i];
+        for (const auto& entry : st.face2_vertex_i_mapping.left) {
+            hmm_vec3 u = vertices[entry.first];
+            if (float_eq(v.X, u.X) && float_eq(v.Y, u.Y) && float_eq(v.Z, u.Z)) {
+                // Don't triangulate if there are duplicate vertices.
+                return false;
             }
         }
-        s.face2_edges.push_back(edge(s.face2_vertex_i_mapping.left.at(e.v0), s.face2_vertex_i_mapping.left.at(e.v1)));
+
+        st.face2_vertex_i_mapping.left.insert(VertexIMapping::left_value_type(v_i, (u32)st.face2_vertices.size()));
+
+        hmm_vec3 v_ = transform(to_2d_trans, v);
+        DCHECK_F(float_eq(v_.Z, 0.0));
+        st.face2_vertices.push_back(vec2(v_));
+        return true;
+    };
+
+    if (!add_face2_vertex(v0_i)) {
+        return;
     }
+
+    u32 prev_edge_i = edge0_i;
+    u32 current_v_i = edge0.v1;
+
+    if (!add_face2_vertex(current_v_i)) {
+        return;
+    }
+
+    while (true) {
+        for (u32 e_i : face) {
+            if (e_i != prev_edge_i) {
+                const Edge& e = edges[e_i];
+                if (e.v0 == current_v_i || e.v1 == current_v_i) {
+                    u32 v_i = e.v0 == current_v_i ? e.v1 : e.v0;
+                    if (v_i == v0_i) {
+                        goto end_face2_loop;
+                    }
+
+                    if (!add_face2_vertex(v_i)) {
+                        return;
+                    }
+                    prev_edge_i = e_i;
+                    current_v_i = v_i;
+                    goto find_next_v_i;
+                }
+            }
+        }
+        ABORT_F("Invalid face");
+    find_next_v_i:;
+    }
+end_face2_loop:
 
 #ifdef FOUR_DEBUG
     // All vertices should be coplanar
-    for (const auto& entry : s.face2_vertex_i_mapping.left) {
+    for (const auto& entry : st.face2_vertex_i_mapping.left) {
         if (entry.first != edge0.v0) {
             hmm_vec3 v = vertices[entry.first];
             f64 x = HMM_Dot(v - v0, normal);
@@ -127,42 +172,11 @@ void RenderFuncs::triangulate(const std::vector<hmm_vec3>& vertices, const std::
     }
 #endif
 
-    // `igl::triangle::triangulate()` only accepts double precision
-    // floating point values.
-    s.mesh_v.resize((s64)s.face2_vertices.size(), Eigen::NoChange);
-    for (size_t i = 0; i < s.face2_vertices.size(); i++) {
-        hmm_vec2 v = s.face2_vertices[i];
-        s.mesh_v((s64)i, 0) = v.X;
-        s.mesh_v((s64)i, 1) = v.Y;
-    }
+    const std::array<ConstFaceRef, 1> polygon = {ConstFaceRef(st.face2_vertices)};
+    const std::vector<u32> result_indices = mapbox::earcut(polygon);
 
-    s.mesh_e.resize((s64)s.face2_edges.size(), Eigen::NoChange);
-    for (size_t i = 0; i < s.face2_edges.size(); i++) {
-        Edge e = s.face2_edges[i];
-        s.mesh_e((s64)i, 0) = (s32)e.v0;
-        s.mesh_e((s64)i, 1) = (s32)e.v1;
-    }
-
-    // TODO: Support triangulating faces with holes
-    const Eigen::MatrixX2d h;
-
-    s.triangulate_out_v.resize(0, Eigen::NoChange);
-    s.triangulate_out_f.resize(0, Eigen::NoChange);
-    igl::triangle::triangulate(s.mesh_v, s.mesh_e, h, "Q", s.triangulate_out_v, s.triangulate_out_f);
-
-    DCHECK_EQ_F((size_t)s.triangulate_out_v.rows(), s.face2_vertices.size());
-
-#ifdef FOUR_DEBUG
-    for (s32 i = 0; i < s.triangulate_out_v.rows(); i++) {
-        DCHECK_F(float_eq(s.triangulate_out_v(i, 0), s.face2_vertices[(size_t)i].X));
-        DCHECK_F(float_eq(s.triangulate_out_v(i, 1), s.face2_vertices[(size_t)i].Y));
-    }
-#endif
-
-    for (s32 i = 0; i < s.triangulate_out_f.rows(); i++) {
-        for (s32 j = 0; j < 3; j++) {
-            out.push_back(s.face2_vertex_i_mapping.right.at(s.triangulate_out_f(i, j)));
-        }
+    for (u32 v_i : result_indices) {
+        out.push_back(st.face2_vertex_i_mapping.right.at(v_i));
     }
 }
 
@@ -357,3 +371,22 @@ bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
     return true;
 }
 } // namespace four
+
+namespace mapbox {
+namespace util {
+
+template <>
+struct nth<0, hmm_vec2> {
+    static double get(const hmm_vec2& v) {
+        return v.X;
+    }
+};
+
+template <>
+struct nth<1, hmm_vec2> {
+    static double get(const hmm_vec2& v) {
+        return v.Y;
+    }
+};
+} // namespace util
+} // namespace mapbox
