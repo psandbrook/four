@@ -192,28 +192,28 @@ bool AppState::process_events_and_imgui() {
     }
 
     if (ImGui::IsMouseClicked(0)) {
-        if (is_mouse_around_x(visualization_width)) {
-            dragging_ui = true;
-        } else if (split && is_mouse_around_x(visualization_width * divider)) {
+        if (split && is_mouse_around_x(visualization_width * divider)) {
             dragging_divider = true;
+        } else if (is_mouse_around_x(visualization_width)) {
+            dragging_ui = true;
         }
     }
 
     if (ImGui::IsMouseDragging(0, 0.0f)) {
-        if (dragging_ui) {
+        if (dragging_divider) {
+            f64 new_divider = divider + imgui_io->MouseDelta.x / (window_width * visualization_width);
+            if (new_divider >= 0.0 && new_divider <= 1.0) {
+                divider = new_divider;
+            }
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+
+        } else if (dragging_ui) {
             f64 new_width = visualization_width + norm_x(imgui_io->MouseDelta.x);
             if (new_width >= 0.1 && new_width <= 0.9) {
                 visualization_width = new_width;
             }
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
             window_size_changed = true;
-
-        } else if (dragging_divider) {
-            f64 new_divider = divider + imgui_io->MouseDelta.x / (window_width * visualization_width);
-            if (new_divider >= 0.01 && new_divider <= 0.99) {
-                divider = new_divider;
-            }
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         }
 
     } else {

@@ -33,7 +33,7 @@ struct WindowGuard {
             ABORT_F("%s", SDL_GetError());
         }
 
-#ifndef FOUR_DEBUG
+#if 0
         // Enable multisampling
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 8);

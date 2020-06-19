@@ -13,6 +13,8 @@ namespace four {
 
 namespace {
 
+const f64 divider_width = 0.007;
+
 void mat4_to_f32(const hmm_mat4& mat, f32* out) {
     for (s32 col = 0; col < 4; col++) {
         for (s32 row = 0; row < 4; row++) {
@@ -58,6 +60,29 @@ void bind_default_framebuffer() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 } // namespace
+
+namespace gl_buffer_base {
+GlBuffer::GlBuffer(GLenum type, GLenum usage) : type(type), usage(usage) {
+    glGenBuffers(1, &id);
+}
+
+void GlBuffer::buffer_data(const void* data, size_t size) {
+    glBindBuffer(type, id);
+    if (this->size < size) {
+        glBufferData(type, size, data, usage);
+        this->size = size;
+    } else {
+        CHECK_NE_F(usage, (u32)GL_STATIC_DRAW);
+        glBufferSubData(type, 0, size, data);
+    }
+}
+
+void GlBuffer::buffer_data_realloc(const void* data, size_t size) {
+    glBindBuffer(type, id);
+    glBufferData(type, size, data, usage);
+    this->size = size;
+}
+} // namespace gl_buffer_base
 
 ShaderProgram::ShaderProgram(u32 vertex_shader, Slice<u32> fragment_shaders) {
     id = glCreateProgram();
@@ -117,27 +142,6 @@ void ShaderProgram::set_uniform_vec3(const char* name, const f32* data) {
 void ShaderProgram::bind_uniform_block(const UniformBufferObject& ubo) {
     u32 index = glGetUniformBlockIndex(id, ubo.name);
     glUniformBlockBinding(id, index, ubo.binding);
-}
-
-GlBuffer::GlBuffer(GLenum type, GLenum usage) : type(type), usage(usage) {
-    glGenBuffers(1, &id);
-}
-
-void GlBuffer::buffer_data(const void* data, size_t size) {
-    glBindBuffer(type, id);
-    if (this->size < size) {
-        glBufferData(type, size, data, usage);
-        this->size = size;
-    } else {
-        CHECK_NE_F(usage, (u32)GL_STATIC_DRAW);
-        glBufferSubData(type, 0, size, data);
-    }
-}
-
-void GlBuffer::buffer_data_realloc(const void* data, size_t size) {
-    glBindBuffer(type, id);
-    glBufferData(type, size, data, usage);
-    this->size = size;
 }
 
 void ElementBufferObject::buffer_elements(const void* data, s32 n) {
@@ -271,7 +275,6 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     const f32 bg_shade = 0.04f;
     glClearColor(bg_shade, bg_shade, bg_shade, 1.0f);
 
-    glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -287,33 +290,33 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 
     view_projection_ubo = UniformBufferObject("ViewProjection", 0, GL_STREAM_DRAW);
 
-    // Wireframe
-
-    u32 n4d_vert_shader = compile_shader("n4d-vert.glsl", GL_VERTEX_SHADER);
-    u32 n4d_frag_shader = compile_shader("n4d-frag.glsl", GL_FRAGMENT_SHADER);
-    u32 n4d_frag_shaders[] = {n4d_frag_shader};
-    n4d_shader_prog = ShaderProgram(n4d_vert_shader, AS_SLICE(n4d_frag_shaders));
-
-    u32 wireframe_vertices = add_vbo(GL_STREAM_DRAW);
-    VertexSpec n4d_vertex_spec = {
-            .index = 0,
-            .size = 4,
-            .type = GL_FLOAT,
-            .stride = 4 * sizeof(f32),
-            .offset = 0,
-    };
-
-    // Cross-section
-
+    // Wireframe & selected cell
     {
-        u32 vert_shader = compile_shader("cross-vert.glsl", GL_VERTEX_SHADER);
-        u32 frag_shader = compile_shader("cross-frag.glsl", GL_FRAGMENT_SHADER);
+        u32 vert_shader = compile_shader("n4d-vert.glsl", GL_VERTEX_SHADER);
+        u32 frag_shader = compile_shader("n4d-frag.glsl", GL_FRAGMENT_SHADER);
         u32 frag_shaders[] = {frag_shader};
-        cross_section_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
+        n4d_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
+
+        u32 wireframe_vertices = add_vbo(GL_STREAM_DRAW);
+        VertexSpec vertex_spec = {
+                .index = 0,
+                .size = 4,
+                .type = GL_FLOAT,
+                .stride = 4 * sizeof(f32),
+                .offset = 0,
+        };
+
+        VertexSpec vertex_specs[] = {vertex_spec};
+        u32 vbos[] = {wireframe_vertices};
+
+        ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
+        wireframe = VertexArrayObject(&n4d_shader_prog, AS_SLICE(vbos), AS_SLICE(vertex_specs), wireframe_ebo);
+
+        ElementBufferObject selected_cell_ebo(GL_STREAM_DRAW, GL_TRIANGLES);
+        selected_cell = VertexArrayObject(&n4d_shader_prog, AS_SLICE(vbos), AS_SLICE(vertex_specs), selected_cell_ebo);
     }
 
-    u32 cross_vertices = add_vbo(GL_STREAM_DRAW);
-    u32 cross_colors = add_vbo(GL_STREAM_DRAW);
+    // Cross-section
 
     VertexSpec cross_vertex_spec = {
             .index = 0,
@@ -323,27 +326,39 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
             .offset = 0,
     };
 
-    VertexSpec cross_color_spec = {
-            .index = 1,
-            .size = 3,
-            .type = GL_FLOAT,
-            .stride = 3 * sizeof(f32),
-            .offset = 0,
-    };
+    {
+        u32 vert_shader = compile_shader("cross-vert.glsl", GL_VERTEX_SHADER);
+        u32 frag_shader = compile_shader("cross-frag.glsl", GL_FRAGMENT_SHADER);
+        u32 frag_shaders[] = {frag_shader};
+        cross_section_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
+
+        u32 vertices = add_vbo(GL_STREAM_DRAW);
+        u32 colors = add_vbo(GL_STREAM_DRAW);
+
+        VertexSpec color_spec = {
+                .index = 1,
+                .size = 3,
+                .type = GL_FLOAT,
+                .stride = 3 * sizeof(f32),
+                .offset = 0,
+        };
+
+        ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
+        u32 vbos[] = {vertices, colors};
+        VertexSpec vertex_specs[] = {cross_vertex_spec, color_spec};
+        cross_section = VertexArrayObject(&cross_section_shader_prog, AS_SLICE(vbos), AS_SLICE(vertex_specs), ebo);
+    }
 
     // XZ grid
-
     {
         u32 vert_shader = compile_shader("xz-grid-vert.glsl", GL_VERTEX_SHADER);
         u32 frag_shader = compile_shader("xz-grid-frag.glsl", GL_FRAGMENT_SHADER);
 
         u32 frag_shaders[] = {frag_shader};
         xz_grid_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
-    }
 
-    u32 xz_grid_vertices = add_vbo(GL_STATIC_DRAW);
-    std::vector<f32> xz_grid_vertices_vec;
-    {
+        u32 xz_grid_vertices_vbo = add_vbo(GL_STATIC_DRAW);
+        std::vector<f32> grid_vertices;
         const s32 n_grid_lines = 20;
         const f64 grid_lines_spacing = 0.2;
 
@@ -359,56 +374,60 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 
             for (auto v : vertices) {
                 for (s32 i = 0; i < 3; i++) {
-                    xz_grid_vertices_vec.push_back((f32)v[i]);
+                    grid_vertices.push_back((f32)v[i]);
                 }
             }
         }
 
-        vbos[xz_grid_vertices].buffer_data(xz_grid_vertices_vec.data(), xz_grid_vertices_vec.size() * sizeof(f32));
-    }
+        global_get_vbo(xz_grid_vertices_vbo).buffer_data(grid_vertices.data(), grid_vertices.size() * sizeof(f32));
 
-    ShaderProgram* all_shader_progs[] = {&n4d_shader_prog, &cross_section_shader_prog, &xz_grid_shader_prog};
-    for (auto prog : all_shader_progs) {
-        prog->bind_uniform_block(view_projection_ubo);
-    }
-
-    // Wireframe VAO
-
-    VertexSpec n4d_vertex_specs[] = {n4d_vertex_spec};
-    u32 wireframe_vbos[] = {wireframe_vertices};
-
-    {
-        ElementBufferObject ebo(GL_STATIC_DRAW, GL_LINES);
-        wireframe = VertexArrayObject(&n4d_shader_prog, AS_SLICE(wireframe_vbos), AS_SLICE(n4d_vertex_specs), ebo);
-    }
-
-    // Selected cell VAO
-    {
-        ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-        selected_cell = VertexArrayObject(&n4d_shader_prog, AS_SLICE(wireframe_vbos), AS_SLICE(n4d_vertex_specs), ebo);
-    }
-
-    // Cross-section VAO
-    {
-        ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-        u32 cross_vbos[] = {cross_vertices, cross_colors};
-        VertexSpec vertex_specs[] = {cross_vertex_spec, cross_color_spec};
-        cross_section =
-                VertexArrayObject(&cross_section_shader_prog, AS_SLICE(cross_vbos), AS_SLICE(vertex_specs), ebo);
-    }
-
-    // XZ grid VAO
-    {
         ElementBufferObject ebo(GL_STATIC_DRAW, GL_LINES);
         std::vector<u32> indices_vec;
-        for (u32 i = 0; i < xz_grid_vertices_vec.size(); i++) {
+        for (u32 i = 0; i < grid_vertices.size(); i++) {
             indices_vec.push_back(i);
         }
         ebo.buffer_elements(indices_vec.data(), (s32)indices_vec.size());
 
-        u32 xz_grid_vbos[] = {xz_grid_vertices};
+        u32 vbos[] = {xz_grid_vertices_vbo};
         VertexSpec vertex_specs[] = {cross_vertex_spec};
-        xz_grid = VertexArrayObject(&xz_grid_shader_prog, AS_SLICE(xz_grid_vbos), AS_SLICE(vertex_specs), ebo);
+        xz_grid = VertexArrayObject(&xz_grid_shader_prog, AS_SLICE(vbos), AS_SLICE(vertex_specs), ebo);
+    }
+
+    ShaderProgram* shader_progs[] = {&n4d_shader_prog, &cross_section_shader_prog, &xz_grid_shader_prog};
+    for (auto prog : shader_progs) {
+        prog->bind_uniform_block(view_projection_ubo);
+    }
+
+    // Divider bar
+    {
+        u32 vert_shader = compile_shader("divider-vert.glsl", GL_VERTEX_SHADER);
+        u32 frag_shader = compile_shader("divider-frag.glsl", GL_FRAGMENT_SHADER);
+        u32 frag_shaders[] = {frag_shader};
+        divider_bar_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
+
+        u32 vertices_vbo = add_vbo(GL_STATIC_DRAW);
+
+        // clang-format off
+        f32 vertices[] = {
+            0.0f,               -1.0f, 0.0f,
+            0.0f,                1.0f, 0.0f,
+            (f32)divider_width, -1.0f, 0.0f,
+            (f32)divider_width,  1.0f, 0.0f,
+        };
+
+        u32 indices[] = {
+            0, 1, 2,
+            1, 2, 3,
+        };
+        // clang-format on
+
+        global_get_vbo(vertices_vbo).buffer_data(vertices, sizeof(vertices));
+
+        ElementBufferObject ebo(GL_STATIC_DRAW, GL_TRIANGLES);
+        ebo.buffer_elements(indices, ARRAY_SIZE(indices));
+        u32 vbos[] = {vertices_vbo};
+        VertexSpec vertex_specs[] = {cross_vertex_spec};
+        divider_bar = VertexArrayObject(&divider_bar_shader_prog, AS_SLICE(vbos), AS_SLICE(vertex_specs), ebo);
     }
 }
 
@@ -680,6 +699,8 @@ void Renderer::render() {
     hmm_mat4 view = HMM_LookAt(s.camera_pos, s.camera_target, s.camera_up);
     const f64 fov = 85.0;
 
+    glEnable(GL_DEPTH_TEST);
+
     combined_buffer.bind();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, combined_buffer.width, combined_buffer.height);
@@ -770,12 +791,12 @@ void Renderer::render() {
         wireframe.draw();
     }
 
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, combined_buffer.id);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
     if (s.split) {
         f64 cross_width = std::round(vis_width_screen * s.divider);
         f64 projection_width = vis_width_screen - cross_width;
-
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, combined_buffer.id);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         glBlitFramebuffer((s32)(combined_buffer.width / 2.0 - cross_width / 2.0), 0,
                           (s32)(combined_buffer.width / 2.0 + cross_width / 2.0), s.window_height, 0, 0,
                           (s32)cross_width, s.window_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
@@ -786,9 +807,17 @@ void Renderer::render() {
                           (s32)cross_width, 0, (s32)(cross_width + projection_width), s.window_height,
                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
+        // Draw divider bar
+
+        bind_default_framebuffer();
+        glDisable(GL_DEPTH_TEST);
+        glViewport(0, 0, s.window_width, s.window_height);
+
+        f64 divider_x_pos = (s.visualization_width * s.divider) * 2.0 - 1.0 - divider_width / 2.0;
+        divider_bar_shader_prog.set_uniform_f32("x_pos", (f32)divider_x_pos);
+        divider_bar.draw();
+
     } else {
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, combined_buffer.id);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         glBlitFramebuffer(0, 0, combined_buffer.width, s.window_height, 0, 0, combined_buffer.width, s.window_height,
                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
     }

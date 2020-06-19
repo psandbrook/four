@@ -12,6 +12,7 @@ struct SDL_Window;
 
 namespace four {
 
+namespace gl_buffer_base {
 struct GlBuffer {
 public:
     u32 id;
@@ -27,13 +28,14 @@ public:
     void buffer_data(const void* data, size_t size);
     void buffer_data_realloc(const void* data, size_t size);
 };
+} // namespace gl_buffer_base
 
-struct VertexBufferObject : public GlBuffer {
+struct VertexBufferObject final : public gl_buffer_base::GlBuffer {
     VertexBufferObject() {}
     VertexBufferObject(GLenum usage) : GlBuffer(GL_ARRAY_BUFFER, usage) {}
 };
 
-struct ElementBufferObject : public GlBuffer {
+struct ElementBufferObject final : public gl_buffer_base::GlBuffer {
     GLenum primitive;
     s32 primitive_count = 0;
 
@@ -45,7 +47,7 @@ struct ElementBufferObject : public GlBuffer {
     void buffer_elements_realloc(const void* data, s32 n);
 };
 
-struct UniformBufferObject : public GlBuffer {
+struct UniformBufferObject final : public gl_buffer_base::GlBuffer {
     const char* name;
     u32 binding;
 
@@ -137,6 +139,7 @@ public:
     ShaderProgram n4d_shader_prog;
     ShaderProgram cross_section_shader_prog;
     ShaderProgram xz_grid_shader_prog;
+    ShaderProgram divider_bar_shader_prog;
 
     std::vector<VertexBufferObject> vbos;
 
@@ -144,6 +147,7 @@ public:
     VertexArrayObject selected_cell;
     VertexArrayObject cross_section;
     VertexArrayObject xz_grid;
+    VertexArrayObject divider_bar;
 
     std::vector<hmm_vec4> tet_mesh_vertices;
     std::uniform_real_distribution<f32> color_dist;
