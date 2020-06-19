@@ -21,7 +21,7 @@ public:
     SDL_Window* window;
     ImGuiIO* imgui_io;
 
-    bool show_imgui_demo = false;
+    bool debug = false;
     bool window_size_changed = false;
     bool mesh_changed = false;
 

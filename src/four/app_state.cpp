@@ -132,13 +132,20 @@ bool AppState::process_events_and_imgui() {
     ImGui_ImplSDL2_NewFrame(window);
     ImGui::NewFrame();
 
-    if (show_imgui_demo) {
+    if (debug) {
         ImGui::ShowDemoWindow();
+    }
+
+    ImGuiWindowFlags default_window_flags = 0;
+    if (!debug) {
+        default_window_flags |= ImGuiWindowFlags_NoMove;
+        default_window_flags |= ImGuiWindowFlags_NoResize;
+        default_window_flags |= ImGuiWindowFlags_NoCollapse;
     }
 
     // Mesh selection window
     {
-        ImGui::Begin("Mesh selection");
+        ImGui::Begin("Mesh selection", NULL, default_window_flags);
         const char* new_mesh_path = NULL;
 
         auto button_size = ImVec2(ImGui::GetWindowWidth() - ImGui::GetWindowContentRegionMin().y, 0);
@@ -170,7 +177,7 @@ bool AppState::process_events_and_imgui() {
 
     // Selected cell window
     {
-        ImGui::Begin("Selected cell", NULL, ImGuiWindowFlags_NoScrollbar);
+        ImGui::Begin("Selected cell", NULL, default_window_flags | ImGuiWindowFlags_NoScrollbar);
         ImGui::Checkbox("Cycle", &selected_cell_cycle);
         ImVec2 cycle_size = ImGui::GetItemRectSize();
 
@@ -201,7 +208,7 @@ bool AppState::process_events_and_imgui() {
 
     // 4D Transform window
     {
-        ImGui::Begin("4D Transform");
+        ImGui::Begin("4D Transform", NULL, default_window_flags);
         const f32 speed = 0.01f;
         const auto fmt = "%.3f";
 

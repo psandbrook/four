@@ -67,10 +67,10 @@ struct WindowGuard {
 int main(int argc, char** argv) {
     loguru::init(argc, argv);
 
-    bool show_imgui_demo = false;
+    bool debug = false;
     for (s32 i = 0; i < argc; i++) {
         if (strcmp(argv[i], "-d") == 0) {
-            show_imgui_demo = true;
+            debug = true;
         }
     }
 
@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
     auto& imgui_io = window_guard.imgui_io;
 
     AppState state(window, imgui_io, "data/tesseract.mesh4");
-    state.show_imgui_demo = show_imgui_demo;
+    state.debug = debug;
 
     Renderer renderer(window, &state);
 
