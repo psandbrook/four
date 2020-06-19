@@ -1,10 +1,11 @@
 #pragma once
 
 #include <four/app_state.hpp>
-#include <four/triangulate.hpp>
 #include <four/utility.hpp>
 
 #include <glad/glad.h>
+
+#include <memory>
 
 struct SDL_Window;
 
@@ -105,7 +106,18 @@ private:
     std::vector<f32> projected_vertices_f32;
     std::vector<u32> selected_cell_tri_faces;
 
-    TriangulateFn triangulate;
+    struct TriangulateFn {
+    private:
+        struct Impl;
+        std::unique_ptr<Impl> impl;
+
+    public:
+        TriangulateFn();
+        ~TriangulateFn();
+
+        void operator()(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
+                        std::vector<u32>& out);
+    } triangulate;
 
     // ------------------------------------------------
 

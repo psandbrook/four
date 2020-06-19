@@ -1,4 +1,4 @@
-#include <four/triangulate.hpp>
+#include <four/render.hpp>
 
 #include <four/math.hpp>
 
@@ -9,7 +9,7 @@
 
 namespace four {
 
-struct TriangulateFn::Impl {
+struct Renderer::TriangulateFn::Impl {
     using VertexIMapping = boost::bimap<boost::bimaps::unordered_set_of<u32>, boost::bimaps::unordered_set_of<u32>>;
     VertexIMapping face2_vertex_i_mapping;
 
@@ -21,12 +21,12 @@ struct TriangulateFn::Impl {
     Eigen::MatrixX3i triangulate_out_f;
 };
 
-TriangulateFn::TriangulateFn() : impl(std::make_unique<Impl>()) {}
+Renderer::TriangulateFn::TriangulateFn() : impl(std::make_unique<Impl>()) {}
 
-TriangulateFn::~TriangulateFn() {}
+Renderer::TriangulateFn::~TriangulateFn() {}
 
-void TriangulateFn::operator()(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
-                               std::vector<u32>& out) {
+void Renderer::TriangulateFn::operator()(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges,
+                                         const Face& face, std::vector<u32>& out) {
 
     auto& s = *this->impl;
 
