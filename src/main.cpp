@@ -65,7 +65,6 @@ struct WindowGuard {
 
 int main(int argc, char** argv) {
     loguru::g_stderr_verbosity = 1;
-    loguru::g_colorlogtostderr = false;
     loguru::init(argc, argv);
 
     bool debug = false;
