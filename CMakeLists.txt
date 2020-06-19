@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 project(four LANGUAGES C CXX)
 
 include(FetchContent)
+include(ProcessorCount)
 
 function(make_available_no_add)
   foreach(CONTENT_NAME ${ARGV})
@@ -13,15 +14,43 @@ function(make_available_no_add)
   endforeach()
 endfunction()
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Debug or Release." FORCE)
-elseif(NOT (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "Release"))
-  message(FATAL_ERROR "Build type can only be \"Debug\" or \"Release\"")
+ProcessorCount(NPROC)
+if(NPROC EQUAL 0)
+  set(NPROC 1)
 endif()
 
+if(NOT (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+  message(FATAL_ERROR "Unsupported compiler")
+endif()
+
+# === Options ===
+
+option(DEBUG_ENABLE_UBSAN "Enable undefined behaviour sanitizer in debug builds.")
+option(DEBUG_ENABLE_ASAN "Enable address sanitizer in debug builds.")
+
+# This is off by default to reduce compile times.
+option(DEBUG_ENABLE_DEBUG_INFO "Enable debug information in debug builds.")
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Debug or Release." FORCE)
+endif()
+
+set(COMPILER_LAUNCHER "" CACHE STRING "C and CXX compiler launcher.")
+
+# === Set global variables ===
+
+set(CMAKE_CONFIGURATION_TYPES "Debug" "Release")
 set(CMAKE_TLS_VERIFY ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(FETCHCONTENT_QUIET OFF)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+
+if(COMPILER_LAUNCHER)
+  set(CMAKE_C_COMPILER_LAUNCHER ${COMPILER_LAUNCHER})
+  set(CMAKE_CXX_COMPILER_LAUNCHER ${COMPILER_LAUNCHER})
+endif()
+
+# === Source files ===
 
 # Prefix: src/
 set(SOURCES
@@ -37,6 +66,15 @@ set(SOURCES
 # Add prefix
 list(TRANSFORM SOURCES PREPEND "src/")
 
+# === Compile and link flags ===
+
+set(CMAKE_CXX_FLAGS "")
+set(CMAKE_CXX_FLAGS_DEBUG "")
+set(CMAKE_CXX_FLAGS_RELEASE "")
+set(CMAKE_C_FLAGS "")
+set(CMAKE_C_FLAGS_DEBUG "")
+set(CMAKE_C_FLAGS_RELEASE "")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
@@ -44,63 +82,76 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-endif()
-
 include_directories(src)
 
-set(CXX_FLAGS_COMMON
-  -Wall -Wextra -Wcast-align=strict -Wcast-qual -Wunused -Wdisabled-optimization -Wformat=2 -Winit-self
-  -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wredundant-decls -Wundef -Wfloat-equal
-  -Wstack-protector -Wwrite-strings -Wrestrict -Wvla -Wuninitialized -Wctor-dtor-privacy -Wnoexcept
-  -Woverloaded-virtual -Wsign-promo -Wstrict-null-sentinel -Wuseless-cast -Wabi-tag -Wconversion
+# Flags for all targets, including dependencies
 
-  -pthread -pipe -fPIE -pie -fvisibility=hidden -fvisibility-inlines-hidden -fstack-protector-strong -fno-plt
-  -fno-strict-aliasing -Wl,--sort-common,--as-needed -z relro -z now -m64 -march=x86-64 -mtune=generic
+set(COMPILE_FLAGS_COMMON
+  -pthread -pipe -fPIE -fvisibility=hidden $<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>
+  -fstack-protector-strong -fno-plt -m64 -march=x86-64 -mtune=generic
 )
 
-set(CXX_FLAGS_DEBUG
-  #-DFOUR_DEBUG -Og -g -fvar-tracking -fvar-tracking-assignments -fsanitize=undefined
-  -DFOUR_DEBUG -O0 -g -fsanitize=undefined
-)
-
-set(CXX_FLAGS_RELEASE
-  -Wno-unused -O3 -g0 -DNDEBUG -D_FORTIFY_SOURCE=2 -ffunction-sections -fdata-sections -Wl,--gc-sections,-O1 -flto
-  -fuse-linker-plugin -flto-odr-type-merging -fno-semantic-interposition
-)
+set(LINK_FLAGS_COMMON -pie -Wl,--sort-common,--as-needed,-z,relro,-z,now)
 
 if(CMAKE_GENERATOR STREQUAL "Ninja")
-  list(APPEND CXX_FLAGS_COMMON -fdiagnostics-color=always)
+  list(APPEND COMPILE_FLAGS_COMMON -fdiagnostics-color=always)
 endif()
 
-set(C_FLAGS_COMMON ${CXX_FLAGS_COMMON})
-list(REMOVE_ITEM C_FLAGS_COMMON
-  -Wctor-dtor-privacy -Wnoexcept -Woverloaded-virtual -Wsign-promo -Wstrict-null-sentinel -Wuseless-cast -Wabi-tag
-  -fvisibility-inlines-hidden
+set(FLAGS_DEBUG -Og -g)
+
+set(COMPILE_FLAGS_RELEASE -O3 -g0 -DNDEBUG -D_FORTIFY_SOURCE=2 -ffunction-sections -fdata-sections)
+set(LINK_FLAGS_RELEASE -Wl,--gc-sections,-O1)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  list(APPEND COMPILE_FLAGS_RELEASE -flto=${NPROC} -flto-odr-type-merging -fno-semantic-interposition)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  list(APPEND COMPILE_FLAGS_RELEASE -flto=thin)
+endif()
+
+# Flags for this project's targets
+
+set(FLAGS_FOUR_COMMON
+  -Wall -Wextra -Wcast-qual -Wunused -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations
+  -Wmissing-include-dirs -Wredundant-decls -Wundef -Wfloat-equal -Wstack-protector -Wwrite-strings -Wvla -Wuninitialized
+  -Wctor-dtor-privacy -Woverloaded-virtual -Wsign-promo -Wconversion -Wstrict-aliasing=1
 )
 
-set(C_FLAGS_DEBUG ${CXX_FLAGS_DEBUG})
-set(C_FLAGS_RELEASE ${CXX_FLAGS_RELEASE})
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  list(APPEND FLAGS_FOUR_COMMON -Wcast-align=strict -Wlogical-op -Wstrict-null-sentinel -Wuseless-cast -Wabi-tag)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  list(APPEND FLAGS_FOUR_COMMON -Wcast-align -Wno-gnu-zero-variadic-macro-arguments)
+endif()
 
-string(REPLACE ";" " " CXX_FLAGS_COMMON_STR "${CXX_FLAGS_COMMON}")
-string(REPLACE ";" " " CXX_FLAGS_DEBUG_STR "${CXX_FLAGS_DEBUG}")
-string(REPLACE ";" " " CXX_FLAGS_RELEASE_STR "${CXX_FLAGS_RELEASE}")
-set(CMAKE_CXX_FLAGS ${CXX_FLAGS_COMMON_STR})
-set(CMAKE_CXX_FLAGS_DEBUG ${CXX_FLAGS_DEBUG_STR})
-set(CMAKE_CXX_FLAGS_RELEASE ${CXX_FLAGS_RELEASE_STR})
+set(FLAGS_FOUR_DEBUG -DFOUR_DEBUG)
 
-string(REPLACE ";" " " C_FLAGS_COMMON_STR "${C_FLAGS_COMMON}")
-string(REPLACE ";" " " C_FLAGS_DEBUG_STR "${C_FLAGS_DEBUG}")
-string(REPLACE ";" " " C_FLAGS_RELEASE_STR "${C_FLAGS_RELEASE}")
-set(CMAKE_C_FLAGS ${C_FLAGS_COMMON_STR})
-set(CMAKE_C_FLAGS_DEBUG ${C_FLAGS_DEBUG_STR})
-set(CMAKE_C_FLAGS_RELEASE ${C_FLAGS_RELEASE_STR})
+if(NOT DEBUG_ENABLE_DEBUG_INFO)
+  list(APPEND FLAGS_FOUR_DEBUG -O0 -g0)
+endif()
 
-add_executable(four ${SOURCES})
+if(DEBUG_ENABLE_UBSAN)
+  list(APPEND FLAGS_FOUR_DEBUG -fsanitize=undefined)
+endif()
 
-# Dependencies
-# ============
+if(DEBUG_ENABLE_ASAN)
+  list(APPEND FLAGS_FOUR_DEBUG -fsanitize=address)
+endif()
+
+set(FLAGS_FOUR_RELEASE -Wno-unused -Wno-unused-parameter)
+
+add_compile_options(
+  ${COMPILE_FLAGS_COMMON}
+  "$<$<CONFIG:Debug>:${FLAGS_DEBUG}>"
+  "$<$<CONFIG:Release>:${COMPILE_FLAGS_RELEASE}>"
+)
+add_link_options(
+  ${COMPILE_FLAGS_COMMON}
+  ${LINK_FLAGS_COMMON}
+  "$<$<CONFIG:Debug>:${FLAGS_DEBUG}>"
+  "$<$<CONFIG:Release>:${COMPILE_FLAGS_RELEASE}>"
+  "$<$<CONFIG:Release>:${LINK_FLAGS_RELEASE}>"
+)
+
+# === Dependencies ===
 
 FetchContent_Declare(
   sdl2
@@ -142,20 +193,17 @@ make_available_no_add(sdl2 loguru eigen libigl tinyxml2 imgui)
 
 set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
 add_subdirectory("${sdl2_SOURCE_DIR}")
-target_compile_options(SDL2-static PRIVATE -w -fno-lto)
+target_compile_options(SDL2-static PRIVATE -fno-lto)
 
 add_library(glad STATIC depends/glad/src/glad.c)
-target_compile_options(glad PRIVATE -w)
 
 add_library(triangle STATIC depends/triangle/triangle.c)
 target_compile_definitions(triangle PRIVATE LINUX TRILIBRARY)
-target_compile_options(triangle PRIVATE -w -fno-lto)
+target_compile_options(triangle PRIVATE -fno-lto)
 
 add_library(loguru STATIC "${loguru_SOURCE_DIR}/loguru.cpp")
-target_compile_options(loguru PRIVATE -w)
 
 add_library(tinyxml2 STATIC "${tinyxml2_SOURCE_DIR}/tinyxml2.cpp")
-target_compile_options(tinyxml2 PRIVATE -w)
 
 add_library(imgui STATIC
   "${imgui_SOURCE_DIR}/imgui.cpp"
@@ -165,12 +213,11 @@ add_library(imgui STATIC
   "${imgui_SOURCE_DIR}/examples/imgui_impl_sdl.cpp"
   "${imgui_SOURCE_DIR}/examples/imgui_impl_opengl3.cpp"
 )
-target_compile_options(imgui PRIVATE -w -fno-lto)
+target_compile_options(imgui PRIVATE -fno-lto)
 add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
 target_link_libraries(imgui SDL2-static)
 
 add_library(tetgen STATIC depends/tetgen/predicates.cxx depends/tetgen/tetgen.cxx)
-target_compile_options(tetgen PRIVATE -w)
 add_compile_definitions(TETLIBRARY)
 
 include_directories(SYSTEM
@@ -186,15 +233,25 @@ include_directories(SYSTEM
   "${imgui_SOURCE_DIR}/examples"
 )
 
-# ============
+# === Project targets ===
 
+add_executable(four ${SOURCES})
+target_compile_options(four PRIVATE
+  ${FLAGS_FOUR_COMMON}
+  "$<$<CONFIG:Debug>:${FLAGS_FOUR_DEBUG}>"
+  "$<$<CONFIG:Release>:${FLAGS_FOUR_RELEASE}>"
+)
+target_link_options(four PRIVATE
+  ${FLAGS_FOUR_COMMON}
+  "$<$<CONFIG:Debug>:${FLAGS_FOUR_DEBUG}>"
+  "$<$<CONFIG:Release>:${FLAGS_FOUR_RELEASE}>"
+)
+include_directories(src)
 target_link_libraries(four rt dl m pthread SDL2-static glad triangle loguru tinyxml2 imgui tetgen)
 
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-  add_custom_command(
-    TARGET four
-    POST_BUILD
-    COMMAND strip --strip-unneeded "$<TARGET_FILE:four>"
-    VERBATIM
-  )
-endif()
+add_custom_command(
+  TARGET four
+  POST_BUILD
+  COMMAND $<IF:$<CONFIG:Release>,strip,:> --strip-unneeded $<TARGET_FILE:four>
+  VERBATIM
+)
