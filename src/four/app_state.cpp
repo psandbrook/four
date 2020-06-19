@@ -14,11 +14,25 @@ namespace {
 
 const f64 mouse_motion_fac = 0.002;
 
+inline bool imgui_drag_f64(const char* label, f64* value, f32 speed, const char* format = NULL) {
+    return ImGui::DragScalar(label, ImGuiDataType_Double, value, speed, NULL, NULL, format, 1.0f);
+}
+} // namespace
+
+void AppState::change_mesh(const char* path) {
+    mesh = load_mesh_from_file(path);
+    mesh_pos = {0, 0, 0, 2.5};
+    mesh_scale = {1, 1, 1, 1};
+    mesh_rotation = (Bivec4){.xy = 0, .xz = 0, .xw = 0, .yz = 0, .yw = 0, .zw = 0};
+    selected_cell = 0;
+    mesh_changed = true;
 }
 
 AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path) : window(window), imgui_io(imgui_io) {
-    mesh = load_mesh_from_file(mesh_path);
-    imgui_io->Fonts->AddFontFromFileTTF("data/DejaVuSans.ttf", 18.0f);
+    change_mesh(mesh_path);
+
+    ImWchar ranges[] = {0x20, 0xFFFF, 0};
+    CHECK_NOTNULL_F(imgui_io->Fonts->AddFontFromFileTTF("data/DejaVuSans.ttf", 18.0f, NULL, ranges));
 }
 
 bool AppState::process_events_and_imgui() {
@@ -143,9 +157,7 @@ bool AppState::process_events_and_imgui() {
 
         ImGui::End();
         if (new_mesh_path) {
-            mesh = load_mesh_from_file(new_mesh_path);
-            selected_cell = 0;
-            mesh_changed = true;
+            change_mesh(new_mesh_path);
         }
     }
 
@@ -176,6 +188,65 @@ bool AppState::process_events_and_imgui() {
         ImGui::End();
     }
 
+    {
+        ImGui::Begin("4D Transform");
+        const f32 speed = 0.01f;
+        const auto fmt = "%.3f";
+
+        ImGui::Text("Translate");
+        imgui_drag_f64("x##t", &mesh_pos.X, speed, fmt);
+        imgui_drag_f64("y##t", &mesh_pos.Y, speed, fmt);
+        imgui_drag_f64("z##t", &mesh_pos.Z, speed, fmt);
+        imgui_drag_f64("w##t", &mesh_pos.W, speed, fmt);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("Scale");
+
+        {
+            f64 scale_magnitude =
+                    (std::abs(mesh_scale.X) + std::abs(mesh_scale.Y) + std::abs(mesh_scale.Z) + std::abs(mesh_scale.W))
+                    / 4.0;
+            f64 scale_speed = speed * scale_magnitude;
+            ImGui::PushButtonRepeat(true);
+            if (ImGui::Button("−")) {
+                mesh_scale.X -= scale_speed;
+                mesh_scale.Y -= scale_speed;
+                mesh_scale.Z -= scale_speed;
+                mesh_scale.W -= scale_speed;
+            }
+            ImVec2 minus_size = ImGui::GetItemRectSize();
+            ImGui::SameLine();
+            if (ImGui::Button("+", minus_size)) {
+                mesh_scale.X += scale_speed;
+                mesh_scale.Y += scale_speed;
+                mesh_scale.Z += scale_speed;
+                mesh_scale.W += scale_speed;
+            }
+            ImGui::PopButtonRepeat();
+            ImGui::SameLine();
+            ImGui::Text("xyzw");
+        }
+
+        imgui_drag_f64("x##s", &mesh_scale.X, speed, fmt);
+        imgui_drag_f64("y##s", &mesh_scale.Y, speed, fmt);
+        imgui_drag_f64("z##s", &mesh_scale.Z, speed, fmt);
+        imgui_drag_f64("w##s", &mesh_scale.W, speed, fmt);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("Rotate");
+
+        imgui_drag_f64("xy", &mesh_rotation.xy, speed, fmt);
+        imgui_drag_f64("xz", &mesh_rotation.xz, speed, fmt);
+        imgui_drag_f64("xw", &mesh_rotation.xw, speed, fmt);
+        imgui_drag_f64("yz", &mesh_rotation.yz, speed, fmt);
+        imgui_drag_f64("yw", &mesh_rotation.yw, speed, fmt);
+        imgui_drag_f64("zw", &mesh_rotation.zw, speed, fmt);
+
+        ImGui::End();
+    }
+
     ImGui::EndFrame();
     return false;
 }
@@ -193,12 +264,6 @@ void AppState::step(const f64 ms) {
         }
     } else {
         selected_cell_cycle_acc = 0.0;
-    }
-
-    Rotor4 r = rotor4({1, 0, 0, 0}, {1, 0, 0, 0.002});
-
-    for (size_t i = 0; i < mesh.vertices.size(); i++) {
-        mesh.vertices[i] = rotate(r, mesh.vertices[i]);
     }
 }
 } // namespace four

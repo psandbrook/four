@@ -1,5 +1,6 @@
 #pragma once
 
+#include <four/math.hpp>
 #include <four/mesh.hpp>
 
 #include <SDL.h>
@@ -8,16 +9,19 @@
 namespace four {
 
 struct AppState {
+public:
     SDL_Window* window;
     ImGuiIO* imgui_io;
 
     bool window_size_changed = false;
-
-    Mesh4 mesh;
     bool mesh_changed = false;
 
-    hmm_vec4 mesh_pos = {0, 0, 0, 2.5};
-    s32 selected_cell = 0;
+    Mesh4 mesh;
+    hmm_vec4 mesh_pos;
+    hmm_vec4 mesh_scale;
+    Bivec4 mesh_rotation;
+
+    s32 selected_cell;
     bool selected_cell_cycle = false;
     f64 selected_cell_cycle_acc = 0.0;
 
@@ -44,5 +48,8 @@ struct AppState {
     bool process_events_and_imgui();
 
     void step(f64 ms);
+
+private:
+    void change_mesh(const char* path);
 };
 } // namespace four

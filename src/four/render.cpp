@@ -320,7 +320,15 @@ void Renderer::render() {
     // Perform 4D to 3D projection
     {
         projected_vertices.clear();
-        Mat5 model = translate(s.mesh_pos);
+
+        Rotor4 rotation_r = rotor4(s.mesh_rotation.xy, outer(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0)))
+                            * rotor4(s.mesh_rotation.xz, outer(vec4(1, 0, 0, 0), vec4(0, 0, 1, 0)))
+                            * rotor4(s.mesh_rotation.xw, outer(vec4(1, 0, 0, 0), vec4(0, 0, 0, 1)))
+                            * rotor4(s.mesh_rotation.yz, outer(vec4(0, 1, 0, 0), vec4(0, 0, 1, 0)))
+                            * rotor4(s.mesh_rotation.yw, outer(vec4(0, 1, 0, 0), vec4(0, 0, 0, 1)))
+                            * rotor4(s.mesh_rotation.zw, outer(vec4(0, 0, 1, 0), vec4(0, 0, 0, 1)));
+
+        Mat5 model = translate(s.mesh_pos) * to_mat5(rotation_r) * scale(s.mesh_scale);
         Mat5 view = look_at(s.camera4_pos, s.camera4_target, s.camera4_up, s.camera4_over);
         Mat5 mv = view * model;
         for (const hmm_vec4& v : s.mesh.vertices) {
@@ -379,7 +387,7 @@ void Renderer::triangulate(const std::vector<hmm_vec3>& vertices, const std::vec
                            std::vector<u32>& out) {
 
     using VertexIMapping = TriangulateState::VertexIMapping;
-    auto& s = triangulate_s;
+    auto& s = triangulate_state;
     const f64 epsilon = 0.00000000000001;
 
     // Calculate normal vector
@@ -409,7 +417,7 @@ void Renderer::triangulate(const std::vector<hmm_vec3>& vertices, const std::vec
     // Calculate transformation to 2D
 
     hmm_vec3 up;
-    if (float_eq(std::abs(normal.Y), 1.0)) {
+    if (float_eq(std::abs(normal.Y), 1.0, 0.001)) {
         up = {1, 0, 0};
     } else {
         up = {0, 1, 0};

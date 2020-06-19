@@ -118,7 +118,7 @@ private:
         Eigen::MatrixX2i mesh_e;
         Eigen::MatrixX2d triangulate_out_v;
         Eigen::MatrixX3i triangulate_out_f;
-    } triangulate_s;
+    } triangulate_state;
 
     // ------------------------------------------------
 

@@ -13,6 +13,8 @@ inline f64 sq(f64 x) {
     return x * x;
 }
 
+// TODO: Use const T& for parameters where possible
+
 union Vec5 {
     f64 elements[5];
     struct {
@@ -54,6 +56,15 @@ inline hmm_vec3 vec3(hmm_vec4 v) {
     result.X = v.X;
     result.Y = v.Y;
     result.Z = v.Z;
+    return result;
+}
+
+inline hmm_vec4 vec4(f64 x, f64 y, f64 z, f64 w) {
+    hmm_vec4 result = {};
+    result.X = x;
+    result.Y = y;
+    result.Z = z;
+    result.W = w;
     return result;
 }
 
@@ -175,7 +186,7 @@ inline hmm_vec4 cross(hmm_vec4 u, hmm_vec4 v, hmm_vec4 w) {
     Mat3 m2 = mat3(HMM_Vec3(u.X, v.X, w.X), HMM_Vec3(u.Z, v.Z, w.Z), HMM_Vec3(u.W, v.W, w.W));
     Mat3 m3 = mat3(HMM_Vec3(u.X, v.X, w.X), HMM_Vec3(u.Y, v.Y, w.Y), HMM_Vec3(u.W, v.W, w.W));
     Mat3 m4 = mat3(HMM_Vec3(u.X, v.X, w.X), HMM_Vec3(u.Y, v.Y, w.Y), HMM_Vec3(u.Z, v.Z, w.Z));
-    return HMM_Vec4(determinant(m1), -determinant(m2), determinant(m3), -determinant(m4));
+    return vec4(determinant(m1), -determinant(m2), determinant(m3), -determinant(m4));
 }
 
 inline Mat5 translate(hmm_vec4 v) {
@@ -183,9 +194,9 @@ inline Mat5 translate(hmm_vec4 v) {
                 vec5(v.X, v.Y, v.Z, v.W, 1));
 }
 
-// `angle` is in degrees
-inline hmm_mat4 rotate(hmm_vec3 center, f64 angle, hmm_vec3 axis) {
-    return HMM_Translate(center) * HMM_Rotate(angle, axis) * HMM_Translate(-1 * center);
+inline Mat5 scale(hmm_vec4 v) {
+    return mat5(vec5(v.X, 0, 0, 0, 0), vec5(0, v.Y, 0, 0, 0), vec5(0, 0, v.Z, 0, 0), vec5(0, 0, 0, v.W, 0),
+                vec5(0, 0, 0, 0, 1));
 }
 
 inline Mat5 look_at(hmm_vec4 eye, hmm_vec4 target, hmm_vec4 up, hmm_vec4 over) {
@@ -202,15 +213,15 @@ inline Mat5 look_at(hmm_vec4 eye, hmm_vec4 target, hmm_vec4 up, hmm_vec4 over) {
 inline hmm_vec4 project_orthographic(Vec5 v, f64 near) {
     CHECK_GT_F(near, 0.0);
     CHECK_LE_F(v.W, -near);
-    return HMM_Vec4(v.X, v.Y, v.Z, -v.W - near);
+    return vec4(v.X, v.Y, v.Z, v.W + near);
 }
 
 inline hmm_vec4 project_perspective(Vec5 v, f64 near) {
     CHECK_GT_F(near, 0.0);
     CHECK_LE_F(v.W, -near);
     f64 d = near / -v.W;
-    hmm_vec4 v_4 = vec4(v);
-    return HMM_Vec4(d * v.X, d * v.Y, d * v.Z, HMM_Length(v_4 - d * v_4));
+    hmm_vec4 intersect = d * vec4(v);
+    return vec4(intersect.X, intersect.Y, intersect.Z, HMM_Length(intersect - vec4(v)));
 }
 
 // 3D Rotors
@@ -226,14 +237,6 @@ struct Rotor3 {
     f64 s;
     Bivec3 B; // This stores (b `outer` a) for a rotor (ab)
 };
-
-inline Bivec3 bivec3(f64 xy, f64 xz, f64 yz) {
-    Bivec3 result = {};
-    result.xy = xy;
-    result.xz = xz;
-    result.yz = yz;
-    return result;
-}
 
 // Outer product
 inline Bivec3 outer(hmm_vec3 a, hmm_vec3 b) {
@@ -253,24 +256,14 @@ inline Bivec3 normalize(Bivec3 B) {
     return result;
 }
 
-inline f64 length_squared(Rotor3 r) {
-    const auto& B = r.B;
-    return sq(r.s) + sq(B.xy) + sq(B.xz) + sq(B.yz);
-}
-
-inline f64 length(Rotor3 r) {
-    return sqrt(length_squared(r));
-}
-
 inline Rotor3 normalize(Rotor3 r) {
     const auto& B = r.B;
     Rotor3 result = {};
-
-    f64 l = length(r);
-    result.s = r.s / l;
-    result.B.xy = B.xy / l;
-    result.B.xz = B.xz / l;
-    result.B.yz = B.yz / l;
+    f64 length = sqrt(sq(r.s) + sq(B.xy) + sq(B.xz) + sq(B.yz));
+    result.s = r.s / length;
+    result.B.xy = B.xy / length;
+    result.B.xz = B.xz / length;
+    result.B.yz = B.yz / length;
     return result;
 }
 
@@ -350,7 +343,7 @@ inline hmm_mat4 to_mat4(Rotor3 r) {
     hmm_vec3 v_x = rotate(r, HMM_Vec3(1, 0, 0));
     hmm_vec3 v_y = rotate(r, HMM_Vec3(0, 1, 0));
     hmm_vec3 v_z = rotate(r, HMM_Vec3(0, 0, 1));
-    return mat4(HMM_Vec4v(v_x, 0), HMM_Vec4v(v_y, 0), HMM_Vec4v(v_z, 0), HMM_Vec4(0, 0, 0, 1));
+    return mat4(HMM_Vec4v(v_x, 0), HMM_Vec4v(v_y, 0), HMM_Vec4v(v_z, 0), vec4(0, 0, 0, 1));
 }
 
 // =========
@@ -365,12 +358,49 @@ struct Bivec4 {
 struct Rotor4 {
     f64 s;
     Bivec4 B; // This stores (b `outer` a) for a rotor (ab)
+    f64 xyzw; // 4-vector part
 };
 
-inline Rotor4 rotor4(hmm_vec4 a, hmm_vec4 b) {
-    a = HMM_Normalize(a);
-    b = HMM_Normalize(b);
+// Outer product
+inline Bivec4 outer(hmm_vec4 a, hmm_vec4 b) {
+    Bivec4 result = {};
+    result.xy = (a.X * b.Y) - (a.Y * b.X);
+    result.xz = (a.X * b.Z) - (a.Z * b.X);
+    result.xw = (a.X * b.W) - (a.W * b.X);
+    result.yz = (a.Y * b.Z) - (a.Z * b.Y);
+    result.yw = (a.Y * b.W) - (a.W * b.Y);
+    result.zw = (a.Z * b.W) - (a.W * b.Z);
+    return result;
+}
 
+inline Bivec4 normalize(Bivec4 B) {
+    Bivec4 result = {};
+    f64 length = sqrt(sq(B.xy) + sq(B.xz) + sq(B.xw) + sq(B.yz) + sq(B.yw) + sq(B.zw));
+    result.xy = B.xy / length;
+    result.xz = B.xz / length;
+    result.xw = B.xw / length;
+    result.yz = B.yz / length;
+    result.yw = B.yw / length;
+    result.zw = B.zw / length;
+    return result;
+}
+
+inline Rotor4 normalize(Rotor4 r) {
+    const auto& B = r.B;
+    Rotor4 result = {};
+    f64 length = sqrt(sq(r.s) + sq(B.xy) + sq(B.xz) + sq(B.xw) + sq(B.yz) + sq(B.yw) + sq(B.zw) + sq(r.xyzw));
+    result.s = r.s / length;
+    result.B.xy = B.xy / length;
+    result.B.xz = B.xz / length;
+    result.B.xw = B.xw / length;
+    result.B.yz = B.yz / length;
+    result.B.yw = B.yw / length;
+    result.B.zw = B.zw / length;
+    result.xyzw = r.xyzw / length;
+    return result;
+}
+
+inline Rotor4 rotor4(hmm_vec4 a, hmm_vec4 b) {
     Rotor4 result = {};
     result.s = HMM_Dot(a, b);
     result.B.xy = (b.X * a.Y) - (b.Y * a.X);
@@ -379,11 +409,68 @@ inline Rotor4 rotor4(hmm_vec4 a, hmm_vec4 b) {
     result.B.yz = (b.Y * a.Z) - (b.Z * a.Y);
     result.B.yw = (b.Y * a.W) - (b.W * a.Y);
     result.B.zw = (b.Z * a.W) - (b.W * a.Z);
+    result.xyzw = 0;
+
+    result = normalize(result);
+    return result;
+}
+
+// Construct the rotor that rotates `angle` radians in the given plane.
+inline Rotor4 rotor4(f64 angle, Bivec4 plane) {
+    plane = normalize(plane);
+
+    Rotor4 result = {};
+    result.s = cos(angle / 2.0);
+
+    f64 sin_a = sin(angle / 2.0);
+    result.B.xy = -sin_a * plane.xy;
+    result.B.xz = -sin_a * plane.xz;
+    result.B.xw = -sin_a * plane.xw;
+    result.B.yz = -sin_a * plane.yz;
+    result.B.yw = -sin_a * plane.yw;
+    result.B.zw = -sin_a * plane.zw;
+    result.xyzw = 0;
+
+    return result;
+}
+
+inline Rotor4 operator*(const Rotor4& lhs, const Rotor4& rhs) {
+    const f64 s_D = lhs.s;
+    const f64 s_B = rhs.s;
+    const auto& D = lhs.B;
+    const auto& B = rhs.B;
+
+    Rotor4 result = {};
+
+    result.s =
+            (s_D * s_B) - (D.xy * B.xy) - (D.xz * B.xz) - (D.xw * B.xw) - (D.yz * B.yz) - (D.yw * B.yw) - (D.zw * B.zw);
+
+    result.B.xy = (s_D * B.xy) + (s_B * D.xy) - (D.xw * B.yw) + (D.yw * B.xw) + (D.yz * B.xz) - (D.xz * B.yz)
+                  - (D.zw * rhs.xyzw) - (lhs.xyzw * B.zw);
+
+    result.B.xz = (s_D * B.xz) + (s_B * D.xz) + (D.xy * B.yz) - (D.yz * B.xy) - (D.xw * B.zw) + (D.zw * B.xw)
+                  + (D.yw * rhs.xyzw) + (lhs.xyzw * B.yw);
+
+    result.B.xw = (s_D * B.xw) + (s_B * D.xw) + (D.xy * B.yw) - (D.yw * B.xy) + (D.xz * B.zw) - (D.zw * B.xz)
+                  - (D.yz * rhs.xyzw) - (lhs.xyzw * B.yz);
+
+    result.B.yz = (s_D * B.yz) + (s_B * D.yz) - (D.xy * B.xz) + (D.xz * B.xy) - (D.yw * B.zw) + (D.zw * B.yw)
+                  - (D.xw * rhs.xyzw) - (lhs.xyzw * B.xw);
+
+    result.B.yw = (s_D * B.yw) + (s_B * D.yw) - (D.xy * B.xw) + (D.xw * B.xy) + (D.yz * B.zw) - (D.zw * B.yz)
+                  + (D.xz * rhs.xyzw) + (lhs.xyzw * B.xz);
+
+    result.B.zw = (s_D * B.zw) + (s_B * D.zw) - (D.xz * B.xw) + (D.xw * B.xz) - (D.yz * B.yw) + (D.yw * B.yz)
+                  - (D.xy * rhs.xyzw) + (lhs.xyzw * B.xy);
+
+    result.xyzw = (D.xy * B.zw) - (D.xz * B.yw) + (D.xw * B.yz) + (D.yz * B.xw) - (D.yw * B.xz) + (D.zw * B.xy)
+                  + (s_D * rhs.xyzw) + (s_B * lhs.xyzw);
+
     return result;
 }
 
 inline hmm_vec4 rotate(Rotor4 r, hmm_vec4 v) {
-    const Bivec4& B = r.B;
+    const auto& B = r.B;
 
     // (ba)v -- vector part
     hmm_vec4 q = {};
@@ -393,22 +480,52 @@ inline hmm_vec4 rotate(Rotor4 r, hmm_vec4 v) {
     q.W = (r.s * v.W) - (B.xw * v.X) - (B.yw * v.Y) - (B.zw * v.Z);
 
     // (ba)v -- trivector part
-    f64 q_xyz = (B.xy * v.Z) - (B.xz * v.Y) + (B.yz * v.X);
-    f64 q_xyw = (B.xy * v.W) - (B.xw * v.Y) + (B.yw * v.X);
-    f64 q_xzw = (B.xz * v.W) - (B.xw * v.Z) + (B.zw * v.X);
-    f64 q_yzw = (B.yz * v.W) - (B.yw * v.Z) + (B.zw * v.Y);
+    f64 q_xyz = (B.xy * v.Z) - (B.xz * v.Y) + (B.yz * v.X) + (r.xyzw * v.W);
+    f64 q_xyw = (B.xy * v.W) - (B.xw * v.Y) + (B.yw * v.X) - (r.xyzw * v.Z);
+    f64 q_xzw = (B.xz * v.W) - (B.xw * v.Z) + (B.zw * v.X) + (r.xyzw * v.Y);
+    f64 q_yzw = (B.yz * v.W) - (B.yw * v.Z) + (B.zw * v.Y) - (r.xyzw * v.X);
 
     hmm_vec4 result = {};
-    result.X =
-            (r.s * q.X) + (q.Y * B.xy) + (q.Z * B.xz) + (q.W * B.xw) + (q_xyz * B.yz) + (q_xyw * B.yw) + (q_xzw * B.zw);
-    result.Y =
-            (r.s * q.Y) - (q.X * B.xy) + (q.Z * B.yz) + (q.W * B.yw) - (q_xyz * B.xz) - (q_xyw * B.xw) + (q_yzw * B.zw);
-    result.Z =
-            (r.s * q.Z) - (q.X * B.xz) - (q.Y * B.yz) + (q.W * B.zw) + (q_xyz * B.xy) - (q_xzw * B.xw) - (q_yzw * B.yw);
-    result.W =
-            (r.s * q.W) - (q.X * B.xw) - (q.Y * B.yw) - (q.Z * B.zw) + (q_xyz * B.xy) + (q_xzw * B.xz) + (q_yzw * B.yz);
+    result.X = (r.s * q.X) + (q.Y * B.xy) + (q.Z * B.xz) + (q.W * B.xw) + (q_xyz * B.yz) + (q_xyw * B.yw)
+               + (q_xzw * B.zw) - (q_yzw * r.xyzw);
+
+    result.Y = (r.s * q.Y) - (q.X * B.xy) + (q.Z * B.yz) + (q.W * B.yw) - (q_xyz * B.xz) - (q_xyw * B.xw)
+               + (q_yzw * B.zw) + (q_xzw * r.xyzw);
+
+    result.Z = (r.s * q.Z) - (q.X * B.xz) - (q.Y * B.yz) + (q.W * B.zw) + (q_xyz * B.xy) - (q_xzw * B.xw)
+               - (q_yzw * B.yw) - (q_xyw * r.xyzw);
+
+    result.W = (r.s * q.W) - (q.X * B.xw) - (q.Y * B.yw) - (q.Z * B.zw) + (q_xyw * B.xy) + (q_xzw * B.xz)
+               + (q_yzw * B.yz) + (q_xyz * r.xyzw);
 
     return result;
+}
+
+inline Rotor4 reverse(Rotor4 r) {
+    const auto& B = r.B;
+    Rotor4 result = {};
+    result.s = r.s;
+    result.B.xy = -B.xy;
+    result.B.xz = -B.xz;
+    result.B.xw = -B.xw;
+    result.B.yz = -B.yz;
+    result.B.yw = -B.yw;
+    result.B.zw = -B.zw;
+    result.xyzw = -r.xyzw;
+    return result;
+}
+
+// Rotate a rotor `a` by a rotor `r`
+inline Rotor4 rotate(Rotor4 r, Rotor4 a) {
+    return r * a * reverse(r);
+}
+
+inline Mat5 to_mat5(Rotor4 r) {
+    hmm_vec4 v_x = rotate(r, vec4(1, 0, 0, 0));
+    hmm_vec4 v_y = rotate(r, vec4(0, 1, 0, 0));
+    hmm_vec4 v_z = rotate(r, vec4(0, 0, 1, 0));
+    hmm_vec4 v_w = rotate(r, vec4(0, 0, 0, 1));
+    return mat5(vec5(v_x, 0), vec5(v_y, 0), vec5(v_z, 0), vec5(v_w, 0), vec5(0, 0, 0, 0, 1));
 }
 
 // =========
