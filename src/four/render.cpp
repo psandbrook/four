@@ -14,10 +14,9 @@ namespace four {
 namespace {
 
 u32 compile_shader(const char* path, GLenum type) {
-
-    // FIXME: This is inefficient
-    std::ifstream stream(path);
-    CHECK_F(bool(stream), "Could not open file \"%s\"", path);
+    auto full_path = std::string("data/shaders/") + path;
+    std::ifstream stream(full_path);
+    CHECK_F(bool(stream), "Could not open file \"%s\"", full_path.c_str());
 
     std::stringstream source_buffer;
     source_buffer << stream.rdbuf();
@@ -346,8 +345,8 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     // Wireframe
     // ---------
 
-    u32 n4d_vert_shader = compile_shader("data/n4d-vert.glsl", GL_VERTEX_SHADER);
-    u32 wireframe_frag_shader = compile_shader("data/wireframe-frag.glsl", GL_FRAGMENT_SHADER);
+    u32 n4d_vert_shader = compile_shader("n4d-vert.glsl", GL_VERTEX_SHADER);
+    u32 wireframe_frag_shader = compile_shader("wireframe-frag.glsl", GL_FRAGMENT_SHADER);
     wireframe_shader_prog = ShaderProgram(n4d_vert_shader, wireframe_frag_shader);
 
     size_t wireframe_vertices = add_vbo(GL_STREAM_DRAW);
@@ -364,7 +363,7 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     // Selected cell
     // -------------
 
-    u32 selected_cell_frag_shader = compile_shader("data/cell-frag.glsl", GL_FRAGMENT_SHADER);
+    u32 selected_cell_frag_shader = compile_shader("cell-frag.glsl", GL_FRAGMENT_SHADER);
     selected_cell_shader_prog = ShaderProgram(n4d_vert_shader, selected_cell_frag_shader);
 
     // -------------
@@ -372,8 +371,8 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     // Cross-section
     // -------------
 
-    u32 cross_vert_shader = compile_shader("data/cross-vert.glsl", GL_VERTEX_SHADER);
-    u32 cross_frag_shader = compile_shader("data/cross-frag.glsl", GL_FRAGMENT_SHADER);
+    u32 cross_vert_shader = compile_shader("cross-vert.glsl", GL_VERTEX_SHADER);
+    u32 cross_frag_shader = compile_shader("cross-frag.glsl", GL_FRAGMENT_SHADER);
     cross_section_shader_prog = ShaderProgram(cross_vert_shader, cross_frag_shader);
     size_t cross_vertices = add_vbo(GL_STREAM_DRAW);
     size_t cross_colors = add_vbo(GL_STREAM_DRAW);
@@ -399,8 +398,8 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     // XZ grid
     // -------
 
-    u32 xz_grid_vert_shader = compile_shader("data/xz-grid-vert.glsl", GL_VERTEX_SHADER);
-    u32 xz_grid_frag_shader = compile_shader("data/xz-grid-frag.glsl", GL_FRAGMENT_SHADER);
+    u32 xz_grid_vert_shader = compile_shader("xz-grid-vert.glsl", GL_VERTEX_SHADER);
+    u32 xz_grid_frag_shader = compile_shader("xz-grid-frag.glsl", GL_FRAGMENT_SHADER);
     xz_grid_shader_prog = ShaderProgram(xz_grid_vert_shader, xz_grid_frag_shader);
     size_t xz_grid_vertices = add_vbo(GL_STATIC_DRAW);
     std::vector<f32> xz_grid_vertices_vec;

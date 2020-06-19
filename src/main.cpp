@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
     auto& window = window_guard.window;
     auto& imgui_io = window_guard.imgui_io;
 
-    AppState state(window, imgui_io, "data/tesseract.mesh4");
+    AppState state(window, imgui_io, "tesseract.mesh4");
     state.debug = debug;
 
     Renderer renderer(window, &state);
