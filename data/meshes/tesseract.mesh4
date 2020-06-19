@@ -204,16 +204,16 @@
             <index>21</index>
             <index>20</index>
             <index>17</index>
-            <index>15</index>
             <index>4</index>
+            <index>15</index>
         </indices>
         <indices>
-            <index>14</index>
             <index>12</index>
+            <index>14</index>
+            <index>10</index>
             <index>6</index>
             <index>16</index>
             <index>5</index>
-            <index>10</index>
         </indices>
         <indices>
             <index>15</index>
@@ -224,12 +224,12 @@
             <index>3</index>
         </indices>
         <indices>
+            <index>8</index>
             <index>18</index>
             <index>7</index>
+            <index>1</index>
             <index>21</index>
             <index>10</index>
-            <index>1</index>
-            <index>8</index>
         </indices>
         <indices>
             <index>22</index>
@@ -273,12 +273,12 @@
         <vec4 x="1" y="-1" z="-1" w="1"/>
         <vec4 x="1" y="-1" z="1" w="1"/>
         <vec4 x="-1" y="-1" z="1" w="1"/>
+        <vec4 x="-1" y="1" z="1" w="-1"/>
+        <vec4 x="1" y="1" z="1" w="-1"/>
         <vec4 x="-1" y="-1" z="1" w="-1"/>
         <vec4 x="1" y="-1" z="1" w="-1"/>
         <vec4 x="-1" y="-1" z="-1" w="-1"/>
         <vec4 x="1" y="-1" z="-1" w="-1"/>
-        <vec4 x="-1" y="1" z="1" w="-1"/>
-        <vec4 x="1" y="1" z="1" w="-1"/>
         <vec4 x="-1" y="1" z="-1" w="-1"/>
         <vec4 x="1" y="1" z="-1" w="-1"/>
         <vec4 x="-1" y="-1" z="1" w="1"/>
@@ -289,14 +289,14 @@
         <vec4 x="1" y="1" z="1" w="-1"/>
         <vec4 x="-1" y="1" z="1" w="-1"/>
         <vec4 x="-1" y="-1" z="1" w="-1"/>
-        <vec4 x="1" y="-1" z="-1" w="1"/>
-        <vec4 x="1" y="1" z="-1" w="1"/>
-        <vec4 x="1" y="-1" z="-1" w="-1"/>
+        <vec4 x="-1" y="1" z="-1" w="-1"/>
+        <vec4 x="-1" y="1" z="-1" w="1"/>
         <vec4 x="1" y="1" z="-1" w="-1"/>
+        <vec4 x="1" y="1" z="-1" w="1"/>
+        <vec4 x="1" y="-1" z="-1" w="1"/>
+        <vec4 x="1" y="-1" z="-1" w="-1"/>
         <vec4 x="-1" y="-1" z="-1" w="-1"/>
         <vec4 x="-1" y="-1" z="-1" w="1"/>
-        <vec4 x="-1" y="1" z="-1" w="1"/>
-        <vec4 x="-1" y="1" z="-1" w="-1"/>
         <vec4 x="1" y="-1" z="1" w="-1"/>
         <vec4 x="1" y="1" z="1" w="-1"/>
         <vec4 x="1" y="1" z="1" w="1"/>
@@ -331,30 +331,30 @@
         <vec4 x="-1" y="-1" z="1" w="-1"/>
     </tet_vertices>
     <tets>
-        <tet cell="0" v0="1" v1="6" v2="0" v3="7"/>
-        <tet cell="0" v0="6" v1="0" v2="7" v3="4"/>
-        <tet cell="0" v0="0" v1="6" v2="5" v3="4"/>
-        <tet cell="0" v0="5" v1="3" v2="2" v3="0"/>
         <tet cell="0" v0="6" v1="0" v2="5" v3="2"/>
-        <tet cell="0" v0="1" v1="6" v2="2" v3="0"/>
-        <tet cell="1" v0="9" v1="8" v2="15" v3="11"/>
-        <tet cell="1" v0="12" v1="8" v2="15" v3="13"/>
-        <tet cell="1" v0="8" v1="10" v2="15" v3="11"/>
-        <tet cell="1" v0="14" v1="8" v2="15" v3="12"/>
-        <tet cell="1" v0="8" v1="15" v2="13" v3="9"/>
-        <tet cell="1" v0="14" v1="8" v2="10" v3="15"/>
+        <tet cell="0" v0="0" v1="6" v2="5" v3="4"/>
+        <tet cell="0" v0="7" v1="0" v2="4" v3="6"/>
+        <tet cell="0" v0="5" v1="3" v2="2" v3="0"/>
+        <tet cell="0" v0="7" v1="0" v2="6" v3="1"/>
+        <tet cell="0" v0="0" v1="6" v2="1" v3="2"/>
+        <tet cell="1" v0="12" v1="15" v2="8" v3="13"/>
+        <tet cell="1" v0="8" v1="15" v2="9" v3="13"/>
+        <tet cell="1" v0="12" v1="15" v2="14" v3="8"/>
+        <tet cell="1" v0="8" v1="13" v2="9" v3="11"/>
+        <tet cell="1" v0="8" v1="11" v2="10" v3="13"/>
+        <tet cell="1" v0="12" v1="8" v2="10" v3="13"/>
         <tet cell="2" v0="17" v1="21" v2="16" v3="22"/>
         <tet cell="2" v0="17" v1="21" v2="18" v3="16"/>
         <tet cell="2" v0="21" v1="16" v2="20" v3="18"/>
         <tet cell="2" v0="20" v1="22" v2="23" v3="16"/>
         <tet cell="2" v0="20" v1="22" v2="16" v3="21"/>
         <tet cell="2" v0="20" v1="16" v2="19" v3="18"/>
-        <tet cell="3" v0="31" v1="26" v2="24" v3="28"/>
-        <tet cell="3" v0="30" v1="25" v2="24" v3="31"/>
-        <tet cell="3" v0="24" v1="25" v2="27" v3="31"/>
-        <tet cell="3" v0="31" v1="26" v2="27" v3="24"/>
-        <tet cell="3" v0="29" v1="30" v2="24" v3="28"/>
-        <tet cell="3" v0="24" v1="30" v2="31" v3="28"/>
+        <tet cell="3" v0="24" v1="31" v2="28" v3="30"/>
+        <tet cell="3" v0="24" v1="26" v2="28" v3="27"/>
+        <tet cell="3" v0="28" v1="24" v2="27" v3="25"/>
+        <tet cell="3" v0="24" v1="29" v2="30" v3="28"/>
+        <tet cell="3" v0="24" v1="29" v2="28" v3="26"/>
+        <tet cell="3" v0="24" v1="31" v2="25" v3="28"/>
         <tet cell="4" v0="36" v1="39" v2="32" v3="37"/>
         <tet cell="4" v0="36" v1="34" v2="37" v3="32"/>
         <tet cell="4" v0="36" v1="34" v2="32" v3="35"/>

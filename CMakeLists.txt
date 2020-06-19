@@ -163,18 +163,6 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
-  eigen
-  URL "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.tar.bz2"
-  URL_HASH SHA256=685adf14bd8e9c015b78097c1dc22f2f01343756f196acdc76a678e1ae352e11
-)
-
-FetchContent_Declare(
-  libigl
-  URL "https://github.com/libigl/libigl/archive/v2.1.0.tar.gz"
-  URL_HASH SHA256=816ec64b6b2fbabcb1c6353c7df8a2fc1ad5bf4c607b332871a6ab8b29c89dbc
-)
-
-FetchContent_Declare(
   tinyxml2
   URL "https://github.com/leethomason/tinyxml2/archive/7.1.0.tar.gz"
   URL_HASH SHA256=68ebd396a4220d5a9b5a621c6e9c66349c5cfdf5efaea3f16e3bb92e45f4e2a3
@@ -198,7 +186,7 @@ FetchContent_Declare(
   URL_HASH SHA256=9a2c05e0ca77139b43949ef7c3780854dcedaa6590a15ddc7532244469fb4fdf
 )
 
-make_available_no_add(sdl2 loguru eigen libigl tinyxml2 imgui earcut glm)
+make_available_no_add(sdl2 loguru tinyxml2 imgui earcut glm)
 
 set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
 set(SDL_STATIC_ENABLED_BY_DEFAULT ON)
@@ -211,9 +199,6 @@ target_compile_options(${SDL2_TARGET} PRIVATE -fno-lto)
 
 add_library(glm INTERFACE)
 target_include_directories(glm SYSTEM INTERFACE "${glm_SOURCE_DIR}")
-
-add_library(eigen INTERFACE)
-target_include_directories(eigen SYSTEM INTERFACE "${eigen_SOURCE_DIR}")
 
 add_library(glad STATIC EXCLUDE_FROM_ALL depends/glad/src/glad.c)
 target_include_directories(glad SYSTEM PUBLIC depends/glad/include)
@@ -248,9 +233,6 @@ target_include_directories(tetgen SYSTEM PUBLIC depends/tetgen)
 target_compile_definitions(tetgen PUBLIC TETLIBRARY)
 target_compile_options(tetgen PRIVATE -Wno-unused-result)
 
-add_library(libigl INTERFACE)
-target_include_directories(libigl SYSTEM INTERFACE "${libigl_SOURCE_DIR}/include")
-
 # === Project targets ===
 
 add_executable(four ${SOURCES})
@@ -265,7 +247,7 @@ target_link_options(four PRIVATE
   "$<$<CONFIG:Release>:${FLAGS_FOUR_RELEASE}>"
 )
 include_directories(src)
-target_link_libraries(four ${SDL2_TARGET} glad glm eigen libigl loguru imgui tinyxml2 earcut tetgen)
+target_link_libraries(four ${SDL2_TARGET} glad glm loguru imgui tinyxml2 earcut tetgen)
 
 add_custom_command(
   TARGET four

@@ -1,7 +1,7 @@
 #include <four/mesh.hpp>
 
-#include <igl/copyleft/tetgen/tetrahedralize.h>
 #include <loguru.hpp>
+#include <tetgen.h>
 #include <tinyxml2.h>
 
 #include <algorithm>
@@ -18,51 +18,55 @@ namespace {
 void tetrahedralize_polyhedron(const std::vector<glm::dvec3>& vertices, const std::vector<std::vector<u32>>& faces,
                                std::vector<glm::dvec3>& out_vertices, std::vector<u32>& out_tets) {
 
-    std::vector<std::vector<f64>> vertices_vec;
-    vertices_vec.reserve(vertices.size());
-    for (const auto& v : vertices) {
-        std::vector<f64> v_ = {v.x, v.y, v.z};
-        vertices_vec.push_back(std::move(v_));
-    }
-
-    std::vector<std::vector<int>> faces_int;
-    faces_int.reserve(faces.size());
-    for (const auto& f : faces) {
-        std::vector<int> f_int;
-        f_int.reserve(f.size());
-        for (u32 i : f) {
-            f_int.push_back((int)i);
+    tetgenio tetgen_in;
+    tetgen_in.numberofpoints = (int)vertices.size();
+    tetgen_in.pointlist = new f64[vertices.size() * 3]{};
+    for (size_t i = 0; i < vertices.size(); i++) {
+        for (s32 j = 0; j < 3; j++) {
+            tetgen_in.pointlist[i * 3 + (size_t)j] = vertices[i][j];
         }
-        faces_int.push_back(std::move(f_int));
     }
 
-    std::vector<std::vector<f64>> out_vertices_vec;
-    std::vector<std::vector<int>> out_tets_int;
-    std::vector<std::vector<int>> out_faces;
-    out_vertices_vec.reserve(vertices_vec.size());
-    int result = igl::copyleft::tetgen::tetrahedralize(vertices_vec, faces_int, "pYQ", out_vertices_vec, out_tets_int,
-                                                       out_faces);
+    tetgen_in.numberoffacets = (int)faces.size();
+    tetgen_in.facetlist = new tetgenio::facet[faces.size()]{};
+    for (size_t i = 0; i < faces.size(); i++) {
+        const auto& face = faces[i];
+
+        tetgenio::facet& facet = tetgen_in.facetlist[i];
+        facet.numberofpolygons = 1;
+        facet.polygonlist = new tetgenio::polygon[1]{};
+
+        tetgenio::polygon& polygon = facet.polygonlist[0];
+        polygon.numberofvertices = (int)face.size();
+        polygon.vertexlist = new int[face.size()]{};
+        for (size_t j = 0; j < face.size(); j++) {
+            polygon.vertexlist[j] = (int)face[j];
+        }
+    }
+
+    char switches[] = "pYzFQ";
+    tetgenio tetgen_out;
+    try {
+        ::tetrahedralize(switches, &tetgen_in, &tetgen_out);
+    } catch (const int e) {
+        fflush(stdout);
+        fflush(stderr);
+        ABORT_F("TetGen failed: %i", e);
+    }
+
 #ifdef FOUR_DEBUG
     fflush(stdout);
     fflush(stderr);
 #endif
 
-    if (result != 0) {
-        fflush(stdout);
-        fflush(stderr);
-        ABORT_F("TetGen failed: %i", result);
+    for (int i = 0; i < tetgen_out.numberofpoints; i++) {
+        f64* point = &tetgen_out.pointlist[i * 3];
+        out_vertices.push_back(glm::dvec3(point[0], point[1], point[2]));
     }
 
-    out_vertices.reserve(out_vertices_vec.size());
-    for (const auto& v : out_vertices_vec) {
-        out_vertices.push_back(glm::dvec3(v[0], v[1], v[2]));
-    }
-
-    out_tets.reserve(out_tets_int.size() * 4);
-    for (const auto& tet : out_tets_int) {
-        for (int i : tet) {
-            out_tets.push_back((u32)i);
-        }
+    CHECK_EQ_F(tetgen_out.numberofcorners, 4);
+    for (int i = 0; i < tetgen_out.numberoftetrahedra * 4; i++) {
+        out_tets.push_back((u32)tetgen_out.tetrahedronlist[i]);
     }
 }
 
