@@ -150,5 +150,6 @@ private:
     size_t add_vbo(GLenum usage);
     void update_window_size();
     void do_mesh_changed();
+    void calculate_cross_section();
 };
 } // namespace four

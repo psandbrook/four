@@ -28,6 +28,16 @@ using f64 = double;
 static_assert(sizeof(f32) == 4);
 static_assert(sizeof(f64) == 8);
 
+constexpr f64 default_epsilon = 0.00000000000001;
+
+inline bool float_eq(f64 a, f64 b, f64 epsilon = default_epsilon) {
+    if (a < 1.0 && b < 1.0) {
+        return std::abs(a - b) <= epsilon;
+    } else {
+        return std::abs(a - b) <= std::max(std::abs(a), std::abs(b)) * epsilon;
+    }
+}
+
 template <class T>
 struct Slice {
     size_t len;
@@ -82,14 +92,6 @@ inline bool contains(const std::unordered_set<T>& set, const T& value) {
 template <class K, class V, class Hash, class Equals>
 inline bool has_key(const std::unordered_map<K, V, Hash, Equals>& map, const K& value) {
     return map.find(value) != map.cend();
-}
-
-inline bool float_eq(f64 a, f64 b, f64 epsilon = DBL_EPSILON) {
-    if (a < 1.0 && b < 1.0) {
-        return std::abs(a - b) <= epsilon;
-    } else {
-        return std::abs(a - b) <= std::max(std::abs(a), std::abs(b)) * epsilon;
-    }
 }
 
 struct CStrHash {

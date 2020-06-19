@@ -76,6 +76,8 @@ public:
 
     void step(f64 ms);
 
+    void bump_mesh_pos_w();
+
 private:
     void change_mesh(const char* path);
 };

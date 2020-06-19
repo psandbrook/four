@@ -184,6 +184,10 @@ inline hmm_vec3 transform(const hmm_mat4& m, const hmm_vec3& v) {
     return vec3(m * HMM_Vec4v(v, 1));
 }
 
+inline hmm_vec4 transform(const Mat5& m, const hmm_vec4& v) {
+    return vec4(m * vec5(v, 1));
+}
+
 inline f64 determinant(const Mat3& m) {
     f64 a = m[0][0];
     f64 b = m[1][0];

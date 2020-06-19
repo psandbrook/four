@@ -40,7 +40,6 @@ void RenderFuncs::triangulate(const std::vector<hmm_vec3>& vertices, const std::
     auto& s = *this->impl;
 
     using VertexIMapping = Impl::VertexIMapping;
-    const f64 epsilon = 0.00000000000001;
 
     // Calculate normal vector
 
@@ -88,7 +87,7 @@ void RenderFuncs::triangulate(const std::vector<hmm_vec3>& vertices, const std::
                 s.face2_vertex_i_mapping.left.insert(
                         VertexIMapping::left_value_type(v_i, (u32)s.face2_vertices.size()));
                 hmm_vec3 v_ = transform(to_2d_trans, vertices[v_i]);
-                DCHECK_F(float_eq(v_.Z, 0.0, epsilon));
+                DCHECK_F(float_eq(v_.Z, 0.0));
                 s.face2_vertices.push_back(vec2(v_));
             }
         }
@@ -104,7 +103,7 @@ void RenderFuncs::triangulate(const std::vector<hmm_vec3>& vertices, const std::
 
             // NOTE: Consider floating-point error. See
             // https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
-            DCHECK_F(float_eq(x, 0.0, epsilon));
+            DCHECK_F(float_eq(x, 0.0));
         }
     }
 #endif
@@ -153,8 +152,6 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
                                  std::vector<u32>& out_tets) {
 
     auto& s = *this->impl;
-
-    const f64 epsilon = 0.00000000000001;
 
     // Calculate normal vector
 
@@ -230,8 +227,7 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
 #ifdef FOUR_DEBUG
     {
         hmm_vec4 v0_ = vec4(to_3d_trans_inverse * to_3d_trans * vec5(v0, 1));
-        DCHECK_F(float_eq(v0.X, v0_.X, epsilon) && float_eq(v0.Y, v0_.Y, epsilon) && float_eq(v0.Z, v0_.Z, epsilon)
-                 && float_eq(v0.W, v0_.W, epsilon));
+        DCHECK_F(float_eq(v0.X, v0_.X) && float_eq(v0.Y, v0_.Y) && float_eq(v0.Z, v0_.Z) && float_eq(v0.W, v0_.W));
     }
 #endif
 
@@ -249,7 +245,7 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
                 if (!has_key(s.cell3_vertex_i_mapping, v_i)) {
                     s.cell3_vertex_i_mapping.emplace(v_i, s.tet_mesh_v.size());
                     hmm_vec4 v_ = vec4(to_3d_trans * vec5(v, 1.0));
-                    DCHECK_F(float_eq(v_.W, 0.0, epsilon));
+                    DCHECK_F(float_eq(v_.W, 0.0));
                     hmm_vec3 v_3 = vec3(v_);
                     s.tet_mesh_v.push_back({v_3.X, v_3.Y, v_3.Z});
                 }
@@ -291,7 +287,7 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
         if (entry.first != edge0.v0) {
             hmm_vec4 v = vertices[entry.first];
             f64 x = HMM_Dot(v - v0, normal);
-            DCHECK_F(float_eq(x, 0.0, epsilon));
+            DCHECK_F(float_eq(x, 0.0));
         }
     }
 #endif

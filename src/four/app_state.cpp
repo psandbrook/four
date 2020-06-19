@@ -340,6 +340,14 @@ void AppState::step(const f64 ms) {
     }
 }
 
+void AppState::bump_mesh_pos_w() {
+    const f64 mag = 0.000000000001;
+    mesh_pos.W += std::copysign(mag, -mesh_pos.W);
+    if (float_eq(mesh_pos.W, 0.0)) {
+        mesh_pos.W += mag;
+    }
+}
+
 Mat5 mk_model_mat(const hmm_vec4& pos, const hmm_vec4& v_scale, const Rotation4& rotation) {
     Mat5 m_r;
     if (rotation.is_rotor) {
