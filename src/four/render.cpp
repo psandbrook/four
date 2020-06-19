@@ -294,13 +294,12 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
         n4d_shader_prog = ShaderProgram(vert_shader, {frag_shader});
 
         u32 wireframe_vertices = add_vbo(GL_STREAM_DRAW);
-        VertexSpec vertex_spec = {
-                .index = 0,
-                .size = 4,
-                .type = GL_FLOAT,
-                .stride = 4 * sizeof(f32),
-                .offset = 0,
-        };
+        VertexSpec vertex_spec = {};
+        vertex_spec.index = 0;
+        vertex_spec.size = 4;
+        vertex_spec.type = GL_FLOAT;
+        vertex_spec.stride = 4 * sizeof(f32);
+        vertex_spec.offset = 0;
 
         ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
         wireframe = VertexArrayObject(&n4d_shader_prog, {wireframe_vertices}, {vertex_spec}, wireframe_ebo);
@@ -311,13 +310,12 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 
     // Cross-section
 
-    VertexSpec cross_vertex_spec = {
-            .index = 0,
-            .size = 3,
-            .type = GL_FLOAT,
-            .stride = 3 * sizeof(f32),
-            .offset = 0,
-    };
+    VertexSpec cross_vertex_spec = {};
+    cross_vertex_spec.index = 0;
+    cross_vertex_spec.size = 3;
+    cross_vertex_spec.type = GL_FLOAT;
+    cross_vertex_spec.stride = 3 * sizeof(f32);
+    cross_vertex_spec.offset = 0;
 
     {
         u32 vert_shader = compile_shader("cross-vert.glsl", GL_VERTEX_SHADER);
@@ -327,13 +325,12 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
         u32 vertices = add_vbo(GL_STREAM_DRAW);
         u32 colors = add_vbo(GL_STREAM_DRAW);
 
-        VertexSpec color_spec = {
-                .index = 1,
-                .size = 3,
-                .type = GL_FLOAT,
-                .stride = 3 * sizeof(f32),
-                .offset = 0,
-        };
+        VertexSpec color_spec = {};
+        color_spec.index = 1;
+        color_spec.size = 3;
+        color_spec.type = GL_FLOAT;
+        color_spec.stride = 3 * sizeof(f32);
+        color_spec.offset = 0;
 
         ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
         cross_section =

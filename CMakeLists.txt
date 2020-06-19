@@ -77,10 +77,10 @@ set(CMAKE_C_FLAGS_RELEASE "")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS ON)
+set(CMAKE_C_EXTENSIONS OFF)
 
 # Flags for all targets, including dependencies
 
@@ -109,7 +109,7 @@ endif()
 # Flags for this project's targets
 
 set(FLAGS_FOUR_COMMON
-  -Wall -Wextra -Wcast-qual -Wunused -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations
+  -Wall -Wextra -Wpedantic -Wcast-qual -Wunused -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations
   -Wmissing-include-dirs -Wredundant-decls -Wundef -Wfloat-equal -Wstack-protector -Wwrite-strings -Wvla -Wuninitialized
   -Wctor-dtor-privacy -Woverloaded-virtual -Wsign-promo -Wconversion -Wstrict-aliasing=1
 )

@@ -106,7 +106,10 @@ inline Vec5 vec5(const hmm_vec4& vec, f64 v) {
 }
 
 inline Mat3 mat3(const hmm_vec3& column0, const hmm_vec3& column1, const hmm_vec3& column2) {
-    Mat3 result = {.columns = {column0, column1, column2}};
+    Mat3 result = {};
+    result.columns[0] = column0;
+    result.columns[1] = column1;
+    result.columns[2] = column2;
     return result;
 }
 
@@ -132,7 +135,12 @@ inline hmm_mat4 mat4(const hmm_vec4& column0, const hmm_vec4& column1, const hmm
 
 inline Mat5 mat5(const Vec5& column0, const Vec5& column1, const Vec5& column2, const Vec5& column3,
                  const Vec5& column4) {
-    Mat5 result = {.columns = {column0, column1, column2, column3, column4}};
+    Mat5 result = {};
+    result.columns[0] = column0;
+    result.columns[1] = column1;
+    result.columns[2] = column2;
+    result.columns[3] = column3;
+    result.columns[4] = column4;
     return result;
 }
 
