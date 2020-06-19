@@ -1,5 +1,5 @@
-#include <glad/glad.h>
 #include <SDL.h>
+#include <glad/glad.h>
 
 #include <stdio.h>
 
@@ -27,9 +27,8 @@ int main() {
     int window_width = 1280;
     int window_height = 720;
 
-    SDL_Window* window = SDL_CreateWindow(
-            "4dtest", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-            window_width, window_height, SDL_WINDOW_OPENGL);
+    SDL_Window* window = SDL_CreateWindow("4dtest", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, window_width,
+                                          window_height, SDL_WINDOW_OPENGL);
     if (!window) {
         return 1;
     }
