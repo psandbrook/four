@@ -477,7 +477,10 @@ void Renderer::triangulate(const std::vector<glm::dvec3>& vertices, const std::v
 
     glm::dvec3 normal;
     {
+        bool found_normal = false;
         glm::dvec3 other_edge_vec;
+        glm::dvec3 cross;
+
         for (u32 e_i : face) {
             if (e_i == edge0_i) {
                 continue;
@@ -487,20 +490,20 @@ void Renderer::triangulate(const std::vector<glm::dvec3>& vertices, const std::v
             if (e.v0 == v0_i || e.v1 == v0_i) {
                 u32 other_vi = e.v0 == v0_i ? e.v1 : e.v0;
                 other_edge_vec = vertices[other_vi] - v0;
-                goto find_v0_edges_end;
+                cross = glm::cross(edge0_vec, other_edge_vec);
+                if (!float_eq(cross, glm::dvec3(0.0))) {
+                    found_normal = true;
+                    break;
+                }
             }
         }
-        ABORT_F("Could not find normal vector");
 
-    find_v0_edges_end:
-        if (float_eq(edge0_vec, other_edge_vec) || float_eq(edge0_vec, glm::dvec3(0.0))
-            || float_eq(other_edge_vec, glm::dvec3(0.0))) {
-
+        if (!found_normal) {
             // Don't triangulate if the face is degenerate.
             return;
         }
 
-        normal = glm::normalize(glm::cross(edge0_vec, other_edge_vec));
+        normal = glm::normalize(cross);
     }
 
     // Calculate transformation to 2D
