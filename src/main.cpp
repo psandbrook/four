@@ -24,6 +24,8 @@ using namespace four;
 
 namespace {
 
+const float look_at_y_epsilon = 0.0001f;
+
 uint32_t compile_shader(const char* path, GLenum shader_type) {
 
     // FIXME: This is inefficient
@@ -235,6 +237,8 @@ int main() {
     bool camera_move_left = false;
     bool camera_move_right = false;
 
+    double selected_cell_counter = 0.0;
+
     hmm_mat4 projection = HMM_Perspective(90, (float)window_width / (float)window_height, 0.1f, 100.0f);
 
     const double count_per_ms = (double)SDL_GetPerformanceFrequency() / 1000.0;
@@ -262,14 +266,6 @@ int main() {
             printf("fps: %i\n", frames);
             second_acc = 0.0;
             frames = 0;
-
-#if 0
-            // Temporary testing code!
-            selected_cell++;
-            if (selected_cell > 7) {
-                selected_cell = 0;
-            }
-#endif
         }
 
         // Process input
@@ -351,10 +347,8 @@ int main() {
                 float y_angle = 0.2f * (float)-event.motion.yrel;
                 hmm_vec3 left = HMM_Cross(camera_up, camera_target - camera_pos);
                 hmm_vec3 new_camera_pos = transform(camera_pos, rotate(camera_target, y_angle, left));
-                hmm_vec3 front = camera_target - new_camera_pos;
-                float cos_angle = HMM_Dot(front, camera_up) / (HMM_Length(front) * HMM_Length(camera_up));
-                assert(cos_angle >= -1.0f && cos_angle <= 1.0f);
-                if (cos_angle > -0.995f && cos_angle < 0.995f) {
+                hmm_vec3 front = HMM_Normalize(camera_target - new_camera_pos);
+                if (!float_eq(std::abs(front.Y), 1.0f, look_at_y_epsilon)) {
                     camera_pos = new_camera_pos;
                 }
             } break;
@@ -412,6 +406,15 @@ int main() {
                 camera_target = transform(camera_target, m_t);
             }
 
+            selected_cell_counter += step_ms;
+            if (selected_cell_counter >= 2000.0) {
+                selected_cell++;
+                if ((size_t)selected_cell == mesh.cells.size()) {
+                    selected_cell = 0;
+                }
+                selected_cell_counter = 0.0;
+            }
+
             lag_ms -= step_ms;
             steps++;
         }
@@ -438,19 +441,59 @@ int main() {
         for (uint32_t face_i : mesh.cells[selected_cell]) {
             const auto& face = mesh.faces[face_i];
 
-            // Get first two edges as vectors
+            // Calculate normal vector
+
             const auto& edge0 = mesh.edges[face[0]];
-            const auto& edge1 = mesh.edges[face[1]];
             hmm_vec3 v0 = projected_vertices[edge0.v1];
             hmm_vec3 l0 = v0 - projected_vertices[edge0.v2];
-            hmm_vec3 l1 = projected_vertices[edge1.v1] - projected_vertices[edge1.v2];
-            hmm_vec3 normal = HMM_Cross(l0, l1);
+            hmm_vec3 normal;
+            for (size_t i = 0; i < face.size(); i++) {
+                const auto& edge = mesh.edges[face[i]];
+                hmm_vec3 l1 = projected_vertices[edge.v1] - projected_vertices[edge.v2];
+                normal = HMM_Cross(l0, l1);
+                if (float_eq_abs(normal.X, 0.0f) && float_eq_abs(normal.Y, 0.0f) && float_eq_abs(normal.Z, 0.0f)) {
+                    // `normal` is the zero vector
+
+                    // Fail if there are no more edges---this means the face has
+                    // no surface area
+                    assert(i < face.size() - 1);
+                } else {
+                    break;
+                }
+            }
+
+            normal = HMM_Normalize(normal);
+
+            // Calculate transformation to 2D and its inverse
+
+            hmm_mat4 to_2d_trans;
+            hmm_mat4 to_2d_trans_inverse;
+            if (float_eq(std::abs(normal.Y), 1.0f, look_at_y_epsilon)) {
+                hmm_mat4 m_r = HMM_Rotate(90.0f, {1, 0, 0});
+                hmm_vec3 v0_r = transform(v0, m_r);
+                hmm_vec3 normal_r = transform(normal, m_r);
+                to_2d_trans = HMM_LookAt(v0_r, v0_r + normal_r, {0, 1, 0}) * m_r;
+
+                hmm_mat4 m_r_inverse = HMM_Rotate(-90.0f, {1, 0, 0});
+                to_2d_trans_inverse = m_r_inverse * look_at_inverse(v0_r, v0_r + normal_r, {0, 1, 0});
+            } else {
+                to_2d_trans = HMM_LookAt(v0, v0 + normal, {0, 1, 0});
+                to_2d_trans_inverse = look_at_inverse(v0, v0 + normal, {0, 1, 0});
+            }
+
+#ifndef NDEBUG
+            // Verify that `to_2d_trans_inverse` is the inverse of `to_2d_trans`
+            hmm_vec4 v0_4 = HMM_Vec4v(v0, 1);
+            hmm_vec4 v0_4_ = to_2d_trans_inverse * to_2d_trans * v0_4;
+            for (int i = 0; i < 4; i++) {
+                // FIXME: Floating-point error!
+                assert(float_eq_abs(v0_4[i], v0_4_[i]));
+            }
+#endif
 
             std::unordered_map<uint32_t, uint32_t> face2_vertex_i_mapping;
             std::vector<hmm_vec2> face2_vertices;
             std::vector<Edge> face2_edges;
-
-            hmm_mat4 to_2d_trans = HMM_LookAt(v0, v0 + normal, {0, 1, 0});
 
             for (uint32_t edge_i : face) {
                 const auto& edge = mesh.edges[edge_i];
@@ -483,6 +526,32 @@ int main() {
             }
 #endif
 
+#if 0
+            if (face_i == 6) {
+                fprintf(stderr, "normal: %.38f, %.38f, %.38f\n", normal.X, normal.Y, normal.Z);
+
+                for (const auto& entry : face2_vertex_i_mapping) {
+                    hmm_vec3 v = projected_vertices[entry.first];
+                    fprintf(stderr, "vertex %u: %f, %f, %f\n", entry.first, v.X, v.Y, v.Z);
+                }
+
+                for (uint32_t edge_i : face) {
+                    const auto& edge = mesh.edges[edge_i];
+                    fprintf(stderr, "edge: %u %u\n", edge.v1, edge.v2);
+                }
+
+                for (int i = 0; i < face2_vertices.size(); i++) {
+                    hmm_vec2 v = face2_vertices[i];
+                    fprintf(stderr, "vertex %i: %f, %f\n", i, v.X, v.Y);
+                }
+
+                for (int i = 0; i < face2_edges.size(); i++) {
+                    Edge e = face2_edges[i];
+                    fprintf(stderr, "edge: %u %u\n", e.v1, e.v2);
+                }
+            }
+#endif
+
             // `igl::triangle::triangulate()` only accepts double-precision
             // floating point values.
             Eigen::MatrixX2d mesh_v(face2_vertices.size(), 2);
@@ -506,18 +575,9 @@ int main() {
 
             // The triangulation algorithm may add new vertices. This means that
             // adjacent faces of the polyhedron no longer share vertices.
+            //
+            // FIXME: Use flags "Q" to ensure that no edges are subdivided!
             igl::triangle::triangulate(mesh_v, mesh_e, h, "q0Q", triangulate_out_v, triangulate_out_f);
-
-            hmm_mat4 to_2d_trans_inverse = look_at_inverse(v0, v0 + normal, {0, 1, 0});
-
-#ifndef NDEBUG
-            hmm_vec4 v0_4 = HMM_Vec4v(v0, 1);
-            hmm_vec4 v0_4_ = to_2d_trans_inverse * to_2d_trans * v0_4;
-            for (int i = 0; i < 4; i++) {
-                // FIXME: Floating-point error!
-                assert(float_eq_abs(v0_4[i], v0_4_[i]));
-            }
-#endif
 
             std::unordered_map<int, uint32_t> triangulate_vertex_i_mapping;
             for (int i = 0; i < triangulate_out_f.rows(); i++) {

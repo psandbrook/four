@@ -154,6 +154,7 @@ inline Mat5 translate(hmm_vec4 v) {
     return mat5({1, 0, 0, 0, 0}, {0, 1, 0, 0, 0}, {0, 0, 1, 0, 0}, {0, 0, 0, 1, 0}, {v.X, v.Y, v.Z, v.W, 1});
 }
 
+// `angle` is in degrees
 inline hmm_mat4 rotate(hmm_vec3 center, float angle, hmm_vec3 axis) {
     return HMM_Translate(center) * HMM_Rotate(angle, axis) * HMM_Translate(-1 * center);
 }

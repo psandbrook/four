@@ -34,14 +34,14 @@ WARN_FLAGS := \
 	-Wstack-protector -Wwrite-strings -Wrestrict -Wconversion -Wvla -Wuninitialized -Wctor-dtor-privacy -Wnoexcept \
 	-Woverloaded-virtual -Wsign-promo -Wstrict-null-sentinel -Wuseless-cast
 
-DEBUG_FLAGS := -Og -g3 -fvar-tracking -fvar-tracking-assignments -fsanitize=undefined
+DEBUG_FLAGS := -O0 -g3 -fvar-tracking -fvar-tracking-assignments -fsanitize=undefined
 
 RELEASE_FLAGS := \
 	-DNDEBUG -D_FORTIFY_SOURCE=2 -ffunction-sections -fdata-sections -Wl,--gc-sections,-O1 -flto -fuse-linker-plugin \
 	-march=x86-64 -mtune=generic -O3 -g0
 
 OPTDEBUG_FLAGS := \
-	-flto -fuse-linker-plugin -march=x86-64 -mtune=generic -O3 -g3 -fvar-tracking -fvar-tracking-assignments
+	-march=x86-64 -mtune=generic -Og -g3 -fvar-tracking -fvar-tracking-assignments
 
 DEP_FLAGS_IN := $(shell pkg-config --cflags --libs sdl2)
 DEP_FLAGS := \
