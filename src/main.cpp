@@ -77,11 +77,8 @@ int main() {
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
     */
 
-    const int window_width = 1280;
-    const int window_height = 720;
-
-    SDL_Window* window = SDL_CreateWindow("four", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, window_width,
-                                          window_height, SDL_WINDOW_OPENGL);
+    SDL_Window* window = SDL_CreateWindow("four", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0,
+                                          SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN_DESKTOP);
     if (!window) {
         return 1;
     }
@@ -95,6 +92,9 @@ int main() {
     }
 
     SDL_GL_SetSwapInterval(1);
+
+    int window_width, window_height;
+    SDL_GL_GetDrawableSize(window, &window_width, &window_height);
 
     // Initial OpenGL calls
 
@@ -171,7 +171,15 @@ int main() {
     hmm_vec3 camera_target = {0, 0, 0};
     hmm_vec3 camera_up = {0, 1, 0};
 
-    hmm_mat4 projection = HMM_Perspective(75, window_width / (float)window_height, 0.1f, 100.0f);
+    const float camera_move_units_per_sec = 1.0f;
+    bool camera_move_up = false;
+    bool camera_move_down = false;
+    bool camera_move_forward = false;
+    bool camera_move_backward = false;
+    bool camera_move_left = false;
+    bool camera_move_right = false;
+
+    hmm_mat4 projection = HMM_Perspective(90, (float)window_width / (float)window_height, 0.1f, 100.0f);
 
     const double count_per_ms = (double)SDL_GetPerformanceFrequency() / 1000.0;
     const int steps_per_sec = 60;
@@ -183,6 +191,8 @@ int main() {
     int frames = 0;
 
     std::vector<hmm_vec3> projected_vertices;
+
+    SDL_SetRelativeMouseMode(SDL_TRUE);
 
     // main_loop
     while (true) {
@@ -211,7 +221,77 @@ int main() {
                     switch (event.key.keysym.sym) {
                     case SDLK_ESCAPE:
                         goto main_loop_end;
+
+                    case SDLK_r: {
+                        camera_move_up = true;
+                    } break;
+
+                    case SDLK_f: {
+                        camera_move_down = true;
+                    } break;
+
+                    case SDLK_w: {
+                        camera_move_forward = true;
+                    } break;
+
+                    case SDLK_s: {
+                        camera_move_backward = true;
+                    } break;
+
+                    case SDLK_a: {
+                        camera_move_left = true;
+                    } break;
+
+                    case SDLK_d: {
+                        camera_move_right = true;
+                    } break;
                     }
+                }
+            } break;
+
+            case SDL_KEYUP: {
+                if (!event.key.repeat) {
+                    switch (event.key.keysym.sym) {
+                    case SDLK_r: {
+                        camera_move_up = false;
+                    } break;
+
+                    case SDLK_f: {
+                        camera_move_down = false;
+                    } break;
+
+                    case SDLK_w: {
+                        camera_move_forward = false;
+                    } break;
+
+                    case SDLK_s: {
+                        camera_move_backward = false;
+                    } break;
+
+                    case SDLK_a: {
+                        camera_move_left = false;
+                    } break;
+
+                    case SDLK_d: {
+                        camera_move_right = false;
+                    } break;
+                    }
+                }
+            } break;
+
+            case SDL_MOUSEMOTION: {
+                // FIXME: Use quaternions?
+                float x_angle = 0.2f * (float)event.motion.xrel;
+                camera_pos = transform(camera_pos, rotate(camera_target, x_angle, camera_up));
+
+                float y_angle = 0.2f * (float)-event.motion.yrel;
+                hmm_vec3 left = HMM_Cross(camera_up, camera_target - camera_pos);
+                hmm_vec3 new_camera_pos = transform(camera_pos, rotate(camera_target, y_angle, left));
+                hmm_vec3 front = camera_target - new_camera_pos;
+                float cos_angle = HMM_Dot(front, camera_up) / (HMM_Length(front) * HMM_Length(camera_up));
+                assert(cos_angle >= -1.0f && cos_angle <= 1.0f);
+                if (cos_angle > -0.995f && cos_angle < 0.995f) {
+                    camera_pos = new_camera_pos;
                 }
             } break;
             }
@@ -221,6 +301,53 @@ int main() {
 
         int steps = 0;
         while (lag_ms >= step_ms && steps < steps_per_sec) {
+
+            float camera_move_units = camera_move_units_per_sec * ((float)step_ms / 1000.0f);
+
+            if (camera_move_up) {
+                hmm_mat4 m_t = HMM_Translate(camera_move_units * camera_up);
+                camera_pos = transform(camera_pos, m_t);
+                camera_target = transform(camera_target, m_t);
+            }
+
+            if (camera_move_down) {
+                hmm_mat4 m_t = HMM_Translate(-1 * camera_move_units * camera_up);
+                camera_pos = transform(camera_pos, m_t);
+                camera_target = transform(camera_target, m_t);
+            }
+
+            if (camera_move_forward) {
+                hmm_vec3 front = camera_target - camera_pos;
+                hmm_vec3 d = HMM_NormalizeVec3({front.X, 0, front.Z});
+                hmm_mat4 m_t = HMM_Translate(camera_move_units * d);
+                camera_pos = transform(camera_pos, m_t);
+                camera_target = transform(camera_target, m_t);
+            }
+
+            if (camera_move_backward) {
+                hmm_vec3 front = camera_target - camera_pos;
+                hmm_vec3 d = HMM_NormalizeVec3({front.X, 0, front.Z});
+                hmm_mat4 m_t = HMM_Translate(-1 * camera_move_units * d);
+                camera_pos = transform(camera_pos, m_t);
+                camera_target = transform(camera_target, m_t);
+            }
+
+            if (camera_move_left) {
+                hmm_vec3 left = HMM_Cross(camera_up, camera_target - camera_pos);
+                hmm_vec3 d = HMM_NormalizeVec3({left.X, 0, left.Z});
+                hmm_mat4 m_t = HMM_Translate(camera_move_units * d);
+                camera_pos = transform(camera_pos, m_t);
+                camera_target = transform(camera_target, m_t);
+            }
+
+            if (camera_move_right) {
+                hmm_vec3 left = HMM_Cross(camera_up, camera_target - camera_pos);
+                hmm_vec3 d = HMM_NormalizeVec3({left.X, 0, left.Z});
+                hmm_mat4 m_t = HMM_Translate(-1 * camera_move_units * d);
+                camera_pos = transform(camera_pos, m_t);
+                camera_target = transform(camera_target, m_t);
+            }
+
             lag_ms -= step_ms;
             steps++;
         }

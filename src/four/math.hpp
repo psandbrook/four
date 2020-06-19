@@ -90,6 +90,10 @@ inline Mat5 mat5(Vec5 column0, Vec5 column1, Vec5 column2, Vec5 column3, Vec5 co
     return result;
 }
 
+inline hmm_vec3 transform(hmm_vec3 v, hmm_mat4 m) {
+    return vec3(m * HMM_Vec4v(v, 1));
+}
+
 inline float determinant(Mat3 m) {
     float a = m[0][0];
     float b = m[1][0];
@@ -113,6 +117,10 @@ inline hmm_vec4 cross(hmm_vec4 u, hmm_vec4 v, hmm_vec4 w) {
 
 inline Mat5 translate(hmm_vec4 v) {
     return mat5({1, 0, 0, 0, 0}, {0, 1, 0, 0, 0}, {0, 0, 1, 0, 0}, {0, 0, 0, 1, 0}, {v.X, v.Y, v.Z, v.W, 1});
+}
+
+inline hmm_mat4 rotate(hmm_vec3 center, float angle, hmm_vec3 axis) {
+    return HMM_Translate(center) * HMM_Rotate(angle, axis) * HMM_Translate(-1 * center);
 }
 
 inline Mat5 look_at(hmm_vec4 eye, hmm_vec4 target, hmm_vec4 up, hmm_vec4 over) {
