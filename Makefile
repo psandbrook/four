@@ -17,7 +17,7 @@ GLAD_SOURCE := depends/glad/src/glad.c
 GLAD_OBJECT := $(BUILD_DIR)/glad.o
 
 WARN_FLAGS := \
-	-Wall -Wextra -Wpedantic -Wcast-align -Wcast-qual -Wunused -Wdisabled-optimization -Wformat=2 -Winit-self \
+	-Wall -Wextra -Wcast-align -Wcast-qual -Wunused -Wdisabled-optimization -Wformat=2 -Winit-self \
 	-Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wredundant-decls -Wshadow -Wundef -Wfloat-equal \
 	-Wstack-protector -Wwrite-strings -Wrestrict -Wconversion -Wvla -Wuninitialized -Wctor-dtor-privacy -Wnoexcept \
 	-Woverloaded-virtual -Wsign-promo -Wstrict-null-sentinel -Wuseless-cast
@@ -42,7 +42,7 @@ else
 endif
 
 FLAGS += \
-	-m64 -std=c++17 -pipe -fvisibility=hidden -fPIE -pie -fstack-protector-strong -fno-plt \
+	-m64 -std=gnu++17 -pipe -fvisibility=hidden -fPIE -pie -fstack-protector-strong -fno-plt \
 	-Wl,--sort-common,--as-needed -z relro -z now -z defs
 
 .PHONY: all clean

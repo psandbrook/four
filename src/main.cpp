@@ -100,8 +100,115 @@ int main() {
     }
 
     glViewport(0, 0, window_width, window_height);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glEnable(GL_DEPTH_TEST);
 
+    glPointSize(5.0f);
+
+    // clang-format off
+    hmm_vec4 v0 = { 1.0f, 0.0f, 0.0f, 0.0f};
+    hmm_vec4 v1 = { 0.0f, 1.0f, 0.0f, 0.0f};
+    hmm_vec4 v2 = { 0.0f, 0.0f, 1.0f, 0.0f};
+    hmm_vec4 v3 = {-1.0f, 0.0f, 0.0f, 0.0f};
+    hmm_vec4 v4 = { 0.0f, 0.0f, 0.0f, 1.0f};
+
+    hmm_vec4 cells[5][4] = {
+        {v0, v1, v2, v3},
+        {v4, v1, v2, v3},
+        {v0, v4, v2, v3},
+        {v0, v1, v4, v3},
+        {v0, v1, v2, v4},
+    };
+
+    hmm_vec4 edges[10][2] = {
+        {v1, v0},
+        {v2, v0},
+        {v3, v0},
+        {v4, v0},
+        {v2, v1},
+        {v3, v1},
+        {v4, v1},
+        {v3, v2},
+        {v4, v2},
+        {v4, v3},
+    };
+    // clang-format on
+
+    auto edge_vec = [](hmm_vec4* edge) -> hmm_vec4 { return edge[1] - edge[0]; };
+
+    hmm_vec4 hplane_p0 = {0.0f, 0.0f, 0.0f, 0.0f};
+    hmm_vec4 hplane_n = {0.0f, 0.0f, 0.0f, 1.0f};
+
+    std::vector<hmm_vec4> intersection_points;
+
+    for (int i = 0; i < 10; i++) {
+        hmm_vec4 l0 = edges[i][0];
+        hmm_vec4 l = edge_vec(edges[i]);
+        float d = HMM_Dot(hplane_p0 - l0, hplane_n) / HMM_Dot(l, hplane_n);
+        if (d >= 0.0f && d <= 1.0f) {
+            hmm_vec4 intersect = d * l + l0;
+            intersection_points.push_back(intersect);
+        }
+    }
+
+    printf("%lu points of intersection\n", intersection_points.size());
+
+    std::vector<hmm_vec3> points;
+    for (auto& p : intersection_points) {
+        points.push_back(p.XYZ);
+    }
+
+    uint32_t vert_shader = compile_shader("data/vertex_point.glsl", GL_VERTEX_SHADER);
+    if (!vert_shader) {
+        return 1;
+    }
+
+    uint32_t frag_shader = compile_shader("data/fragment_point.glsl", GL_FRAGMENT_SHADER);
+    if (!frag_shader) {
+        return 1;
+    }
+
+    uint32_t shader_prog = glCreateProgram();
+    glAttachShader(shader_prog, vert_shader);
+    glAttachShader(shader_prog, frag_shader);
+    glLinkProgram(shader_prog);
+
+    {
+        int success;
+        glGetProgramiv(shader_prog, GL_LINK_STATUS, &success);
+
+        if (!success) {
+            int len;
+            glGetProgramiv(shader_prog, GL_INFO_LOG_LENGTH, &len);
+
+            std::vector<char> log;
+            log.reserve(len);
+            glGetProgramInfoLog(shader_prog, len, nullptr, log.data());
+            fprintf(stderr, "Program linking failed: %s\n", log.data());
+            return 1;
+        }
+    }
+
+    glUseProgram(shader_prog);
+
+    uint32_t vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    uint32_t vbo;
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, points.size() * sizeof(points[0]), points.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(points[0]), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glBindVertexArray(vao);
+
+#if 0
     Vertex v1, v2, v3, v4;
     // clang-format off
     v1.pos = {-1.0f, -1.0f,  1.0f};
@@ -185,18 +292,19 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     glBindVertexArray(vao);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     int model_location = glGetUniformLocation(shader_prog, "model");
     int mvp_location = glGetUniformLocation(shader_prog, "mvp");
     int camera_pos_location = glGetUniformLocation(shader_prog, "camera_pos");
 
     hmm_mat4 model = HMM_Translate(HMM_Vec3(0.0f, 0.0f, 0.0f));
+#endif
 
-    hmm_vec3 camera_pos = {0.0f, 0.0f, 8.0f};
-    hmm_vec3 camera_target = {0.0f, 0.0f, 0.0f};
-    hmm_vec3 camera_up = {0.0f, 1.0f, 0.0f};
-    hmm_mat4 view = HMM_LookAt(camera_pos, camera_target, camera_up);
+    int vp_location = glGetUniformLocation(shader_prog, "vp");
+
+    hmm_vec4 camera_pos = {0.0f, 0.0f, 8.0f, 1.0f};
+    hmm_vec4 camera_target = {0.0f, 0.0f, 0.0f, 1.0f};
+    hmm_vec4 camera_up = {0.0f, 1.0f, 0.0f, 1.0f};
 
     hmm_mat4 projection = HMM_Perspective(45.0f, (float)window_width / (float)window_height, 0.1f, 100.0f);
 
@@ -234,22 +342,19 @@ int main() {
 
         int steps = 0;
         while (lag_ms >= step_ms && steps < steps_per_sec) {
-            float degrees_per_sec = 90.0f;
-            model = HMM_Rotate(degrees_per_sec * (float)(step_ms / 1000), HMM_Vec3(0.0f, 1.0f, 0.0f)) * model;
+            float degrees_per_sec = 45.0f;
+            camera_pos = HMM_Rotate(degrees_per_sec * (float)(step_ms / 1000), HMM_Vec3(0.0f, 1.0f, 0.0f)) * camera_pos;
             lag_ms -= step_ms;
             steps++;
         }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glUniformMatrix4fv(model_location, 1, false, (float*)&model);
+        hmm_mat4 view = HMM_LookAt(camera_pos.XYZ, camera_target.XYZ, camera_up.XYZ);
+        hmm_mat4 vp = projection * view;
+        glUniformMatrix4fv(vp_location, 1, false, (float*)&vp);
 
-        hmm_mat4 mvp = projection * view * model;
-        glUniformMatrix4fv(mvp_location, 1, false, (float*)&mvp);
-
-        glUniform3fv(camera_pos_location, 1, (float*)&camera_pos);
-
-        glDrawArrays(GL_TRIANGLES, 0, 3 * 4);
+        glDrawArrays(GL_POINTS, 0, (GLsizei)points.size());
         SDL_GL_SwapWindow(window);
     }
 main_loop_end:
