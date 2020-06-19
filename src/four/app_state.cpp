@@ -30,7 +30,7 @@ f32 srgb_to_linear(f32 value) {
 
 void AppState::change_mesh(const char* path) {
     mesh = load_mesh_from_file(path);
-    mesh_pos = {0.0, 0.0, 0.0, 0.0};
+    mesh_pos = {0.0, 0.0, 0.0, 0.01};
     mesh_scale = {1, 1, 1, 1};
     if (mesh_rotation.is_rotor) {
         mesh_rotation.rotor = rotor4();

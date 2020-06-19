@@ -220,22 +220,19 @@ void Renderer::calculate_cross_section() {
 
     const f64 epsilon = 0.0000001;
 
+    const hmm_vec4 p_0 = HMM_Vec4(0, 0, 0, 0);
+    const hmm_vec4 n = HMM_Vec4(0, 0, 0, 1);
+
+redo_cross_section:
     cross_vertices.clear();
     cross_colors.clear();
     cross_tris.clear();
 
-    const hmm_vec4 p_0 = HMM_Vec4(0, 0, 0, 0);
-    const hmm_vec4 n = HMM_Vec4(0, 0, 0, 1);
-
-    auto calc_tet_mesh_vertices_world = [&]() {
-        tet_mesh_vertices_world.clear();
-        Mat5 model = mk_model_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation);
-        for (const auto& v : tet_mesh_vertices) {
-            tet_mesh_vertices_world.push_back(transform(model, v));
-        }
-    };
-
-    calc_tet_mesh_vertices_world();
+    tet_mesh_vertices_world.clear();
+    Mat5 model = mk_model_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation);
+    for (const auto& v : tet_mesh_vertices) {
+        tet_mesh_vertices_world.push_back(transform(model, v));
+    }
 
     for (const Tet& tet : tet_mesh_tets) {
         // clang-format off
@@ -270,22 +267,36 @@ void Renderer::calculate_cross_section() {
 
         s32 merged_intersect_len = 0;
         hmm_vec3 merged_intersect[6];
-        for (s32 i = 0; i < intersect_len; i++) {
-            const auto& v = intersect[i];
-            bool unique = true;
-            for (s32 j = 0; j < intersect_len; j++) {
-                if (i != j) {
-                    const auto& u = intersect[j];
-                    if (float_eq(v.X, u.X, epsilon) && float_eq(v.Y, u.Y, epsilon) && float_eq(v.Z, u.Z, epsilon)) {
-                        unique = false;
-                        break;
+
+        {
+            f64 merge_epsilon = epsilon;
+            for (s32 i = 0; i < intersect_len; i++) {
+                const auto& v = intersect[i];
+                bool unique = true;
+                for (s32 j = 0; j < intersect_len; j++) {
+                    if (i != j) {
+                        const auto& u = intersect[j];
+                        if (float_eq(v.X, u.X, merge_epsilon) && float_eq(v.Y, u.Y, merge_epsilon)
+                            && float_eq(v.Z, u.Z, merge_epsilon)) {
+
+                            unique = false;
+                            break;
+                        }
                     }
                 }
-            }
 
-            if (unique) {
-                merged_intersect[merged_intersect_len] = v;
-                merged_intersect_len++;
+                if (unique) {
+                    if (merged_intersect_len >= 4) {
+                        // Redo merging with a greater epsilon
+                        merge_epsilon *= 10.0;
+                        merged_intersect_len = 0;
+                        i = -1;
+                        continue;
+                    } else {
+                        merged_intersect[merged_intersect_len] = v;
+                        merged_intersect_len++;
+                    }
+                }
             }
         }
 
@@ -367,6 +378,14 @@ void Renderer::calculate_cross_section() {
 
         } else if (merged_intersect_len > 4) {
             LOG_F(WARNING, "merged_intersect_len: %i", merged_intersect_len);
+            RAW_LOG_F(1, "******************************");
+            RAW_LOG_F(1, " ");
+            for (s32 i = 0; i < merged_intersect_len; i++) {
+                hmm_vec3 v = merged_intersect[i];
+                RAW_LOG_F(1, "%+.16f, %+.16f, %+.16f", v.X, v.Y, v.Z);
+            }
+
+#if 0
             intersect_tris.clear();
             render_funcs.triangulate_vertices(c_slice((size_t)merged_intersect_len, merged_intersect), intersect_tris);
 
@@ -385,6 +404,7 @@ void Renderer::calculate_cross_section() {
             for (u32 e : intersect_tris) {
                 cross_tris.push_back(v_mapping[e]);
             }
+#endif
 
         } else {
             // No intersections
@@ -392,6 +412,7 @@ void Renderer::calculate_cross_section() {
                 const Edge& e = edges[i];
                 hmm_vec4 l_0 = tet_mesh_vertices_world[e.v0];
                 hmm_vec4 l = tet_mesh_vertices_world[e.v1] - l_0;
+                const f64 epsilon = 0.00001;
                 if (float_eq(HMM_Dot(l, n), 0.0, epsilon) && float_eq(HMM_Dot(p_0 - l_0, n), 0.0, epsilon)) {
                     // Edge is within hyperplane
 
@@ -399,9 +420,7 @@ void Renderer::calculate_cross_section() {
                     // this case. Instead, we bump the mesh's w position and
                     // hope for points of intersection instead.
                     s.bump_mesh_pos_w();
-                    calc_tet_mesh_vertices_world();
-                    i = -1;
-                    continue;
+                    goto redo_cross_section;
                 }
             }
         }
