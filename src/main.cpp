@@ -1,4 +1,5 @@
 #include <four/app_state.hpp>
+#include <four/generate.hpp>
 #include <four/render.hpp>
 
 #include <SDL.h>
@@ -74,8 +75,18 @@ int main(int argc, char** argv) {
 
     bool debug = false;
     for (s32 i = 0; i < argc; i++) {
-        if (strcmp(argv[i], "-d") == 0) {
+        auto arg = argv[i];
+
+        if (strcmp(arg, "-d") == 0) {
             debug = true;
+
+        } else if (strcmp(arg, "--generate") == 0) {
+            CHECK_LT_F(i + 1, argc);
+            auto arg1 = argv[i + 1];
+            Mesh4 mesh = generate_regular_convex_mesh4(rc_mesh4_type(arg1));
+            auto path = std::string(arg1) + ".mesh4";
+            save_mesh_to_file(mesh, path.c_str());
+            return 0;
         }
     }
 

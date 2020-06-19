@@ -240,7 +240,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 e
     Mesh4 mesh;
 
     mesh.vertices = std::vector<hmm_vec4>(vertices, vertices + n_vertices);
-    LOG_F(INFO, "no. of vertices: %lu", mesh.vertices.size());
+    LOG_F(INFO, "%lu vertices", mesh.vertices.size());
 
     // Calculate edges
     {
@@ -250,16 +250,14 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 e
 
         for (u32 i = 0; i < mesh.vertices.size(); i++) {
             for (u32 j = 0; j < mesh.vertices.size(); j++) {
-                if (j != i
-                    && float_eq(HMM_LengthSquared(mesh.vertices[j] - mesh.vertices[i]), edge_length_sq,
-                                0.000000000000001)) {
+                if (j != i && float_eq(HMM_LengthSquared(mesh.vertices[j] - mesh.vertices[i]), edge_length_sq)) {
                     edge_set.insert(edge(i, j));
                 }
             }
         }
 
         mesh.edges = std::vector<Edge>(edge_set.cbegin(), edge_set.cend());
-        LOG_F(INFO, "no. of edges: %lu", mesh.edges.size());
+        LOG_F(INFO, "Found %lu edges", mesh.edges.size());
     }
 
     // Calculate faces
@@ -344,7 +342,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 e
         }
 
         mesh.faces = std::vector<Face>(face_set.cbegin(), face_set.cend());
-        LOG_F(INFO, "no. of faces: %lu", mesh.faces.size());
+        LOG_F(INFO, "Found %lu faces", mesh.faces.size());
     }
 
     // Calculate cells
@@ -496,7 +494,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 e
                             }
 
                             if (success) {
-                                LOG_F(INFO, "found %lu cells", cell_set_size);
+                                LOG_F(INFO, "Current cells found: %lu", cell_set_size);
                             }
                         }
                     } else {
@@ -517,7 +515,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 e
                 };
 
                 for (u32 i = search_start; i < search_end; i++) {
-                    LOG_F(INFO, "searching for cells at face %i", i);
+                    LOG_F(INFO, "Searching for cells at face %i ...", i);
                     face_path.clear();
                     fill_cell_set(-1, -1, i);
 
@@ -541,7 +539,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 e
         }
 
         mesh.cells = std::vector<Cell>(cell_set.cbegin(), cell_set.cend());
-        LOG_F(INFO, "no. of cells: %lu", mesh.cells.size());
+        LOG_F(INFO, "Total cells found: %lu", mesh.cells.size());
     }
 
     return mesh;
