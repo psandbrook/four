@@ -26,6 +26,11 @@ f32 srgb_to_linear(f32 value) {
         return std::pow((value + 0.055f) / 1.055f, 2.4f);
     }
 }
+
+bool is_around(f64 target, f64 pos) {
+    const f64 tolerance = 0.003;
+    return pos >= target - tolerance && pos <= target + tolerance;
+}
 } // namespace
 
 f64 AppState::screen_x(f64 x) {
@@ -34,6 +39,14 @@ f64 AppState::screen_x(f64 x) {
 
 f64 AppState::screen_y(f64 y) {
     return y * window_height;
+}
+
+f64 AppState::norm_x(f64 x) {
+    return x / window_width;
+}
+
+bool AppState::is_mouse_around_x(f64 x) {
+    return is_around(x, norm_x(ImGui::GetMousePos().x));
 }
 
 void AppState::change_mesh(const char* path) {
@@ -176,6 +189,40 @@ bool AppState::process_events_and_imgui() {
 
     if (debug) {
         ImGui::ShowDemoWindow();
+    }
+
+    if (ImGui::IsMouseClicked(0)) {
+        if (is_mouse_around_x(visualization_width)) {
+            dragging_ui = true;
+        } else if (is_mouse_around_x(visualization_width * divider)) {
+            dragging_divider = true;
+        }
+    }
+
+    if (ImGui::IsMouseDragging(0, 0.0f)) {
+        if (dragging_ui) {
+            f64 new_width = visualization_width + norm_x(imgui_io->MouseDelta.x);
+            if (new_width >= 0.1 && new_width <= 0.9) {
+                visualization_width = new_width;
+            }
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+            window_size_changed = true;
+
+        } else if (dragging_divider) {
+            f64 new_divider = divider + imgui_io->MouseDelta.x / (window_width * visualization_width);
+            if (new_divider >= 0.01 && new_divider <= 0.99) {
+                divider = new_divider;
+            }
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        }
+
+    } else {
+        dragging_ui = false;
+        dragging_divider = false;
+
+        if (is_mouse_around_x(visualization_width) || is_mouse_around_x(visualization_width * divider)) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        }
     }
 
     const ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove

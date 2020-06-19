@@ -66,9 +66,13 @@ public:
     hmm_vec3 camera_target = {0, 0, 0};
     hmm_vec3 camera_up = {0, 1, 0};
 
+private:
     hmm_vec4 new_mesh_pos;
     hmm_vec4 new_mesh_scale;
     Rotation4 new_mesh_rotation;
+
+    bool dragging_ui = false;
+    bool dragging_divider = false;
 
     // Temporary storage
     // -----------------
@@ -77,6 +81,7 @@ public:
 
     // -----------------
 
+public:
     AppState() {}
     AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path);
 
@@ -87,10 +92,12 @@ public:
 
     f64 screen_x(f64 x);
     f64 screen_y(f64 y);
+    f64 norm_x(f64 x);
     void bump_mesh_pos_w();
 
 private:
     void change_mesh(const char* path);
+    bool is_mouse_around_x(f64 x);
 };
 
 Mat5 mk_model_mat(const hmm_vec4& pos, const hmm_vec4& scale, const Rotation4& rotation);

@@ -1,6 +1,7 @@
 * Support OpenGl 3.3
 * Fix mouse position when dragging 4D transform widgets
 * Automatic rotation
+* Add application icon
 * 4D camera movement
 * Draw XYZW axes
 * Geometry editing
