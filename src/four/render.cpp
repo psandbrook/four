@@ -338,11 +338,14 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 
     update_window_size();
 
-    glClearColor(0.23f, 0.23f, 0.23f, 1.0f);
+    const f32 bg_shade = 0.04f;
+    glClearColor(bg_shade, bg_shade, bg_shade, 1.0f);
+
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_FRAMEBUFFER_SRGB);
 
     // This is needed to render the wireframe without z-fighting.
     glEnable(GL_POLYGON_OFFSET_LINE);

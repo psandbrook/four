@@ -18,6 +18,14 @@ const ImWchar glyph_ranges[] = {0x20, 0xFFFF, 0};
 inline bool imgui_drag_f64(const char* label, f64* value, f32 speed, const char* format = NULL) {
     return ImGui::DragScalar(label, ImGuiDataType_Double, value, speed, NULL, NULL, format, 1.0f);
 }
+
+f32 srgb_to_linear(f32 value) {
+    if (value < 0.04045f) {
+        return value / 12.92f;
+    } else {
+        return std::pow((value + 0.055f) / 1.055f, 2.4f);
+    }
+}
 } // namespace
 
 void AppState::change_mesh(const char* path) {
@@ -41,6 +49,13 @@ AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path)
         : window(window), imgui_io(imgui_io), random_dev(), random_eng_32(random_dev()), mesh_rotation(rotation4()) {
     change_mesh(mesh_path);
     CHECK_NOTNULL_F(imgui_io->Fonts->AddFontFromFileTTF("data/DejaVuSans.ttf", 18.0f, NULL, glyph_ranges));
+
+    ImVec4* colors = ImGui::GetStyle().Colors;
+    for (s32 i = 0; i < ImGuiCol_COUNT; i++) {
+        colors[i].x = srgb_to_linear(colors[i].x);
+        colors[i].y = srgb_to_linear(colors[i].y);
+        colors[i].z = srgb_to_linear(colors[i].z);
+    }
 }
 
 bool AppState::process_events_and_imgui() {
@@ -63,6 +78,7 @@ bool AppState::process_events_and_imgui() {
         case SDL_WINDOWEVENT: {
             if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
                 window_size_changed = true;
+                // SDL_SetWindowResizable(window, SDL_FALSE);
             }
         } break;
 

@@ -3,5 +3,6 @@
 out vec4 out_color;
 
 void main() {
-    out_color = vec4(0.5f, 0.5f, 0.5f, 1.0f);
+    const float shade = 0.23f;
+    out_color = vec4(shade, shade, shade, 1.0f);
 }
