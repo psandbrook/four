@@ -371,6 +371,24 @@ bool AppState::process_events_and_imgui() {
                 imgui_drag_f64("yw", &new_mesh_rotation.euler.yw, speed, fmt);
                 imgui_drag_f64("zw", &new_mesh_rotation.euler.zw, speed, fmt);
 
+                ImGui::Spacing();
+                ImGui::Text("Auto rotate");
+
+                {
+                    const f32 speed = 0.0001f;
+                    const auto fmt = "%.4f";
+                    for (s32 i = 0; i < (s32)Plane::count; i++) {
+                        char id_label[5] = "##";
+                        strncpy(&id_label[2], plane_str[i], 3);
+                        ImGui::Checkbox(id_label, &auto_rotate[i]);
+                        ImGui::SameLine(0.0f, 2.0f);
+
+                        char drag_label[6] = "__##a";
+                        strncpy(drag_label, plane_str[i], 2);
+                        imgui_drag_f64(drag_label, &auto_rotate_mag[i], speed, fmt);
+                    }
+                }
+
                 ImGui::EndTabItem();
             }
 
@@ -378,6 +396,9 @@ bool AppState::process_events_and_imgui() {
                 if (!new_mesh_rotation.is_rotor) {
                     new_mesh_rotation.is_rotor = true;
                     new_mesh_rotation.rotor = euler_to_rotor(new_mesh_rotation.euler);
+                    for (auto& e : auto_rotate) {
+                        e = false;
+                    }
                 }
                 imgui_drag_f64("s", &new_mesh_rotation.rotor.s, speed, fmt);
                 imgui_drag_f64("xy", &new_mesh_rotation.rotor.B.xy, speed, fmt);
@@ -387,24 +408,10 @@ bool AppState::process_events_and_imgui() {
                 imgui_drag_f64("yw", &new_mesh_rotation.rotor.B.yw, speed, fmt);
                 imgui_drag_f64("zw", &new_mesh_rotation.rotor.B.zw, speed, fmt);
                 imgui_drag_f64("xyzw", &new_mesh_rotation.rotor.xyzw, speed, fmt);
+                new_mesh_rotation.rotor = normalize(new_mesh_rotation.rotor);
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();
-        }
-
-        ImGui::Spacing();
-        ImGui::Text("Auto rotate");
-
-        {
-            const f32 speed = 0.0001f;
-            const auto fmt = "%.4f";
-            for (s32 i = 0; i < (s32)Plane::count; i++) {
-                char id_label[5] = "##";
-                strncpy(&id_label[2], plane_str[i], 3);
-                ImGui::Checkbox(id_label, &auto_rotate[i]);
-                ImGui::SameLine(0.0f, 2.0f);
-                imgui_drag_f64(plane_str[i], &auto_rotate_mag[i], speed, fmt);
-            }
         }
     }
 

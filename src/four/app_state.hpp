@@ -29,7 +29,8 @@ struct Rotation4 {
 inline Rotation4 rotation4() {
     Rotation4 result = {};
     result.is_rotor = false;
-    result.euler = (Bivec4){};
+    Bivec4 rot = {};
+    result.euler = rot;
     return result;
 }
 

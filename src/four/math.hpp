@@ -606,29 +606,37 @@ inline Bivec4 rotor_to_euler(const Rotor4& r) {
 // =========
 
 inline Mat5 rotate_euler(const Bivec4& B) {
+    Bivec4 B_ = B;
+    B_.xy = -B.xy;
+    B_.xz = -B.xz;
+    B_.xw = -B.xw;
+    B_.yz = -B.yz;
+    B_.yw = -B.yw;
+    B_.zw = -B.zw;
+
     return
             //  XY
-            mat5(vec5(cos(B.xy), -sin(B.xy), 0, 0, 0), vec5(sin(B.xy), cos(B.xy), 0, 0, 0), vec5(0, 0, 1, 0, 0),
+            mat5(vec5(cos(B_.xy), -sin(B_.xy), 0, 0, 0), vec5(sin(B_.xy), cos(B_.xy), 0, 0, 0), vec5(0, 0, 1, 0, 0),
                  vec5(0, 0, 0, 1, 0), vec5(0, 0, 0, 0, 1))
 
             // XZ
-            * mat5(vec5(cos(-B.xz), 0, sin(-B.xz), 0, 0), vec5(0, 1, 0, 0, 0), vec5(-sin(-B.xz), 0, cos(-B.xz), 0, 0),
-                   vec5(0, 0, 0, 1, 0), vec5(0, 0, 0, 0, 1))
+            * mat5(vec5(cos(-B_.xz), 0, sin(-B_.xz), 0, 0), vec5(0, 1, 0, 0, 0),
+                   vec5(-sin(-B_.xz), 0, cos(-B_.xz), 0, 0), vec5(0, 0, 0, 1, 0), vec5(0, 0, 0, 0, 1))
 
             // XW
-            * mat5(vec5(cos(B.xw), 0, 0, -sin(B.xw), 0), vec5(0, 1, 0, 0, 0), vec5(0, 0, 1, 0, 0),
-                   vec5(sin(B.xw), 0, 0, cos(B.xw), 0), vec5(0, 0, 0, 0, 1))
+            * mat5(vec5(cos(B_.xw), 0, 0, -sin(B_.xw), 0), vec5(0, 1, 0, 0, 0), vec5(0, 0, 1, 0, 0),
+                   vec5(sin(B_.xw), 0, 0, cos(B_.xw), 0), vec5(0, 0, 0, 0, 1))
 
             // YZ
-            * mat5(vec5(1, 0, 0, 0, 0), vec5(0, cos(B.yz), -sin(B.yz), 0, 0), vec5(0, sin(B.yz), cos(B.yz), 0, 0),
+            * mat5(vec5(1, 0, 0, 0, 0), vec5(0, cos(B_.yz), -sin(B_.yz), 0, 0), vec5(0, sin(B_.yz), cos(B_.yz), 0, 0),
                    vec5(0, 0, 0, 1, 0), vec5(0, 0, 0, 0, 1))
 
             // YW
-            * mat5(vec5(1, 0, 0, 0, 0), vec5(0, cos(B.yw), 0, sin(B.yw), 0), vec5(0, 0, 1, 0, 0),
-                   vec5(0, -sin(B.yw), 0, cos(B.yw), 0), vec5(0, 0, 0, 0, 1))
+            * mat5(vec5(1, 0, 0, 0, 0), vec5(0, cos(B_.yw), 0, sin(B_.yw), 0), vec5(0, 0, 1, 0, 0),
+                   vec5(0, -sin(B_.yw), 0, cos(B_.yw), 0), vec5(0, 0, 0, 0, 1))
 
             // ZW
-            * mat5(vec5(1, 0, 0, 0, 0), vec5(0, 1, 0, 0, 0), vec5(0, 0, cos(B.zw), sin(B.zw), 0),
-                   vec5(0, 0, -sin(B.zw), cos(B.zw), 0), vec5(0, 0, 0, 0, 1));
+            * mat5(vec5(1, 0, 0, 0, 0), vec5(0, 1, 0, 0, 0), vec5(0, 0, cos(B_.zw), sin(B_.zw), 0),
+                   vec5(0, 0, -sin(B_.zw), cos(B_.zw), 0), vec5(0, 0, 0, 0, 1));
 }
 } // namespace four
