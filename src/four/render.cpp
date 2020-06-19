@@ -168,13 +168,39 @@ void Renderer::do_mesh_changed() {
     tet_mesh_tets.clear();
 
     for (s64 i = 0; i < (s64)s.mesh.cells.size(); i++) {
-        LOG_F(1, "Tetrahedralizing cell %li", i);
+        const Cell& cell = s.mesh.cells[(size_t)i];
         out_tets.clear();
-        bool success = render_funcs.tetrahedralize(s.mesh.vertices, s.mesh.edges, s.mesh.faces, s.mesh.cells[(size_t)i],
-                                                   tet_mesh_vertices, out_tets);
-        CHECK_F(success);
-        CHECK_EQ_F((s64)out_tets.size() % 4, 0);
 
+        CHECK_GE_F(cell.size(), 4u);
+        if (cell.size() == 4) {
+            // The cell is already a tetrahedron
+
+            size_t vertex_indices_size = 0;
+            u32 vertex_indices[4];
+            for (u32 f_i : cell) {
+                const Face& f = s.mesh.faces[f_i];
+                for (u32 e_i : f) {
+                    const Edge& e = s.mesh.edges[e_i];
+                    for (u32 v_i : e.vertices) {
+                        if (!contains(Slice(vertex_indices_size, vertex_indices), v_i)) {
+                            CHECK_LT_F(vertex_indices_size, 4u);
+                            vertex_indices[vertex_indices_size] = v_i;
+                            vertex_indices_size++;
+                            out_tets.push_back((u32)tet_mesh_vertices.size());
+                            tet_mesh_vertices.push_back(s.mesh.vertices[v_i]);
+                        }
+                    }
+                }
+            }
+
+        } else {
+            LOG_F(1, "Tetrahedralizing cell %li with %lu faces", i, cell.size());
+            bool success = render_funcs.tetrahedralize(s.mesh.vertices, s.mesh.edges, s.mesh.faces, cell,
+                                                       tet_mesh_vertices, out_tets);
+            CHECK_F(success);
+        }
+
+        CHECK_EQ_F((s64)out_tets.size() % 4, 0);
         f32 color[3] = {color_dist(s.random_eng_32), color_dist(s.random_eng_32), color_dist(s.random_eng_32)};
         for (size_t tet_i = 0; tet_i < out_tets.size() / 4; tet_i++) {
             Tet tet;

@@ -314,7 +314,7 @@ bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
     s.tet_out_v.clear();
     s.tet_out_t.clear();
     s.tet_out_f.clear();
-    int result = igl::copyleft::tetgen::tetrahedralize(s.tet_mesh_v, s.tet_mesh_f, "pY", s.tet_out_v, s.tet_out_t,
+    int result = igl::copyleft::tetgen::tetrahedralize(s.tet_mesh_v, s.tet_mesh_f, "pq", s.tet_out_v, s.tet_out_t,
                                                        s.tet_out_f);
     fflush(stdout);
     fflush(stderr);

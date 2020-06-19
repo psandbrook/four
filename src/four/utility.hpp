@@ -57,7 +57,7 @@ struct Slice {
     }
 };
 
-#define AS_SLICE(arr) (Slice(ARRAY_SIZE((arr)), (arr)))
+#define AS_SLICE(arr) (four::Slice(ARRAY_SIZE((arr)), (arr)))
 
 template <class T>
 inline void hash_combine(size_t& seed, const T& value) {
@@ -87,6 +87,13 @@ inline bool contains(const std::vector<T>& vec, const T& value) {
 template <class T>
 inline bool contains(const std::unordered_set<T>& set, const T& value) {
     return set.find(value) != set.cend();
+}
+
+template <class T>
+inline bool contains(const Slice<T>& slice, const T& value) {
+    const T* begin = slice.data;
+    const T* end = &slice.data[slice.len];
+    return std::find(begin, end, value) != end;
 }
 
 template <class K, class V, class Hash, class Equals>
