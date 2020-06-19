@@ -29,7 +29,7 @@ RELEASE_FLAGS := \
 	-march=x86-64 -mtune=generic -O3 -g0
 
 DEP_FLAGS_IN := $(shell pkg-config --cflags --libs sdl2)
-DEP_FLAGS := $(DEP_FLAGS_IN:-I%=-isystem %) -ldl -Idepends/glad/include
+DEP_FLAGS := $(DEP_FLAGS_IN:-I%=-isystem %) -ldl -isystem depends/glad/include -isystem depends/Handmade-Math
 
 FLAGS := $(WARN_FLAGS) $(DEP_FLAGS)
 

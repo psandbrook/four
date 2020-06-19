@@ -1,3 +1,6 @@
+#define HANDMADE_MATH_IMPLEMENTATION
+#include <HandmadeMath.h>
+
 #include <SDL.h>
 #include <glad/glad.h>
 
@@ -130,7 +133,7 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
 
     uint32_t ebo;
@@ -144,6 +147,17 @@ int main() {
 
     glBindVertexArray(vao);
     glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+
+    int mvp_location = glGetUniformLocation(shader_prog, "mvp");
+
+    hmm_mat4 model = HMM_Translate(HMM_Vec3(0.0f, 0.0f, 0.0f));
+
+    hmm_vec3 camera_pos = {0.0f, 0.0f, 8.0f};
+    hmm_vec3 camera_target = {0.0f, 0.0f, 0.0f};
+    hmm_vec3 camera_up = {0.0f, 1.0f, 0.0f};
+    hmm_mat4 view = HMM_LookAt(camera_pos, camera_target, camera_up);
+
+    hmm_mat4 projection = HMM_Perspective(45.0f, (float)window_width / (float)window_height, 0.1f, 100.0f);
 
     double count_per_ms = (double)SDL_GetPerformanceFrequency() / 1000.0;
     int steps_per_sec = 60;
@@ -179,11 +193,17 @@ int main() {
 
         int steps = 0;
         while (lag_ms >= step_ms && steps < steps_per_sec) {
+            float degrees_per_sec = 90.0f;
+            model = HMM_Rotate(degrees_per_sec * (float)(step_ms / 1000), HMM_Vec3(0.0f, 1.0f, 0.0f)) * model;
             lag_ms -= step_ms;
             steps++;
         }
 
         glClear(GL_COLOR_BUFFER_BIT);
+
+        hmm_mat4 mvp = projection * view * model;
+        glUniformMatrix4fv(mvp_location, 1, false, (float*)&mvp);
+
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
         SDL_GL_SwapWindow(window);
     }
