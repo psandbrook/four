@@ -88,6 +88,7 @@ void AppState::change_mesh(const char* path) {
         mesh_rotation.euler = rot;
     }
 
+    selected_cell_enabled = false;
     selected_cell = 0;
     selected_cell_cycle = false;
     selected_cell_cycle_acc = 0.0;
@@ -466,6 +467,7 @@ bool AppState::process_events_and_imgui() {
 
     {
         ImGui::Text("Selected cell");
+        ImGui::Checkbox("Show", &selected_cell_enabled);
         ImGui::Checkbox("Cycle", &selected_cell_cycle);
 
         ImGui::PushItemWidth(-1);

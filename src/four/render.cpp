@@ -835,14 +835,6 @@ void Renderer::render() {
 
         DCHECK_EQ_F(s.mesh.vertices.size(), projected_vertices.size());
 
-        // Triangulate selected cell
-
-        selected_cell_tri_faces.clear();
-        for (u32 face_i : s.mesh.cells[(size_t)s.selected_cell]) {
-            const auto& face = s.mesh.faces[face_i];
-            triangulate(projected_vertices3, s.mesh.edges, face, selected_cell_tri_faces);
-        }
-
         f32 max_depth = 0.0f;
         projected_vertices_f32.clear();
         for (const glm::dvec4& v : projected_vertices) {
@@ -856,13 +848,20 @@ void Renderer::render() {
         }
 
         wireframe.get_vbo(0).buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * sizeof(f32));
-        selected_cell.ebo.buffer_elements(selected_cell_tri_faces.data(), (s32)selected_cell_tri_faces.size());
-
         n4d_shader_prog.set_uniform_f32("max_depth", max_depth);
 
-        f32 selected_cell_color[3] = {1, 0, 1};
-        n4d_shader_prog.set_uniform_vec3("color1", selected_cell_color);
-        selected_cell.draw();
+        if (s.selected_cell_enabled) {
+            selected_cell_tri_faces.clear();
+            for (u32 face_i : s.mesh.cells[(size_t)s.selected_cell]) {
+                const auto& face = s.mesh.faces[face_i];
+                triangulate(projected_vertices3, s.mesh.edges, face, selected_cell_tri_faces);
+            }
+
+            selected_cell.ebo.buffer_elements(selected_cell_tri_faces.data(), (s32)selected_cell_tri_faces.size());
+            f32 selected_cell_color[3] = {1, 0, 1};
+            n4d_shader_prog.set_uniform_vec3("color1", selected_cell_color);
+            selected_cell.draw();
+        }
 
         f32 wireframe_color[3] = {1, 1, 0};
         n4d_shader_prog.set_uniform_vec3("color1", wireframe_color);

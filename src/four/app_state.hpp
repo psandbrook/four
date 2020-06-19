@@ -61,6 +61,7 @@ public:
     glm::dvec4 mesh_scale = {};
     Rotation4 mesh_rotation = {};
 
+    bool selected_cell_enabled = false;
     s32 selected_cell = 0;
     bool selected_cell_cycle = false;
     f64 selected_cell_cycle_acc = 0;
