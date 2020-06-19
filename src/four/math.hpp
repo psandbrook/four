@@ -13,45 +13,55 @@ inline f64 sq(f64 x) {
     return x * x;
 }
 
-// TODO: Use const T& for parameters where possible
-
 union Vec5 {
-    f64 elements[5];
     struct {
         f64 X, Y, Z, W, V;
     };
+    f64 elements[5];
 
     f64& operator[](size_t index) {
+        return elements[index];
+    }
+
+    f64 operator[](size_t index) const {
         return elements[index];
     }
 };
 
 union Mat3 {
-    f64 elements[3][3];
     hmm_vec3 columns[3];
+    f64 elements[3][3];
 
     hmm_vec3& operator[](size_t index) {
+        return columns[index];
+    }
+
+    const hmm_vec3& operator[](size_t index) const {
         return columns[index];
     }
 };
 
 union Mat5 {
-    f64 elements[5][5];
     Vec5 columns[5];
+    f64 elements[5][5];
 
     Vec5& operator[](size_t index) {
         return columns[index];
     }
+
+    const Vec5& operator[](size_t index) const {
+        return columns[index];
+    }
 };
 
-inline hmm_vec2 vec2(hmm_vec3 v) {
+inline hmm_vec2 vec2(const hmm_vec3& v) {
     hmm_vec2 result = {};
     result.X = v.X;
     result.Y = v.Y;
     return result;
 }
 
-inline hmm_vec3 vec3(hmm_vec4 v) {
+inline hmm_vec3 vec3(const hmm_vec4& v) {
     hmm_vec3 result = {};
     result.X = v.X;
     result.Y = v.Y;
@@ -68,7 +78,7 @@ inline hmm_vec4 vec4(f64 x, f64 y, f64 z, f64 w) {
     return result;
 }
 
-inline hmm_vec4 vec4(Vec5 v) {
+inline hmm_vec4 vec4(const Vec5& v) {
     hmm_vec4 result = {};
     result.X = v.X;
     result.Y = v.Y;
@@ -87,16 +97,17 @@ inline Vec5 vec5(f64 x, f64 y, f64 z, f64 w, f64 v) {
     return result;
 }
 
-inline Vec5 vec5(hmm_vec4 vec, f64 v) {
+inline Vec5 vec5(const hmm_vec4& vec, f64 v) {
     return vec5(vec.X, vec.Y, vec.Z, vec.W, v);
 }
 
-inline Mat3 mat3(hmm_vec3 column0, hmm_vec3 column1, hmm_vec3 column2) {
+inline Mat3 mat3(const hmm_vec3& column0, const hmm_vec3& column1, const hmm_vec3& column2) {
     Mat3 result = {.columns = {column0, column1, column2}};
     return result;
 }
 
-inline hmm_mat4 mat4(hmm_vec4 column0, hmm_vec4 column1, hmm_vec4 column2, hmm_vec4 column3) {
+inline hmm_mat4 mat4(const hmm_vec4& column0, const hmm_vec4& column1, const hmm_vec4& column2,
+                     const hmm_vec4& column3) {
     hmm_mat4 result = {};
 
     for (s32 row = 0; row < 4; row++) {
@@ -115,20 +126,21 @@ inline hmm_mat4 mat4(hmm_vec4 column0, hmm_vec4 column1, hmm_vec4 column2, hmm_v
     return result;
 }
 
-inline Mat5 mat5(Vec5 column0, Vec5 column1, Vec5 column2, Vec5 column3, Vec5 column4) {
+inline Mat5 mat5(const Vec5& column0, const Vec5& column1, const Vec5& column2, const Vec5& column3,
+                 const Vec5& column4) {
     Mat5 result = {.columns = {column0, column1, column2, column3, column4}};
     return result;
 }
 
-inline Vec5 operator*(Vec5 v, f64 x) {
+inline Vec5 operator*(const Vec5& v, f64 x) {
     return vec5(v.X * x, v.Y * x, v.Z * x, v.W * x, v.V * x);
 }
 
-inline Vec5 operator*(f64 x, Vec5 v) {
+inline Vec5 operator*(f64 x, const Vec5& v) {
     return v * x;
 }
 
-inline Vec5 operator*(Mat5 m, Vec5 v) {
+inline Vec5 operator*(const Mat5& m, const Vec5& v) {
     // Code adapted from HandmadeMath.h.
 
     Vec5 result;
@@ -145,7 +157,7 @@ inline Vec5 operator*(Mat5 m, Vec5 v) {
     return result;
 }
 
-inline Mat5 operator*(Mat5 m1, Mat5 m2) {
+inline Mat5 operator*(const Mat5& m1, const Mat5& m2) {
     // Code adapted from HandmadeMath.h.
 
     Mat5 result;
@@ -164,11 +176,11 @@ inline Mat5 operator*(Mat5 m1, Mat5 m2) {
     return result;
 }
 
-inline hmm_vec3 transform(hmm_mat4 m, hmm_vec3 v) {
+inline hmm_vec3 transform(const hmm_mat4& m, const hmm_vec3& v) {
     return vec3(m * HMM_Vec4v(v, 1));
 }
 
-inline f64 determinant(Mat3 m) {
+inline f64 determinant(const Mat3& m) {
     f64 a = m[0][0];
     f64 b = m[1][0];
     f64 c = m[2][0];
@@ -181,7 +193,7 @@ inline f64 determinant(Mat3 m) {
     return (a * e * i) + (b * f * g) + (c * d * h) - (c * e * g) - (b * d * i) - (a * f * h);
 }
 
-inline hmm_vec4 cross(hmm_vec4 u, hmm_vec4 v, hmm_vec4 w) {
+inline hmm_vec4 cross(const hmm_vec4& u, const hmm_vec4& v, const hmm_vec4& w) {
     Mat3 m1 = mat3(HMM_Vec3(u.Y, v.Y, w.Y), HMM_Vec3(u.Z, v.Z, w.Z), HMM_Vec3(u.W, v.W, w.W));
     Mat3 m2 = mat3(HMM_Vec3(u.X, v.X, w.X), HMM_Vec3(u.Z, v.Z, w.Z), HMM_Vec3(u.W, v.W, w.W));
     Mat3 m3 = mat3(HMM_Vec3(u.X, v.X, w.X), HMM_Vec3(u.Y, v.Y, w.Y), HMM_Vec3(u.W, v.W, w.W));
@@ -189,17 +201,17 @@ inline hmm_vec4 cross(hmm_vec4 u, hmm_vec4 v, hmm_vec4 w) {
     return vec4(determinant(m1), -determinant(m2), determinant(m3), -determinant(m4));
 }
 
-inline Mat5 translate(hmm_vec4 v) {
+inline Mat5 translate(const hmm_vec4& v) {
     return mat5(vec5(1, 0, 0, 0, 0), vec5(0, 1, 0, 0, 0), vec5(0, 0, 1, 0, 0), vec5(0, 0, 0, 1, 0),
                 vec5(v.X, v.Y, v.Z, v.W, 1));
 }
 
-inline Mat5 scale(hmm_vec4 v) {
+inline Mat5 scale(const hmm_vec4& v) {
     return mat5(vec5(v.X, 0, 0, 0, 0), vec5(0, v.Y, 0, 0, 0), vec5(0, 0, v.Z, 0, 0), vec5(0, 0, 0, v.W, 0),
                 vec5(0, 0, 0, 0, 1));
 }
 
-inline Mat5 look_at(hmm_vec4 eye, hmm_vec4 target, hmm_vec4 up, hmm_vec4 over) {
+inline Mat5 look_at(const hmm_vec4& eye, const hmm_vec4& target, const hmm_vec4& up, const hmm_vec4& over) {
     Mat5 m_t = translate(-1 * eye);
     hmm_vec4 f = HMM_Normalize(eye - target);
     hmm_vec4 l = HMM_Normalize(cross(up, over, f));
@@ -210,13 +222,13 @@ inline Mat5 look_at(hmm_vec4 eye, hmm_vec4 target, hmm_vec4 up, hmm_vec4 over) {
     return m_r * m_t;
 }
 
-inline hmm_vec4 project_orthographic(Vec5 v, f64 near) {
+inline hmm_vec4 project_orthographic(const Vec5& v, f64 near) {
     CHECK_GT_F(near, 0.0);
     CHECK_LE_F(v.W, -near);
     return vec4(v.X, v.Y, v.Z, v.W + near);
 }
 
-inline hmm_vec4 project_perspective(Vec5 v, f64 near) {
+inline hmm_vec4 project_perspective(const Vec5& v, f64 near) {
     CHECK_GT_F(near, 0.0);
     CHECK_LE_F(v.W, -near);
     f64 d = near / -v.W;
@@ -239,7 +251,7 @@ struct Rotor3 {
 };
 
 // Outer product
-inline Bivec3 outer(hmm_vec3 a, hmm_vec3 b) {
+inline Bivec3 outer(const hmm_vec3& a, const hmm_vec3& b) {
     Bivec3 result = {};
     result.xy = (a.X * b.Y) - (a.Y * b.X);
     result.xz = (a.X * b.Z) - (a.Z * b.X);
@@ -247,7 +259,7 @@ inline Bivec3 outer(hmm_vec3 a, hmm_vec3 b) {
     return result;
 }
 
-inline Bivec3 normalize(Bivec3 B) {
+inline Bivec3 normalize(const Bivec3& B) {
     Bivec3 result = {};
     f64 length = sqrt(sq(B.xy) + sq(B.xz) + sq(B.yz));
     result.xy = B.xy / length;
@@ -256,7 +268,7 @@ inline Bivec3 normalize(Bivec3 B) {
     return result;
 }
 
-inline Rotor3 normalize(Rotor3 r) {
+inline Rotor3 normalize(const Rotor3& r) {
     const auto& B = r.B;
     Rotor3 result = {};
     f64 length = sqrt(sq(r.s) + sq(B.xy) + sq(B.xz) + sq(B.yz));
@@ -267,7 +279,7 @@ inline Rotor3 normalize(Rotor3 r) {
     return result;
 }
 
-inline Rotor3 rotor3(hmm_vec3 a, hmm_vec3 b) {
+inline Rotor3 rotor3(const hmm_vec3& a, const hmm_vec3& b) {
     Rotor3 result = {};
     result.s = HMM_Dot(a, b);
 
@@ -281,16 +293,16 @@ inline Rotor3 rotor3(hmm_vec3 a, hmm_vec3 b) {
 }
 
 // Construct the rotor that rotates `angle` radians in the given plane.
-inline Rotor3 rotor3(f64 angle, Bivec3 plane) {
-    plane = normalize(plane);
+inline Rotor3 rotor3(f64 angle, const Bivec3& plane) {
+    Bivec3 nplane = normalize(plane);
 
     Rotor3 result = {};
     result.s = cos(angle / 2.0);
 
     f64 sin_a = sin(angle / 2.0);
-    result.B.xy = -sin_a * plane.xy;
-    result.B.xz = -sin_a * plane.xz;
-    result.B.yz = -sin_a * plane.yz;
+    result.B.xy = -sin_a * nplane.xy;
+    result.B.xz = -sin_a * nplane.xz;
+    result.B.yz = -sin_a * nplane.yz;
 
     return result;
 }
@@ -304,7 +316,7 @@ inline Rotor3 operator*(const Rotor3& lhs, const Rotor3& rhs) {
     return result;
 }
 
-inline hmm_vec3 rotate(Rotor3 r, hmm_vec3 v) {
+inline hmm_vec3 rotate(const Rotor3& r, const hmm_vec3& v) {
     const auto& B = r.B;
 
     // (ba)v -- vector part
@@ -325,7 +337,7 @@ inline hmm_vec3 rotate(Rotor3 r, hmm_vec3 v) {
 }
 
 // Equivalent to conjugate for quaternions
-inline Rotor3 reverse(Rotor3 r) {
+inline Rotor3 reverse(const Rotor3& r) {
     Rotor3 result = {};
     result.s = r.s;
     result.B.xy = -r.B.xy;
@@ -335,11 +347,11 @@ inline Rotor3 reverse(Rotor3 r) {
 }
 
 // Rotate a rotor `a` by a rotor `r`
-inline Rotor3 rotate(Rotor3 r, Rotor3 a) {
+inline Rotor3 rotate(const Rotor3& r, const Rotor3& a) {
     return r * a * reverse(r);
 }
 
-inline hmm_mat4 to_mat4(Rotor3 r) {
+inline hmm_mat4 to_mat4(const Rotor3& r) {
     hmm_vec3 v_x = rotate(r, HMM_Vec3(1, 0, 0));
     hmm_vec3 v_y = rotate(r, HMM_Vec3(0, 1, 0));
     hmm_vec3 v_z = rotate(r, HMM_Vec3(0, 0, 1));
@@ -362,7 +374,7 @@ struct Rotor4 {
 };
 
 // Outer product
-inline Bivec4 outer(hmm_vec4 a, hmm_vec4 b) {
+inline Bivec4 outer(const hmm_vec4& a, const hmm_vec4& b) {
     Bivec4 result = {};
     result.xy = (a.X * b.Y) - (a.Y * b.X);
     result.xz = (a.X * b.Z) - (a.Z * b.X);
@@ -373,7 +385,7 @@ inline Bivec4 outer(hmm_vec4 a, hmm_vec4 b) {
     return result;
 }
 
-inline Bivec4 normalize(Bivec4 B) {
+inline Bivec4 normalize(const Bivec4& B) {
     Bivec4 result = {};
     f64 length = sqrt(sq(B.xy) + sq(B.xz) + sq(B.xw) + sq(B.yz) + sq(B.yw) + sq(B.zw));
     result.xy = B.xy / length;
@@ -385,7 +397,7 @@ inline Bivec4 normalize(Bivec4 B) {
     return result;
 }
 
-inline Rotor4 normalize(Rotor4 r) {
+inline Rotor4 normalize(const Rotor4& r) {
     const auto& B = r.B;
     Rotor4 result = {};
     f64 length = sqrt(sq(r.s) + sq(B.xy) + sq(B.xz) + sq(B.xw) + sq(B.yz) + sq(B.yw) + sq(B.zw) + sq(r.xyzw));
@@ -400,7 +412,7 @@ inline Rotor4 normalize(Rotor4 r) {
     return result;
 }
 
-inline Rotor4 rotor4(hmm_vec4 a, hmm_vec4 b) {
+inline Rotor4 rotor4(const hmm_vec4& a, const hmm_vec4& b) {
     Rotor4 result = {};
     result.s = HMM_Dot(a, b);
     result.B.xy = (b.X * a.Y) - (b.Y * a.X);
@@ -416,19 +428,19 @@ inline Rotor4 rotor4(hmm_vec4 a, hmm_vec4 b) {
 }
 
 // Construct the rotor that rotates `angle` radians in the given plane.
-inline Rotor4 rotor4(f64 angle, Bivec4 plane) {
-    plane = normalize(plane);
+inline Rotor4 rotor4(f64 angle, const Bivec4& plane) {
+    Bivec4 nplane = normalize(plane);
 
     Rotor4 result = {};
     result.s = cos(angle / 2.0);
 
     f64 sin_a = sin(angle / 2.0);
-    result.B.xy = -sin_a * plane.xy;
-    result.B.xz = -sin_a * plane.xz;
-    result.B.xw = -sin_a * plane.xw;
-    result.B.yz = -sin_a * plane.yz;
-    result.B.yw = -sin_a * plane.yw;
-    result.B.zw = -sin_a * plane.zw;
+    result.B.xy = -sin_a * nplane.xy;
+    result.B.xz = -sin_a * nplane.xz;
+    result.B.xw = -sin_a * nplane.xw;
+    result.B.yz = -sin_a * nplane.yz;
+    result.B.yw = -sin_a * nplane.yw;
+    result.B.zw = -sin_a * nplane.zw;
     result.xyzw = 0;
 
     return result;
@@ -469,7 +481,7 @@ inline Rotor4 operator*(const Rotor4& lhs, const Rotor4& rhs) {
     return result;
 }
 
-inline hmm_vec4 rotate(Rotor4 r, hmm_vec4 v) {
+inline hmm_vec4 rotate(const Rotor4& r, const hmm_vec4& v) {
     const auto& B = r.B;
 
     // (ba)v -- vector part
@@ -501,7 +513,7 @@ inline hmm_vec4 rotate(Rotor4 r, hmm_vec4 v) {
     return result;
 }
 
-inline Rotor4 reverse(Rotor4 r) {
+inline Rotor4 reverse(const Rotor4& r) {
     const auto& B = r.B;
     Rotor4 result = {};
     result.s = r.s;
@@ -516,11 +528,11 @@ inline Rotor4 reverse(Rotor4 r) {
 }
 
 // Rotate a rotor `a` by a rotor `r`
-inline Rotor4 rotate(Rotor4 r, Rotor4 a) {
+inline Rotor4 rotate(const Rotor4& r, const Rotor4& a) {
     return r * a * reverse(r);
 }
 
-inline Mat5 to_mat5(Rotor4 r) {
+inline Mat5 to_mat5(const Rotor4& r) {
     hmm_vec4 v_x = rotate(r, vec4(1, 0, 0, 0));
     hmm_vec4 v_y = rotate(r, vec4(0, 1, 0, 0));
     hmm_vec4 v_z = rotate(r, vec4(0, 0, 1, 0));

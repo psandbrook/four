@@ -388,6 +388,10 @@ typedef union hmm_vec3
     {
         return Elements[Index];
     }
+    inline const double &operator[](const int &Index) const
+    {
+        return Elements[Index];
+    }
 #endif
 } hmm_vec3;
 
@@ -449,6 +453,11 @@ typedef union hmm_vec4
 
 #ifdef __cplusplus
     inline double &operator[](const int &Index)
+    {
+        return Elements[Index];
+    }
+
+    inline const double &operator[](const int &Index) const
     {
         return Elements[Index];
     }

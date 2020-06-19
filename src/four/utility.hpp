@@ -1,15 +1,11 @@
 #pragma once
 
-#include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <functional>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unordered_map>
 #include <unordered_set>
-#include <vector>
 
 #define ARRAY_SIZE(arr) (sizeof((arr)) / sizeof(*(arr)))
 
