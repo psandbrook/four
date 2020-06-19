@@ -95,7 +95,7 @@ void AppState::change_mesh(const char* path) {
     }
 
     for (auto& e : auto_rotate_mag) {
-        e = 0.0;
+        e = 0.01;
     }
 
     mesh_changed = true;

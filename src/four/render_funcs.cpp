@@ -166,7 +166,7 @@ bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
     hmm_vec4 normal;
     {
         bool found_edge = false;
-        u32 found_edge_i;
+        u32 found_edge_i = (u32)-1;
         hmm_vec4 other_edges[2];
 
         for (u32 f_i : cell) {

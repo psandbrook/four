@@ -39,7 +39,7 @@ struct WindowGuard {
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 8);
 #endif
 
-        window = SDL_CreateWindow("four", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480,
+        window = SDL_CreateWindow("Four", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480,
                                   SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
 
         CHECK_NOTNULL_F(window, "%s", SDL_GetError());
@@ -82,6 +82,11 @@ int main(int argc, char** argv) {
     WindowGuard window_guard;
     auto& window = window_guard.window;
     auto& imgui_io = window_guard.imgui_io;
+
+    SDL_Surface* icon = SDL_LoadBMP("data/icon.bmp");
+    CHECK_NOTNULL_F(icon);
+    SDL_SetWindowIcon(window, icon);
+    SDL_FreeSurface(icon);
 
     AppState state(window, imgui_io, "tesseract.mesh4");
     state.debug = debug;
