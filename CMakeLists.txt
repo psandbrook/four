@@ -82,8 +82,6 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 
-include_directories(src)
-
 # Flags for all targets, including dependencies
 
 set(COMPILE_FLAGS_COMMON
@@ -192,20 +190,31 @@ FetchContent_Declare(
 make_available_no_add(sdl2 loguru eigen libigl tinyxml2 imgui)
 
 set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
-add_subdirectory("${sdl2_SOURCE_DIR}")
-target_compile_options(SDL2-static PRIVATE -fno-lto)
+set(SDL_STATIC_ENABLED_BY_DEFAULT ON)
+set(SDL_STATIC_PIC ON CACHE BOOL "")
+add_subdirectory("${sdl2_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/sdl2" EXCLUDE_FROM_ALL)
+set(SDL2_TARGET SDL2-static)
+get_property(SDL2_INCLUDE TARGET ${SDL2_TARGET} PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+set_property(TARGET ${SDL2_TARGET} PROPERTY INTERFACE_SYSTEM_INCLUDE_DIRECTORIES ${SDL2_INCLUDE})
+target_compile_options(${SDL2_TARGET} PRIVATE -fno-lto)
 
-add_library(glad STATIC depends/glad/src/glad.c)
+add_library(handmade-math INTERFACE)
+target_include_directories(handmade-math SYSTEM INTERFACE depends/Handmade-Math)
 
-add_library(triangle STATIC depends/triangle/triangle.c)
+add_library(eigen INTERFACE)
+target_include_directories(eigen SYSTEM INTERFACE "${eigen_SOURCE_DIR}")
+
+add_library(glad STATIC EXCLUDE_FROM_ALL depends/glad/src/glad.c)
+target_include_directories(glad SYSTEM PUBLIC depends/glad/include)
+target_link_libraries(glad dl)
+
+add_library(triangle STATIC EXCLUDE_FROM_ALL depends/triangle/triangle.c)
+target_include_directories(triangle SYSTEM PUBLIC depends/triangle)
+target_compile_definitions(triangle PUBLIC ANSI_DECLARATORS)
 target_compile_definitions(triangle PRIVATE LINUX TRILIBRARY)
 target_compile_options(triangle PRIVATE -fno-lto)
 
-add_library(loguru STATIC "${loguru_SOURCE_DIR}/loguru.cpp")
-
-add_library(tinyxml2 STATIC "${tinyxml2_SOURCE_DIR}/tinyxml2.cpp")
-
-add_library(imgui STATIC
+add_library(imgui STATIC EXCLUDE_FROM_ALL
   "${imgui_SOURCE_DIR}/imgui.cpp"
   "${imgui_SOURCE_DIR}/imgui_demo.cpp"
   "${imgui_SOURCE_DIR}/imgui_draw.cpp"
@@ -213,25 +222,26 @@ add_library(imgui STATIC
   "${imgui_SOURCE_DIR}/examples/imgui_impl_sdl.cpp"
   "${imgui_SOURCE_DIR}/examples/imgui_impl_opengl3.cpp"
 )
-target_compile_options(imgui PRIVATE -fno-lto)
-add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
-target_link_libraries(imgui SDL2-static)
+target_include_directories(imgui SYSTEM PUBLIC "${imgui_SOURCE_DIR}" "${imgui_SOURCE_DIR}/examples")
+target_compile_definitions(imgui PUBLIC IMGUI_IMPL_OPENGL_LOADER_GLAD)
+target_link_libraries(imgui ${SDL2_TARGET} glad)
+set_property(SOURCE "${imgui_SOURCE_DIR}/imgui_draw.cpp" PROPERTY COMPILE_OPTIONS -fno-lto)
 
-add_library(tetgen STATIC depends/tetgen/predicates.cxx depends/tetgen/tetgen.cxx)
-add_compile_definitions(TETLIBRARY)
+add_library(loguru STATIC EXCLUDE_FROM_ALL "${loguru_SOURCE_DIR}/loguru.cpp")
+target_include_directories(loguru SYSTEM PUBLIC "${loguru_SOURCE_DIR}")
+target_compile_definitions(loguru PUBLIC LOGURU_WITH_STREAMS)
+target_link_libraries(loguru dl)
 
-include_directories(SYSTEM
-  depends/glad/include
-  depends/Handmade-Math
-  depends/triangle
-  depends/tetgen
-  "${libigl_SOURCE_DIR}/include"
-  "${eigen_SOURCE_DIR}"
-  "${loguru_SOURCE_DIR}"
-  "${tinyxml2_SOURCE_DIR}"
-  "${imgui_SOURCE_DIR}"
-  "${imgui_SOURCE_DIR}/examples"
-)
+add_library(tinyxml2 STATIC EXCLUDE_FROM_ALL "${tinyxml2_SOURCE_DIR}/tinyxml2.cpp")
+target_include_directories(tinyxml2 SYSTEM PUBLIC "${tinyxml2_SOURCE_DIR}")
+
+add_library(tetgen STATIC EXCLUDE_FROM_ALL depends/tetgen/tetgen.cxx depends/tetgen/predicates.cxx)
+target_include_directories(tetgen SYSTEM PUBLIC depends/tetgen)
+target_compile_definitions(tetgen PUBLIC TETLIBRARY)
+target_compile_options(tetgen PRIVATE -Wno-unused-result)
+
+add_library(libigl INTERFACE)
+target_include_directories(libigl SYSTEM INTERFACE "${libigl_SOURCE_DIR}/include")
 
 # === Project targets ===
 
@@ -247,7 +257,7 @@ target_link_options(four PRIVATE
   "$<$<CONFIG:Release>:${FLAGS_FOUR_RELEASE}>"
 )
 include_directories(src)
-target_link_libraries(four rt dl m pthread SDL2-static glad triangle loguru tinyxml2 imgui tetgen)
+target_link_libraries(four ${SDL2_TARGET} glad handmade-math eigen libigl loguru imgui tinyxml2 triangle tetgen)
 
 add_custom_command(
   TARGET four
