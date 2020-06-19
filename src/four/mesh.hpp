@@ -11,16 +11,17 @@
 
 namespace four {
 
-struct Edge {
-    uint32_t v1;
-    uint32_t v2;
+union Edge {
+    struct {
+        u32 v0;
+        u32 v1;
+    };
+    u32 vertices[2];
 };
 
-using Face = std::vector<uint32_t>;
-using Cell = std::vector<uint32_t>;
+using Face = std::vector<u32>;
+using Cell = std::vector<u32>;
 
-// TODO: Use double-precision or single-precision floating point?
-// Double-precision may be faster (profile!).
 struct Mesh4 {
     std::vector<hmm_vec4> vertices;
     std::vector<Edge> edges;
@@ -29,11 +30,11 @@ struct Mesh4 {
 };
 
 struct FaceHash {
-    size_t operator()(const std::vector<uint32_t>& x) const;
+    size_t operator()(const std::vector<u32>& x) const;
 };
 
 struct FaceEquals {
-    bool operator()(const std::vector<uint32_t>& lhs, const std::vector<uint32_t>& rhs) const;
+    bool operator()(const std::vector<u32>& lhs, const std::vector<u32>& rhs) const;
 };
 
 using CellHash = FaceHash;
@@ -41,6 +42,12 @@ using CellEquals = FaceEquals;
 
 bool operator==(const Edge& lhs, const Edge& rhs);
 
+inline Edge edge(u32 v0, u32 v1) {
+    Edge result = {};
+    result.v0 = v0;
+    result.v1 = v1;
+    return result;
+}
 } // namespace four
 
 namespace std {
@@ -49,12 +56,12 @@ template <>
 struct hash<four::Edge> {
     size_t operator()(const four::Edge& x) const {
         size_t hash0 = 0;
+        four::hash_combine(hash0, x.v0);
         four::hash_combine(hash0, x.v1);
-        four::hash_combine(hash0, x.v2);
 
         size_t hash1 = 0;
-        four::hash_combine(hash1, x.v2);
         four::hash_combine(hash1, x.v1);
+        four::hash_combine(hash1, x.v0);
 
         return std::min(hash0, hash1);
     }

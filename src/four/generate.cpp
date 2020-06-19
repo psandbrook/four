@@ -20,17 +20,17 @@ namespace {
 
 // clang-format off
 const hmm_vec4 n5cell_vertices[] = {
-    { 1.0f/sqrtf(10.0f),      1.0f/sqrtf(6.0f),  1.0f/sqrtf(3.0f),  1.0f},
-    { 1.0f/sqrtf(10.0f),      1.0f/sqrtf(6.0f),  1.0f/sqrtf(3.0f), -1.0f},
-    { 1.0f/sqrtf(10.0f),      1.0f/sqrtf(6.0f), -2.0f/sqrtf(3.0f),  0.0f},
-    { 1.0f/sqrtf(10.0f),     -sqrtf(3.0f/2.0f),  0.0f,              0.0f},
-    {-2.0f*sqrtf(2.0f/5.0f),  0.0f,              0.0f,              0.0f},
+    { 1.0/sqrt(10.0),     1.0/sqrt(6.0),  1.0/sqrt(3.0),  1.0},
+    { 1.0/sqrt(10.0),     1.0/sqrt(6.0),  1.0/sqrt(3.0), -1.0},
+    { 1.0/sqrt(10.0),     1.0/sqrt(6.0), -2.0/sqrt(3.0),  0.0},
+    { 1.0/sqrt(10.0),    -sqrt(3.0/2.0),  0.0,            0.0},
+    {-2.0*sqrt(2.0/5.0),  0.0,            0.0,            0.0},
 };
 // clang-format on
 
-const float n5cell_edge_length = 2.0f;
-const int n5cell_edges_per_face = 3;
-const int n5cell_faces_per_cell = 4;
+const f64 n5cell_edge_length = 2.0;
+const s32 n5cell_edges_per_face = 3;
+const s32 n5cell_faces_per_cell = 4;
 
 // clang-format off
 const hmm_vec4 tesseract_vertices[] = {
@@ -53,9 +53,9 @@ const hmm_vec4 tesseract_vertices[] = {
 };
 // clang-format on
 
-const float tesseract_edge_length = 2.0f;
-const int tesseract_edges_per_face = 4;
-const int tesseract_faces_per_cell = 6;
+const f64 tesseract_edge_length = 2.0;
+const s32 tesseract_edges_per_face = 4;
+const s32 tesseract_faces_per_cell = 6;
 
 // clang-format off
 const hmm_vec4 n16cell_vertices[] = {
@@ -70,9 +70,9 @@ const hmm_vec4 n16cell_vertices[] = {
 };
 // clang-format on
 
-const float n16cell_edge_length = sqrtf(2.0f);
-const int n16cell_edges_per_face = 3;
-const int n16cell_faces_per_cell = 4;
+const f64 n16cell_edge_length = sqrt(2.0);
+const s32 n16cell_edges_per_face = 3;
+const s32 n16cell_faces_per_cell = 4;
 
 // clang-format off
 const hmm_vec4 n24cell_vertices[] = {
@@ -103,17 +103,16 @@ const hmm_vec4 n24cell_vertices[] = {
 };
 // clang-format on
 
-const float n24cell_edge_length = sqrtf(2.0f);
-const int n24cell_edges_per_face = 3;
-const int n24cell_faces_per_cell = 8;
+const f64 n24cell_edge_length = sqrt(2.0);
+const s32 n24cell_edges_per_face = 3;
+const s32 n24cell_faces_per_cell = 8;
 
-bool face_is_valid(const Mesh4& mesh, const std::unordered_set<uint32_t>& face) {
-    std::unordered_map<uint32_t, int> vertices_count;
+bool face_is_valid(const Mesh4& mesh, const std::unordered_set<u32>& face) {
+    std::unordered_map<u32, s32> vertices_count;
 
-    for (uint32_t edge_i : face) {
+    for (u32 edge_i : face) {
         const Edge& edge = mesh.edges[edge_i];
-        uint32_t vert_indices[] = {edge.v1, edge.v2};
-        for (uint32_t vert_i : vert_indices) {
+        for (u32 vert_i : edge.vertices) {
             if (!has_key(vertices_count, vert_i)) {
                 vertices_count.emplace(vert_i, 1);
             } else {
@@ -134,11 +133,11 @@ bool face_is_valid(const Mesh4& mesh, const std::unordered_set<uint32_t>& face) 
     return true;
 }
 
-bool cell_is_valid(const Mesh4& mesh, const std::unordered_set<uint32_t>& cell) {
-    std::unordered_map<uint32_t, int> edges_count;
-    for (uint32_t face_i : cell) {
+bool cell_is_valid(const Mesh4& mesh, const std::unordered_set<u32>& cell) {
+    std::unordered_map<u32, s32> edges_count;
+    for (u32 face_i : cell) {
         const Face& face = mesh.faces[face_i];
-        for (uint32_t edge_i : face) {
+        for (u32 edge_i : face) {
             if (!has_key(edges_count, edge_i)) {
                 edges_count.emplace(edge_i, 1);
             } else {
@@ -159,8 +158,8 @@ bool cell_is_valid(const Mesh4& mesh, const std::unordered_set<uint32_t>& cell) 
     return true;
 }
 
-Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length, int edges_per_face,
-                     int faces_per_cell) {
+Mesh4 generate_mesh4(const hmm_vec4* vertices, s32 n_vertices, f64 edge_length, s32 edges_per_face,
+                     s32 faces_per_cell) {
     Mesh4 mesh;
 
     mesh.vertices = std::vector<hmm_vec4>(vertices, vertices + n_vertices);
@@ -169,12 +168,12 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
 
     std::unordered_set<Edge> edge_set;
 
-    const float edge_length_sq = edge_length * edge_length;
+    const f64 edge_length_sq = edge_length * edge_length;
 
-    for (uint32_t i = 0; i < mesh.vertices.size(); i++) {
-        for (uint32_t j = 0; j < mesh.vertices.size(); j++) {
+    for (u32 i = 0; i < mesh.vertices.size(); i++) {
+        for (u32 j = 0; j < mesh.vertices.size(); j++) {
             if (j != i && float_eq(HMM_LengthSquared(mesh.vertices[j] - mesh.vertices[i]), edge_length_sq)) {
-                Edge e = {i, j};
+                auto e = edge(i, j);
                 edge_set.insert(e);
             }
         }
@@ -184,20 +183,20 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
 
     // Calculate faces
 
-    int vertex_edge_n = 0;
+    u32 vertex_edge_n = 0;
     for (const auto& edge : mesh.edges) {
-        if (edge.v1 == 0 || edge.v2 == 0) {
+        if (edge.v0 == 0 || edge.v1 == 0) {
             vertex_edge_n++;
         }
     }
 
-    std::vector<uint32_t> vertex_edge_indices;
+    std::vector<u32> vertex_edge_indices;
     vertex_edge_indices.reserve(mesh.vertices.size() * vertex_edge_n);
 
-    for (uint32_t i = 0; i < mesh.vertices.size(); i++) {
-        for (uint32_t edge_i = 0; edge_i < mesh.edges.size(); edge_i++) {
+    for (u32 i = 0; i < mesh.vertices.size(); i++) {
+        for (u32 edge_i = 0; edge_i < mesh.edges.size(); edge_i++) {
             const Edge& edge = mesh.edges[edge_i];
-            if (edge.v1 == i || edge.v2 == i) {
+            if (edge.v0 == i || edge.v1 == i) {
                 vertex_edge_indices.push_back(edge_i);
             }
         }
@@ -206,11 +205,11 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
     assert(vertex_edge_indices.size() == mesh.vertices.size() * vertex_edge_n);
 
     std::unordered_set<Face, FaceHash, FaceEquals> face_set;
-    std::unordered_set<uint32_t> edge_path;
+    std::unordered_set<u32> edge_path;
 
     // Recursive lambda definition
-    std::function<void(uint32_t)> fill_face_set;
-    fill_face_set = [&](uint32_t vertex_i) {
+    std::function<void(u32)> fill_face_set;
+    fill_face_set = [&](u32 vertex_i) {
         assert(edge_path.size() <= (size_t)edges_per_face);
 
         if (edge_path.size() == (size_t)edges_per_face) {
@@ -218,12 +217,12 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
                 face_set.emplace(edge_path.cbegin(), edge_path.cend());
             }
         } else {
-            for (int i = 0; i < vertex_edge_n; i++) {
-                uint32_t edge_i = vertex_edge_indices[vertex_i * vertex_edge_n + i];
+            for (u32 i = 0; i < vertex_edge_n; i++) {
+                u32 edge_i = vertex_edge_indices[vertex_i * vertex_edge_n + i];
                 if (!contains(edge_path, edge_i)) {
                     edge_path.insert(edge_i);
                     const Edge& edge = mesh.edges[edge_i];
-                    uint32_t other_vertex_i = edge.v1 == vertex_i ? edge.v2 : edge.v1;
+                    u32 other_vertex_i = edge.v0 == vertex_i ? edge.v1 : edge.v0;
                     fill_face_set(other_vertex_i);
                     edge_path.erase(edge_i);
                 }
@@ -231,7 +230,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
         }
     };
 
-    for (uint32_t i = 0; i < mesh.vertices.size(); i++) {
+    for (u32 i = 0; i < mesh.vertices.size(); i++) {
         assert(edge_path.size() == 0);
         fill_face_set(i);
     }
@@ -241,12 +240,12 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
     // Calculate cells
 
     // Calculate the number of adjacent faces per face
-    int adjacent_faces_n = 0;
+    u32 adjacent_faces_n = 0;
     {
         const Face& init_face = mesh.faces[0];
-        for (uint32_t i = 1; i < mesh.faces.size(); i++) {
+        for (u32 i = 1; i < mesh.faces.size(); i++) {
             const Face& other_face = mesh.faces[i];
-            for (uint32_t edge_i : init_face) {
+            for (u32 edge_i : init_face) {
                 if (contains(other_face, edge_i)) {
                     adjacent_faces_n++;
                     break;
@@ -256,15 +255,15 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
     }
 
     // Calculate all adjacent faces
-    std::vector<uint32_t> adjacent_faces;
+    std::vector<u32> adjacent_faces;
     adjacent_faces.reserve(mesh.faces.size() * adjacent_faces_n);
 
-    for (uint32_t i = 0; i < mesh.faces.size(); i++) {
+    for (u32 i = 0; i < mesh.faces.size(); i++) {
         const Face& current_face = mesh.faces[i];
-        for (uint32_t other_i = 0; other_i < mesh.faces.size(); other_i++) {
+        for (u32 other_i = 0; other_i < mesh.faces.size(); other_i++) {
             if (other_i != i) {
                 const Face& other_face = mesh.faces[other_i];
-                for (uint32_t edge_i : current_face) {
+                for (u32 edge_i : current_face) {
                     if (contains(other_face, edge_i)) {
                         adjacent_faces.push_back(other_i);
                         break;
@@ -277,11 +276,11 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
     assert(adjacent_faces.size() == mesh.faces.size() * adjacent_faces_n);
 
     std::unordered_set<Cell, CellHash, CellEquals> cell_set;
-    std::unordered_set<uint32_t> face_path;
+    std::unordered_set<u32> face_path;
 
     // Recursive lambda definition
-    std::function<void(uint32_t)> fill_cell_set;
-    fill_cell_set = [&](uint32_t face_i) {
+    std::function<void(u32)> fill_cell_set;
+    fill_cell_set = [&](u32 face_i) {
         assert(!contains(face_path, face_i));
         face_path.insert(face_i);
         assert(face_path.size() <= (size_t)faces_per_cell);
@@ -291,8 +290,8 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
                 cell_set.emplace(face_path.cbegin(), face_path.cend());
             }
         } else {
-            for (int adj_i = 0; adj_i < adjacent_faces_n; adj_i++) {
-                uint32_t adj_face_i = adjacent_faces[face_i * adjacent_faces_n + adj_i];
+            for (u32 adj_i = 0; adj_i < adjacent_faces_n; adj_i++) {
+                u32 adj_face_i = adjacent_faces[face_i * adjacent_faces_n + adj_i];
                 if (!contains(face_path, adj_face_i)) {
                     fill_cell_set(adj_face_i);
                 }
@@ -302,7 +301,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
         face_path.erase(face_i);
     };
 
-    for (uint32_t i = 0; i < mesh.faces.size(); i++) {
+    for (u32 i = 0; i < mesh.faces.size(); i++) {
         assert(face_path.size() == 0);
         fill_cell_set(i);
     }

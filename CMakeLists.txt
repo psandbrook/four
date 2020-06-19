@@ -19,6 +19,9 @@ add_library(triangle STATIC depends/triangle/triangle.c)
 add_compile_definitions(LINUX TRILIBRARY ANSI_DECLARATORS)
 target_compile_options(triangle PRIVATE -w -fno-lto)
 
+add_library(loguru STATIC depends/loguru/loguru.cpp)
+target_compile_options(loguru PRIVATE -w)
+
 # ============
 
 # Prefix: src/
@@ -53,6 +56,7 @@ include_directories(SYSTEM
   depends/libigl/include
   depends/eigen
   depends/triangle
+  depends/loguru
 )
 
 set(CXX_FLAGS_COMMON
@@ -101,7 +105,7 @@ set(CMAKE_C_FLAGS_DEBUG ${C_FLAGS_DEBUG_STR})
 set(CMAKE_C_FLAGS_RELEASE ${C_FLAGS_RELEASE_STR})
 
 add_executable(four ${SOURCES})
-target_link_libraries(four rt dl m pthread SDL2::SDL2 glad triangle)
+target_link_libraries(four rt dl m pthread SDL2::SDL2 glad triangle loguru)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   add_custom_command(
