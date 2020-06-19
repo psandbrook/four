@@ -25,6 +25,18 @@ target_compile_options(loguru PRIVATE -w)
 add_library(tinyxml2 STATIC depends/tinyxml2/tinyxml2.cpp)
 target_compile_options(tinyxml2 PRIVATE -w)
 
+add_library(imgui STATIC
+  depends/imgui/imgui.cpp
+  depends/imgui/imgui_demo.cpp
+  depends/imgui/imgui_draw.cpp
+  depends/imgui/imgui_widgets.cpp
+  depends/imgui/imgui_impl_sdl.cpp
+  depends/imgui/imgui_impl_opengl3.cpp
+)
+target_compile_options(imgui PRIVATE -w -fno-lto)
+add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
+target_link_libraries(imgui SDL2::SDL2)
+
 # ============
 
 # Prefix: src/
@@ -62,6 +74,7 @@ include_directories(SYSTEM
   depends/triangle
   depends/loguru
   depends/tinyxml2
+  depends/imgui
 )
 
 set(CXX_FLAGS_COMMON
@@ -110,7 +123,7 @@ set(CMAKE_C_FLAGS_DEBUG ${C_FLAGS_DEBUG_STR})
 set(CMAKE_C_FLAGS_RELEASE ${C_FLAGS_RELEASE_STR})
 
 add_executable(four ${SOURCES})
-target_link_libraries(four rt dl m pthread SDL2::SDL2 glad triangle loguru tinyxml2)
+target_link_libraries(four rt dl m pthread SDL2::SDL2 glad triangle loguru tinyxml2 imgui)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   add_custom_command(

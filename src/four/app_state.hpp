@@ -2,9 +2,15 @@
 
 #include <four/mesh.hpp>
 
+#include <SDL.h>
+#include <imgui.h>
+
 namespace four {
 
 struct AppState {
+    SDL_Window* window;
+    ImGuiIO* imgui_io;
+
     bool window_size_changed = false;
 
     Mesh4 mesh;
@@ -20,13 +26,13 @@ struct AppState {
     hmm_vec3 camera_pos = {0, 0, 4};
     hmm_vec3 camera_target = {0, 0, 0};
     hmm_vec3 camera_up = {0, 1, 0};
+
+    AppState() {}
+    AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path);
+
+    // Returns true if the application should exit
+    bool handle_events();
+
+    void step(f64 ms);
 };
-
-AppState new_app_state(const char* mesh_path);
-
-// Returns true if the application should exit
-bool handle_events(AppState& state);
-
-void step_state(AppState& state, f64 ms);
-
 } // namespace four

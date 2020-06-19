@@ -2,6 +2,7 @@
 #include <four/render.hpp>
 
 #include <igl/triangle/triangulate.h>
+#include <imgui_impl_opengl3.h>
 
 #include <fstream>
 #include <sstream>
@@ -148,7 +149,7 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
 
     update_window_size();
 
-    glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
+    glClearColor(0.23f, 0.23f, 0.23f, 1.0f);
     glEnable(GL_DEPTH_TEST);
 
     // This is needed to render the wireframe without z-fighting.
@@ -312,6 +313,9 @@ void Renderer::render() {
 
     glLineWidth(2.0f);
     wireframe.draw();
+
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     SDL_GL_SwapWindow(window);
 }
