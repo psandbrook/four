@@ -80,6 +80,10 @@ inline Mat5 operator*(Mat5 m1, Mat5 m2) {
     return result;
 }
 
+inline hmm_vec2 vec2(hmm_vec3 v) {
+    return {v[0], v[1]};
+}
+
 inline hmm_vec3 vec3(hmm_vec4 v) {
     return {v[0], v[1], v[2]};
 }
@@ -94,6 +98,25 @@ inline Vec5 vec5(hmm_vec4 vec, float v) {
 
 inline Mat3 mat3(hmm_vec3 column0, hmm_vec3 column1, hmm_vec3 column2) {
     Mat3 result = {.columns = {column0, column1, column2}};
+    return result;
+}
+
+inline hmm_mat4 mat4(hmm_vec4 column0, hmm_vec4 column1, hmm_vec4 column2, hmm_vec4 column3) {
+    hmm_mat4 result;
+
+    for (int row = 0; row < 4; row++) {
+        result.Elements[0][row] = column0[row];
+    }
+    for (int row = 0; row < 4; row++) {
+        result.Elements[1][row] = column1[row];
+    }
+    for (int row = 0; row < 4; row++) {
+        result.Elements[2][row] = column2[row];
+    }
+    for (int row = 0; row < 4; row++) {
+        result.Elements[3][row] = column3[row];
+    }
+
     return result;
 }
 
@@ -133,6 +156,15 @@ inline Mat5 translate(hmm_vec4 v) {
 
 inline hmm_mat4 rotate(hmm_vec3 center, float angle, hmm_vec3 axis) {
     return HMM_Translate(center) * HMM_Rotate(angle, axis) * HMM_Translate(-1 * center);
+}
+
+inline hmm_mat4 look_at_inverse(hmm_vec3 eye, hmm_vec3 target, hmm_vec3 up) {
+    hmm_mat4 m_t = HMM_Translate(eye);
+    hmm_vec3 f = HMM_Normalize(eye - target);
+    hmm_vec3 l = HMM_Normalize(HMM_Cross(up, f));
+    hmm_vec3 u = HMM_Cross(f, l);
+    hmm_mat4 m_r = mat4(HMM_Vec4v(l, 0), HMM_Vec4v(u, 0), HMM_Vec4v(f, 0), {0, 0, 0, 1});
+    return m_t * m_r;
 }
 
 inline Mat5 look_at(hmm_vec4 eye, hmm_vec4 target, hmm_vec4 up, hmm_vec4 over) {

@@ -5,8 +5,10 @@
 #define HANDMADE_MATH_IMPLEMENTATION
 #include <HandmadeMath.h>
 
+#include <Eigen/Core>
 #include <SDL.h>
 #include <glad/glad.h>
+#include <igl/triangle/triangulate.h>
 
 #include <assert.h>
 #include <stdint.h>
@@ -15,6 +17,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 using namespace four;
@@ -72,10 +75,10 @@ int main() {
     SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 1);
 
     // Enable multisampling
-    /*
+#if 0
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
-    */
+#endif
 
     SDL_Window* window = SDL_CreateWindow("four", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0,
                                           SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN_DESKTOP);
@@ -100,6 +103,12 @@ int main() {
 
     glViewport(0, 0, window_width, window_height);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glEnable(GL_DEPTH_TEST);
+    glLineWidth(2.0f);
+
+    // This is needed to render the wireframe without z-fighting.
+    glEnable(GL_POLYGON_OFFSET_LINE);
+    glPolygonOffset(-1.0f, -1.0f);
 
     uint32_t vert_shader = compile_shader("data/vertex.glsl", GL_VERTEX_SHADER);
     if (!vert_shader) {
@@ -132,12 +141,39 @@ int main() {
         }
     }
 
-    glUseProgram(shader_prog);
+    uint32_t frag_shader_selected_cell = compile_shader("data/fragment-selected-cell.glsl", GL_FRAGMENT_SHADER);
+    if (!frag_shader_selected_cell) {
+        return 1;
+    }
+
+    uint32_t shader_prog_selected_cell = glCreateProgram();
+    glAttachShader(shader_prog_selected_cell, vert_shader);
+    glAttachShader(shader_prog_selected_cell, frag_shader_selected_cell);
+    glLinkProgram(shader_prog_selected_cell);
+
+    {
+        // Check for shader program linking errors
+        int success;
+        glGetProgramiv(shader_prog_selected_cell, GL_LINK_STATUS, &success);
+        if (!success) {
+            int len;
+            glGetProgramiv(shader_prog_selected_cell, GL_INFO_LOG_LENGTH, &len);
+
+            std::vector<char> log;
+            log.reserve(len);
+            glGetProgramInfoLog(shader_prog_selected_cell, len, nullptr, log.data());
+            fprintf(stderr, "Program linking failed: %s\n", log.data());
+            return 1;
+        }
+    }
 
     Mesh4 mesh = generate_tesseract();
     hmm_vec4 mesh_pos = {0, 0, 0, 2};
     printf("%lu %lu %lu %lu\n", mesh.vertices.size(), mesh.edges.size(), mesh.faces.size(), mesh.cells.size());
 
+    int selected_cell = 0;
+
+    // Vertex array object for edges
     uint32_t vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
@@ -145,20 +181,42 @@ int main() {
     uint32_t vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(hmm_vec3), NULL, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(hmm_vec3), NULL, GL_STREAM_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(hmm_vec3), (void*)0);
     glEnableVertexAttribArray(0);
 
     uint32_t ebo;
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * mesh.edges.size() * sizeof(uint32_t), mesh.edges.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.edges.size() * sizeof(Edge), mesh.edges.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    // Vertex array object for the selected cell
+    uint32_t vao_selected_cell;
+    glGenVertexArrays(1, &vao_selected_cell);
+    glBindVertexArray(vao_selected_cell);
+
+    uint32_t vbo_selected_cell;
+    size_t vbo_selected_cell_size = 0;
+    glGenBuffers(1, &vbo_selected_cell);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_selected_cell);
+    glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(hmm_vec3), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    uint32_t ebo_selected_cell;
+    size_t ebo_selected_cell_size = 0;
+    glGenBuffers(1, &ebo_selected_cell);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_selected_cell);
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     int vp_location = glGetUniformLocation(shader_prog, "vp");
+    int selected_cell_vp_location = glGetUniformLocation(shader_prog_selected_cell, "vp");
 
     hmm_vec4 camera4_pos = {0, 0, 0, 0};
     hmm_vec4 camera4_target = {0, 0, 0, 1};
@@ -204,6 +262,14 @@ int main() {
             printf("fps: %i\n", frames);
             second_acc = 0.0;
             frames = 0;
+
+#if 0
+            // Temporary testing code!
+            selected_cell++;
+            if (selected_cell > 7) {
+                selected_cell = 0;
+            }
+#endif
         }
 
         // Process input
@@ -365,21 +431,160 @@ int main() {
             assert(mesh.vertices.size() == projected_vertices.size());
         }
 
-        glClear(GL_COLOR_BUFFER_BIT);
+        // Triangulate selected cell
+        std::vector<hmm_vec3> triangulate_vertices;
+        std::vector<uint32_t> triangulate_faces;
 
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, mesh.vertices.size() * sizeof(hmm_vec3), projected_vertices.data());
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        for (uint32_t face_i : mesh.cells[selected_cell]) {
+            const auto& face = mesh.faces[face_i];
+
+            // Get first two edges as vectors
+            const auto& edge0 = mesh.edges[face[0]];
+            const auto& edge1 = mesh.edges[face[1]];
+            hmm_vec3 v0 = projected_vertices[edge0.v1];
+            hmm_vec3 l0 = v0 - projected_vertices[edge0.v2];
+            hmm_vec3 l1 = projected_vertices[edge1.v1] - projected_vertices[edge1.v2];
+            hmm_vec3 normal = HMM_Cross(l0, l1);
+
+            std::unordered_map<uint32_t, uint32_t> face2_vertex_i_mapping;
+            std::vector<hmm_vec2> face2_vertices;
+            std::vector<Edge> face2_edges;
+
+            hmm_mat4 to_2d_trans = HMM_LookAt(v0, v0 + normal, {0, 1, 0});
+
+            for (uint32_t edge_i : face) {
+                const auto& edge = mesh.edges[edge_i];
+                if (!has_key(face2_vertex_i_mapping, edge.v1)) {
+                    face2_vertex_i_mapping.emplace(edge.v1, face2_vertices.size());
+                    hmm_vec3 v1_ = vec3(to_2d_trans * HMM_Vec4v(projected_vertices[edge.v1], 1));
+                    assert(float_eq_abs(v1_.Z, 0.0f));
+                    face2_vertices.push_back(vec2(v1_));
+                }
+                if (!has_key(face2_vertex_i_mapping, edge.v2)) {
+                    face2_vertex_i_mapping.emplace(edge.v2, face2_vertices.size());
+                    hmm_vec3 v2_ = vec3(to_2d_trans * HMM_Vec4v(projected_vertices[edge.v2], 1));
+                    assert(float_eq_abs(v2_.Z, 0.0f));
+                    face2_vertices.push_back(vec2(v2_));
+                }
+                face2_edges.push_back({face2_vertex_i_mapping[edge.v1], face2_vertex_i_mapping[edge.v2]});
+            }
+
+#ifndef NDEBUG
+            // All vertices should be coplanar
+            for (const auto& entry : face2_vertex_i_mapping) {
+                if (entry.first != edge0.v1) {
+                    hmm_vec3 v = projected_vertices[entry.first];
+                    float x = HMM_Dot(v - v0, normal);
+
+                    // FIXME: Floating-point error!
+                    // See https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
+                    assert(float_eq_abs(x, 0.0f));
+                }
+            }
+#endif
+
+            // `igl::triangle::triangulate()` only accepts double-precision
+            // floating point values.
+            Eigen::MatrixX2d mesh_v(face2_vertices.size(), 2);
+            for (size_t i = 0; i < face2_vertices.size(); i++) {
+                hmm_vec2 v = face2_vertices[i];
+                mesh_v(i, 0) = v.X;
+                mesh_v(i, 1) = v.Y;
+            }
+
+            Eigen::MatrixX2i mesh_e(face2_edges.size(), 2);
+            for (size_t i = 0; i < face2_edges.size(); i++) {
+                Edge e = face2_edges[i];
+                mesh_e(i, 0) = e.v1;
+                mesh_e(i, 1) = e.v2;
+            }
+
+            Eigen::MatrixX2d h;
+
+            Eigen::MatrixX2d triangulate_out_v;
+            Eigen::MatrixX3i triangulate_out_f;
+
+            // The triangulation algorithm may add new vertices. This means that
+            // adjacent faces of the polyhedron no longer share vertices.
+            igl::triangle::triangulate(mesh_v, mesh_e, h, "q0Q", triangulate_out_v, triangulate_out_f);
+
+            hmm_mat4 to_2d_trans_inverse = look_at_inverse(v0, v0 + normal, {0, 1, 0});
+
+#ifndef NDEBUG
+            hmm_vec4 v0_4 = HMM_Vec4v(v0, 1);
+            hmm_vec4 v0_4_ = to_2d_trans_inverse * to_2d_trans * v0_4;
+            for (int i = 0; i < 4; i++) {
+                // FIXME: Floating-point error!
+                assert(float_eq_abs(v0_4[i], v0_4_[i]));
+            }
+#endif
+
+            std::unordered_map<int, uint32_t> triangulate_vertex_i_mapping;
+            for (int i = 0; i < triangulate_out_f.rows(); i++) {
+                for (int j = 0; j < 3; j++) {
+                    int v_i = triangulate_out_f(i, j);
+                    if (!has_key(triangulate_vertex_i_mapping, v_i)) {
+                        triangulate_vertex_i_mapping.emplace(v_i, triangulate_vertices.size());
+                        hmm_vec3 v = {(float)triangulate_out_v(v_i, 0), (float)triangulate_out_v(v_i, 1), 0};
+                        hmm_vec3 v_ = vec3(to_2d_trans_inverse * HMM_Vec4v(v, 1));
+                        triangulate_vertices.push_back(v_);
+                    }
+                    triangulate_faces.push_back(triangulate_vertex_i_mapping[v_i]);
+                }
+            }
+        }
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        {
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, mesh.vertices.size() * sizeof(hmm_vec3), projected_vertices.data());
+
+            glBindBuffer(GL_ARRAY_BUFFER, vbo_selected_cell);
+
+            // Reallocate the VBO only if it is not big enough
+            size_t triangulate_vertices_size_b = triangulate_vertices.size() * sizeof(hmm_vec3);
+            if (vbo_selected_cell_size < triangulate_vertices_size_b) {
+                glBufferData(GL_ARRAY_BUFFER, triangulate_vertices_size_b, triangulate_vertices.data(), GL_STREAM_DRAW);
+                vbo_selected_cell_size = triangulate_vertices_size_b;
+            } else {
+                glBufferSubData(GL_ARRAY_BUFFER, 0, triangulate_vertices_size_b, triangulate_vertices.data());
+            }
+
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        }
+
+        {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_selected_cell);
+
+            size_t triangulate_faces_size_b = triangulate_faces.size() * sizeof(uint32_t);
+            if (ebo_selected_cell_size < triangulate_faces_size_b) {
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, triangulate_faces_size_b, triangulate_faces.data(),
+                             GL_STREAM_DRAW);
+                ebo_selected_cell_size = triangulate_faces_size_b;
+            } else {
+                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, triangulate_faces_size_b, triangulate_faces.data());
+            }
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+        }
 
         {
             hmm_mat4 view = HMM_LookAt(camera_pos, camera_target, camera_up);
             hmm_mat4 vp = projection * view;
-            glUniformMatrix4fv(vp_location, 1, false, (float*)&vp);
-        }
 
-        glBindVertexArray(vao);
-        glDrawElements(GL_LINES, (GLsizei)(2 * mesh.edges.size()), GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
+            glBindVertexArray(vao_selected_cell);
+            glUseProgram(shader_prog_selected_cell);
+            glUniformMatrix4fv(selected_cell_vp_location, 1, false, (float*)&vp);
+            glDrawElements(GL_TRIANGLES, (GLsizei)triangulate_faces.size(), GL_UNSIGNED_INT, 0);
+
+            glBindVertexArray(vao);
+            glUseProgram(shader_prog);
+            glUniformMatrix4fv(vp_location, 1, false, (float*)&vp);
+            glDrawElements(GL_LINES, (GLsizei)(2 * mesh.edges.size()), GL_UNSIGNED_INT, 0);
+
+            glBindVertexArray(0);
+        }
 
         SDL_GL_SwapWindow(window);
         frames++;

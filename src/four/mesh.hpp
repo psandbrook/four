@@ -19,6 +19,8 @@ struct Edge {
 using Face = std::vector<uint32_t>;
 using Cell = std::vector<uint32_t>;
 
+// TODO: Use double-precision or single-precision floating point?
+// Double-precision may be faster (profile!).
 struct Mesh4 {
     std::vector<hmm_vec4> vertices;
     std::vector<Edge> edges;

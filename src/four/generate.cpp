@@ -114,7 +114,7 @@ bool face_is_valid(const Mesh4& mesh, const std::unordered_set<uint32_t>& face) 
         const Edge& edge = mesh.edges[edge_i];
         uint32_t vert_indices[] = {edge.v1, edge.v2};
         for (uint32_t vert_i : vert_indices) {
-            if (vertices_count.find(vert_i) == vertices_count.end()) {
+            if (!has_key(vertices_count, vert_i)) {
                 vertices_count.emplace(vert_i, 1);
             } else {
                 vertices_count[vert_i] += 1;
@@ -139,7 +139,7 @@ bool cell_is_valid(const Mesh4& mesh, const std::unordered_set<uint32_t>& cell) 
     for (uint32_t face_i : cell) {
         const Face& face = mesh.faces[face_i];
         for (uint32_t edge_i : face) {
-            if (edges_count.find(edge_i) == edges_count.end()) {
+            if (!has_key(edges_count, edge_i)) {
                 edges_count.emplace(edge_i, 1);
             } else {
                 edges_count[edge_i] += 1;
@@ -173,9 +173,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
 
     for (uint32_t i = 0; i < mesh.vertices.size(); i++) {
         for (uint32_t j = 0; j < mesh.vertices.size(); j++) {
-            if (j != i
-                && float_eq(HMM_LengthSquared(mesh.vertices[j] - mesh.vertices[i]), edge_length_sq,
-                            flt_default_epsilon)) {
+            if (j != i && float_eq(HMM_LengthSquared(mesh.vertices[j] - mesh.vertices[i]), edge_length_sq)) {
                 Edge e = {i, j};
                 edge_set.insert(e);
             }
@@ -222,7 +220,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
         } else {
             for (int i = 0; i < vertex_edge_n; i++) {
                 uint32_t edge_i = vertex_edge_indices[vertex_i * vertex_edge_n + i];
-                if (edge_path.find(edge_i) == edge_path.end()) {
+                if (!contains(edge_path, edge_i)) {
                     edge_path.insert(edge_i);
                     const Edge& edge = mesh.edges[edge_i];
                     uint32_t other_vertex_i = edge.v1 == vertex_i ? edge.v2 : edge.v1;
@@ -284,7 +282,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
     // Recursive lambda definition
     std::function<void(uint32_t)> fill_cell_set;
     fill_cell_set = [&](uint32_t face_i) {
-        assert(face_path.find(face_i) == face_path.end());
+        assert(!contains(face_path, face_i));
         face_path.insert(face_i);
         assert(face_path.size() <= (size_t)faces_per_cell);
 
@@ -295,7 +293,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
         } else {
             for (int adj_i = 0; adj_i < adjacent_faces_n; adj_i++) {
                 uint32_t adj_face_i = adjacent_faces[face_i * adjacent_faces_n + adj_i];
-                if (face_path.find(adj_face_i) == face_path.end()) {
+                if (!contains(face_path, adj_face_i)) {
                     fill_cell_set(adj_face_i);
                 }
             }
