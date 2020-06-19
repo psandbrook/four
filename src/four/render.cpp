@@ -13,11 +13,6 @@ namespace four {
 
 namespace {
 
-struct FragmentUniforms {
-    u32 window_width;
-    f32 divider;
-};
-
 void mat4_to_f32(const hmm_mat4& mat, f32* out) {
     for (s32 col = 0; col < 4; col++) {
         for (s32 row = 0; row < 4; row++) {
@@ -51,6 +46,10 @@ u32 compile_shader(const char* path, GLenum type) {
     }
 
     return shader;
+}
+
+void bind_default_framebuffer() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 } // namespace
 
@@ -151,6 +150,71 @@ UniformBufferObject::UniformBufferObject(const char* name, u32 binding, GLenum u
     glBindBufferBase(GL_UNIFORM_BUFFER, binding, buf.id);
 }
 
+Framebuffer::Framebuffer(u32 width, u32 height) : width(width), height(height) {
+    glGenFramebuffers(1, &id);
+    bind();
+
+    const u32 samples = 8;
+
+    glGenRenderbuffers(2, &color_rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, color_rbo);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_RGB, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color_rbo);
+
+    glBindRenderbuffer(GL_RENDERBUFFER, depth_rbo);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH_COMPONENT24, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rbo);
+
+#ifdef FOUR_DEBUG
+    switch (glCheckFramebufferStatus(GL_FRAMEBUFFER)) {
+    case GL_FRAMEBUFFER_COMPLETE:
+        break;
+
+    case GL_FRAMEBUFFER_UNDEFINED:
+        ABORT_F("GL_FRAMEBUFFER_UNDEFINED");
+
+    case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+        ABORT_F("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
+
+    case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+        ABORT_F("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
+
+    case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+        ABORT_F("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER");
+
+    case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+        ABORT_F("GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER");
+
+    case GL_FRAMEBUFFER_UNSUPPORTED:
+        ABORT_F("GL_FRAMEBUFFER_UNSUPPORTED");
+
+    case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+        ABORT_F("GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE");
+
+    case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+        ABORT_F("GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS");
+
+    default:
+        ABORT_F("glCheckFramebufferStatus() failed");
+    }
+#endif
+
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    bind_default_framebuffer();
+}
+
+void Framebuffer::destroy() {
+    glDeleteFramebuffers(1, &id);
+    glDeleteRenderbuffers(2, &color_rbo);
+    id = 0;
+    color_rbo = 0;
+    depth_rbo = 0;
+}
+
+void Framebuffer::bind() {
+    glBindFramebuffer(GL_FRAMEBUFFER, id);
+}
+
 VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, Slice<VertexBufferObject*> vbos_,
                                      Slice<VertexSpec> specs, ElementBufferObject ebo)
         : shader_program(shader_program), vbos(vbos_.data, vbos_.data + vbos_.len), ebo(ebo) {
@@ -191,10 +255,14 @@ size_t Renderer::add_vbo(GLenum usage) {
     return insert_back(vbos, new_vertex_buffer_object(usage));
 }
 
-void Renderer::update_window_size() {
+void Renderer::do_window_size_changed() {
     auto& s = *state;
-    glViewport(0, 0, s.window_width, s.window_height);
-    projection = HMM_Perspective(90, (f64)s.window_width / (f64)s.window_height, 0.01, 1000.0);
+    cross_buffer.destroy();
+    projection_buffer.destroy();
+
+    vis_width_screen = (u32)(s.window_width - s.screen_x(1.0 - s.visualization_width));
+    cross_buffer = Framebuffer(vis_width_screen, (u32)s.window_height);
+    projection_buffer = Framebuffer(vis_width_screen, (u32)s.window_height);
 }
 
 void Renderer::do_mesh_changed() {
@@ -440,8 +508,6 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 
     SDL_GL_SetSwapInterval(1);
 
-    update_window_size();
-
     const f32 bg_shade = 0.04f;
     glClearColor(bg_shade, bg_shade, bg_shade, 1.0f);
 
@@ -457,15 +523,15 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+    do_window_size_changed();
+
     view_projection_ubo = UniformBufferObject("ViewProjection", 0, GL_STREAM_DRAW);
-    fragment_ubo = UniformBufferObject("FragmentUniforms", 1, GL_STREAM_DRAW);
-    u32 common_frag_shader = compile_shader("common-frag.glsl", GL_FRAGMENT_SHADER);
 
     // Wireframe
 
     u32 n4d_vert_shader = compile_shader("n4d-vert.glsl", GL_VERTEX_SHADER);
     u32 n4d_frag_shader = compile_shader("n4d-frag.glsl", GL_FRAGMENT_SHADER);
-    u32 n4d_frag_shaders[] = {n4d_frag_shader, common_frag_shader};
+    u32 n4d_frag_shaders[] = {n4d_frag_shader};
     n4d_shader_prog = ShaderProgram(n4d_vert_shader, AS_SLICE(n4d_frag_shaders));
 
     size_t wireframe_vertices = add_vbo(GL_STREAM_DRAW);
@@ -482,7 +548,7 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     {
         u32 vert_shader = compile_shader("cross-vert.glsl", GL_VERTEX_SHADER);
         u32 frag_shader = compile_shader("cross-frag.glsl", GL_FRAGMENT_SHADER);
-        u32 frag_shaders[] = {frag_shader, common_frag_shader};
+        u32 frag_shaders[] = {frag_shader};
         cross_section_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
     }
 
@@ -511,7 +577,7 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
         u32 vert_shader = compile_shader("xz-grid-vert.glsl", GL_VERTEX_SHADER);
         u32 frag_shader = compile_shader("xz-grid-frag.glsl", GL_FRAGMENT_SHADER);
 
-        u32 frag_shaders[] = {frag_shader, common_frag_shader};
+        u32 frag_shaders[] = {frag_shader};
         xz_grid_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
     }
 
@@ -544,7 +610,6 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     ShaderProgram* all_shader_progs[] = {&n4d_shader_prog, &cross_section_shader_prog, &xz_grid_shader_prog};
     for (auto prog : all_shader_progs) {
         prog->bind_uniform_block(view_projection_ubo);
-        prog->bind_uniform_block(fragment_ubo);
     }
 
     // Wireframe VAO
@@ -590,45 +655,34 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 void Renderer::render() {
     auto& s = *state;
 
-    if (s.window_size_changed) {
-        s.window_size_changed = false;
-        update_window_size();
-    }
-
     if (s.mesh_changed) {
         s.mesh_changed = false;
         do_mesh_changed();
     }
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    if (s.window_size_changed) {
+        s.window_size_changed = false;
+        do_window_size_changed();
+    }
 
     hmm_mat4 view = HMM_LookAt(s.camera_pos, s.camera_target, s.camera_up);
-    hmm_mat4 vp = projection * view;
-
-    f32 ndc_divider = (f32)(s.render_divider * 2.0 - 1.0);
-
-    FragmentUniforms frag_uniforms = {
-            .window_width = (u32)s.window_width,
-            .divider = ndc_divider,
-    };
-
-    fragment_ubo.buffer_data(&frag_uniforms, sizeof(frag_uniforms));
+    const f64 fov = 85.0;
 
     // Draw cross-section
     {
-        f64 cross_x = s.render_divider / 2.0;
-        hmm_mat4 vp_cross = HMM_Translate(HMM_Vec3(cross_x - 0.5, 0, 0)) * vp;
-        f32 vp_cross_f32[16];
-        mat4_to_f32(vp_cross, vp_cross_f32);
+        cross_buffer.bind();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        view_projection_ubo.buffer_data(vp_cross_f32, sizeof(vp_cross_f32));
+        glViewport(0, 0, cross_buffer.width, cross_buffer.height);
+        hmm_mat4 vp = HMM_Perspective(fov, cross_buffer.width / (f64)cross_buffer.height, 0.01, 1000.0) * view;
+        f32 vp_f32[16];
+        mat4_to_f32(vp, vp_f32);
+        view_projection_ubo.buffer_data(vp_f32, sizeof(vp_f32));
 
-        xz_grid_shader_prog.set_uniform_bool("is_projection", false);
         glLineWidth(0.5f);
         xz_grid.draw();
 
         calculate_cross_section();
-
         CHECK_EQ_F(cross_vertices.size(), cross_colors.size());
         cross_section.vbos[0]->buffer_data(cross_vertices.data(), cross_vertices.size() * sizeof(f32));
         cross_section.vbos[1]->buffer_data(cross_colors.data(), cross_colors.size() * sizeof(f32));
@@ -639,14 +693,16 @@ void Renderer::render() {
 
     // Draw projection
     {
-        f64 projection_x = 1.0 - (1.0 - s.render_divider) / 2.0;
-        hmm_mat4 vp_projection = HMM_Translate(HMM_Vec3(projection_x - 0.5, 0, 0)) * vp;
-        f32 vp_projection_f32[16];
-        mat4_to_f32(vp_projection, vp_projection_f32);
+        projection_buffer.bind();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        view_projection_ubo.buffer_data(vp_projection_f32, sizeof(vp_projection_f32));
+        glViewport(0, 0, projection_buffer.width, projection_buffer.height);
+        hmm_mat4 vp =
+                HMM_Perspective(fov, projection_buffer.width / (f64)projection_buffer.height, 0.01, 1000.0) * view;
+        f32 vp_f32[16];
+        mat4_to_f32(vp, vp_f32);
+        view_projection_ubo.buffer_data(vp_f32, sizeof(vp_f32));
 
-        xz_grid_shader_prog.set_uniform_bool("is_projection", true);
         glLineWidth(0.5f);
         xz_grid.draw();
 
@@ -700,11 +756,27 @@ void Renderer::render() {
         wireframe.draw();
     }
 
+    f64 cross_width = std::round(vis_width_screen * s.divider);
+    f64 projection_width = vis_width_screen - cross_width;
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, cross_buffer.id);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer((s32)(cross_buffer.width / 2.0 - cross_width / 2.0), 0,
+                      (s32)(cross_buffer.width / 2.0 + cross_width / 2.0), s.window_height, 0, 0, (s32)cross_width,
+                      s.window_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, projection_buffer.id);
+    glBlitFramebuffer((s32)(projection_buffer.width / 2.0 - projection_width / 2.0), 0,
+                      (s32)(projection_buffer.width / 2.0 + projection_width / 2.0), s.window_height, (s32)cross_width,
+                      0, (s32)(cross_width + projection_width), s.window_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    bind_default_framebuffer();
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     SDL_GL_SwapWindow(window);
 
+#ifdef FOUR_DEBUG
     switch (glGetError()) {
     case GL_NO_ERROR:
         break;
@@ -727,5 +799,6 @@ void Renderer::render() {
     default:
         ABORT_F("Unknown OpenGL error");
     }
+#endif
 }
 } // namespace four

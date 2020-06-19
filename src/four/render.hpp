@@ -57,6 +57,20 @@ struct UniformBufferObject {
     }
 };
 
+struct Framebuffer {
+    u32 id = 0;
+    u32 width, height;
+
+    u32 color_rbo = 0;
+    u32 depth_rbo = 0;
+
+    Framebuffer() {}
+    Framebuffer(u32 width, u32 height);
+
+    void bind();
+    void destroy();
+};
+
 struct ShaderProgram {
     u32 id;
     std::unordered_map<const char*, s32, CStrHash, CStrEquals> uniform_locations;
@@ -85,7 +99,10 @@ struct VertexSpec {
 struct VertexArrayObject {
     u32 id;
     ShaderProgram* shader_program;
+
+    // TODO: Change this to a vector of indices
     std::vector<VertexBufferObject*> vbos; // Vertex buffer objects can be shared among many VAOs
+
     ElementBufferObject ebo;
 
     VertexArrayObject() {}
@@ -117,8 +134,12 @@ private:
     SDL_Window* window;
     AppState* state;
 
+    u32 vis_width_screen;
+
     UniformBufferObject view_projection_ubo;
-    UniformBufferObject fragment_ubo;
+
+    Framebuffer cross_buffer;
+    Framebuffer projection_buffer;
 
     ShaderProgram n4d_shader_prog;
     ShaderProgram cross_section_shader_prog;
@@ -130,8 +151,6 @@ private:
     VertexArrayObject selected_cell;
     VertexArrayObject cross_section;
     VertexArrayObject xz_grid;
-
-    hmm_mat4 projection;
 
     std::vector<hmm_vec4> tet_mesh_vertices;
     std::uniform_real_distribution<f32> color_dist;
@@ -166,8 +185,8 @@ public:
 
 private:
     size_t add_vbo(GLenum usage);
-    void update_window_size();
     void do_mesh_changed();
+    void do_window_size_changed();
     void calculate_cross_section();
 };
 } // namespace four

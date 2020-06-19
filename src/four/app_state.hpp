@@ -41,11 +41,13 @@ public:
     std::mt19937 random_eng_32;
 
     bool debug = false;
-    bool window_size_changed = false;
     bool mesh_changed = false;
+    bool window_size_changed = false;
 
-    s32 window_width, window_height;
-    f64 render_divider = 0.5;
+    s32 window_width;
+    s32 window_height;
+    f64 visualization_width = 0.85;
+    f64 divider = 0.5;
 
     Mesh4 mesh;
     hmm_vec4 mesh_pos;
@@ -81,6 +83,8 @@ public:
 
     void step(f64 ms);
 
+    f64 screen_x(f64 x);
+    f64 screen_y(f64 y);
     void bump_mesh_pos_w();
 
 private:

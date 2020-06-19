@@ -28,6 +28,14 @@ f32 srgb_to_linear(f32 value) {
 }
 } // namespace
 
+f64 AppState::screen_x(f64 x) {
+    return x * window_width;
+}
+
+f64 AppState::screen_y(f64 y) {
+    return y * window_height;
+}
+
 void AppState::change_mesh(const char* path) {
     mesh = load_mesh_from_file(path);
     mesh_pos = {0.0, 0.0, 0.0, 0.0};
@@ -51,6 +59,13 @@ AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path)
     SDL_GL_GetDrawableSize(window, &window_width, &window_height);
     change_mesh(mesh_path);
     CHECK_NOTNULL_F(imgui_io->Fonts->AddFontFromFileTTF("data/DejaVuSans.ttf", 18.0f, NULL, glyph_ranges));
+
+    ImGui::GetStyle().WindowRounding = 0;
+    ImGui::GetStyle().ChildRounding = 6;
+    ImGui::GetStyle().FrameRounding = 4;
+    ImGui::GetStyle().GrabRounding = 2;
+    ImGui::GetStyle().WindowBorderSize = 0;
+    ImGui::GetStyle().WindowPadding = ImVec2(6, 6);
 
     ImVec4* colors = ImGui::GetStyle().Colors;
     for (s32 i = 0; i < ImGuiCol_COUNT; i++) {
@@ -81,7 +96,6 @@ bool AppState::process_events_and_imgui() {
             if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
                 SDL_GL_GetDrawableSize(window, &window_width, &window_height);
                 window_size_changed = true;
-                // SDL_SetWindowResizable(window, SDL_FALSE);
             }
         } break;
 
@@ -164,71 +178,14 @@ bool AppState::process_events_and_imgui() {
         ImGui::ShowDemoWindow();
     }
 
-    ImGuiWindowFlags default_window_flags = 0;
-    if (!debug) {
-        default_window_flags |= ImGuiWindowFlags_NoMove;
-        default_window_flags |= ImGuiWindowFlags_NoResize;
-        default_window_flags |= ImGuiWindowFlags_NoCollapse;
-    }
+    const ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove
+                                          | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse
+                                          | ImGuiWindowFlags_NoNav;
 
-    // Mesh selection window
-    {
-        ImGui::Begin("Mesh selection", NULL, default_window_flags);
-        const char* new_mesh_path = NULL;
-
-        auto button_size = ImVec2(ImGui::GetWindowWidth() - ImGui::GetWindowContentRegionMin().y, 0);
-
-        if (ImGui::Button("5-cell", button_size)) {
-            new_mesh_path = "5cell.mesh4";
-        }
-        if (ImGui::Button("Tesseract", button_size)) {
-            new_mesh_path = "tesseract.mesh4";
-        }
-        if (ImGui::Button("16-cell", button_size)) {
-            new_mesh_path = "16cell.mesh4";
-        }
-        if (ImGui::Button("24-cell", button_size)) {
-            new_mesh_path = "24cell.mesh4";
-        }
-        if (ImGui::Button("120-cell", button_size)) {
-            new_mesh_path = "120cell.mesh4";
-        }
-        if (ImGui::Button("600-cell", button_size)) {
-            new_mesh_path = "600cell.mesh4";
-        }
-
-        ImGui::End();
-        if (new_mesh_path) {
-            change_mesh(new_mesh_path);
-        }
-    }
-
-    // Selected cell window
-    {
-        ImGui::Begin("Selected cell", NULL, default_window_flags | ImGuiWindowFlags_NoScrollbar);
-        ImGui::Checkbox("Cycle", &selected_cell_cycle);
-        ImVec2 cycle_size = ImGui::GetItemRectSize();
-
-        ImGui::PushItemWidth(-1);
-        auto list_box_size =
-                ImVec2(0, ImGui::GetWindowHeight() - 1.7f * ImGui::GetWindowContentRegionMin().y - cycle_size.y);
-        if (ImGui::ListBoxHeader("##empty", list_box_size)) {
-            for (s32 i = 0; i < (s32)mesh.cells.size(); i++) {
-
-                const auto fmt_str = "%i";
-                s32 str_size = snprintf(NULL, 0, fmt_str, i);
-                selected_cell_str.resize((size_t)str_size + 1);
-                snprintf(selected_cell_str.data(), selected_cell_str.size(), fmt_str, i);
-
-                if (ImGui::Selectable(selected_cell_str.data(), selected_cell == i)) {
-                    selected_cell = i;
-                }
-            }
-            ImGui::ListBoxFooter();
-        }
-        ImGui::PopItemWidth();
-        ImGui::End();
-    }
+    ImGui::SetNextWindowPos(ImVec2((f32)screen_x(visualization_width), 0));
+    ImGui::SetNextWindowSize(ImVec2((f32)screen_x(1.0 - visualization_width), (f32)window_height));
+    ImGui::SetNextWindowBgAlpha(0xff);
+    ImGui::Begin("four", NULL, window_flags);
 
     hmm_vec4 prev_new_mesh_pos = new_mesh_pos;
     hmm_vec4 prev_new_mesh_scale = new_mesh_scale;
@@ -236,7 +193,7 @@ bool AppState::process_events_and_imgui() {
 
     // 4D Transform window
     {
-        ImGui::Begin("4D Transform", NULL, default_window_flags);
+        ImGui::BeginChild("transform", ImVec2(ImGui::GetContentRegionAvailWidth() * 0.5f, 0), true, window_flags);
         const f32 speed = 0.01f;
         const auto fmt = "%.3f";
 
@@ -250,7 +207,7 @@ bool AppState::process_events_and_imgui() {
         ImGui::Separator();
         ImGui::Text("Scale");
 
-        auto button_size = ImVec2(ImGui::GetWindowWidth() - ImGui::GetWindowContentRegionMin().y, 0);
+        auto button_size = ImVec2(ImGui::GetContentRegionAvailWidth(), 0);
         ImGui::Button("xyzw", button_size);
         if (ImGui::IsItemActive()) {
             f64 scale_magnitude =
@@ -306,9 +263,74 @@ bool AppState::process_events_and_imgui() {
             ImGui::EndTabBar();
         }
 
-        ImGui::End();
+        ImGui::EndChild();
     }
 
+    ImGui::SameLine(0.0f, 0.0f);
+    ImGui::BeginChild("ui_right", ImVec2(0, 0), false, window_flags | ImGuiWindowFlags_NoScrollbar);
+
+    // Mesh selection
+    {
+        ImGui::BeginChild("load_mesh", ImVec2(0, ImGui::GetContentRegionAvail().y * 0.2f), true, window_flags);
+
+        const char* new_mesh_path = NULL;
+        ImGui::Text("Load");
+
+        auto button_size = ImVec2(ImGui::GetContentRegionAvailWidth(), 0);
+        if (ImGui::Button("5-cell", button_size)) {
+            new_mesh_path = "5cell.mesh4";
+        }
+        if (ImGui::Button("Tesseract", button_size)) {
+            new_mesh_path = "tesseract.mesh4";
+        }
+        if (ImGui::Button("16-cell", button_size)) {
+            new_mesh_path = "16cell.mesh4";
+        }
+        if (ImGui::Button("24-cell", button_size)) {
+            new_mesh_path = "24cell.mesh4";
+        }
+        if (ImGui::Button("120-cell", button_size)) {
+            new_mesh_path = "120cell.mesh4";
+        }
+        if (ImGui::Button("600-cell", button_size)) {
+            new_mesh_path = "600cell.mesh4";
+        }
+
+        ImGui::EndChild();
+        if (new_mesh_path) {
+            change_mesh(new_mesh_path);
+        }
+    }
+
+    // Selected cell window
+    {
+        ImGui::BeginChild("selected_cell", ImVec2(0, 0), true, window_flags | ImGuiWindowFlags_NoScrollbar);
+        ImGui::Text("Selected cell");
+        ImGui::Checkbox("Cycle", &selected_cell_cycle);
+
+        ImGui::PushItemWidth(-1);
+        auto list_box_size = ImVec2(0, ImGui::GetContentRegionAvail().y);
+        if (ImGui::ListBoxHeader("##empty", list_box_size)) {
+            for (s32 i = 0; i < (s32)mesh.cells.size(); i++) {
+
+                const auto fmt_str = "%i";
+                s32 str_size = snprintf(NULL, 0, fmt_str, i);
+                selected_cell_str.resize((size_t)str_size + 1);
+                snprintf(selected_cell_str.data(), selected_cell_str.size(), fmt_str, i);
+
+                if (ImGui::Selectable(selected_cell_str.data(), selected_cell == i)) {
+                    selected_cell = i;
+                }
+            }
+            ImGui::ListBoxFooter();
+        }
+        ImGui::PopItemWidth();
+        ImGui::EndChild();
+    }
+
+    ImGui::EndChild();
+
+    ImGui::End();
     ImGui::EndFrame();
 
     Mat5 model = mk_model_mat(new_mesh_pos, new_mesh_scale, new_mesh_rotation);
