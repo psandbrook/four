@@ -73,16 +73,14 @@ void GlBuffer::buffer_data(const void* data, size_t size) {
     }
 }
 
-ElementBufferObject::ElementBufferObject(GLenum usage, GLenum primitive)
-        : buf(GL_ELEMENT_ARRAY_BUFFER, usage), primitive(primitive) {}
-
 void ElementBufferObject::buffer_data(const void* data, s32 n) {
     buf.buffer_data(data, (u32)n * sizeof(u32));
     primitive_count = n;
 }
 
-VertexArrayObject::VertexArrayObject(u32 shader_program, GlBuffer* vbo, VertexSpec spec, ElementBufferObject _ebo)
-        : vbo(vbo), ebo(std::move(_ebo)), shader_program(shader_program) {
+VertexArrayObject::VertexArrayObject(u32 shader_program, VertexBufferObject* vbo, VertexSpec spec,
+                                     ElementBufferObject ebo)
+        : shader_program(shader_program), vbo(vbo), ebo(ebo) {
 
     CHECK_EQ_F(vbo->type, (u32)GL_ARRAY_BUFFER);
     CHECK_EQ_F(ebo.buf.type, (u32)GL_ELEMENT_ARRAY_BUFFER);
@@ -148,7 +146,7 @@ Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), 
     u32 cell_frag_shader = compile_shader("data/fragment-selected-cell.glsl", GL_FRAGMENT_SHADER);
     u32 cell_prog = link_shader_program(wireframe_vert_shader, cell_frag_shader);
 
-    vertices = GlBuffer(GL_ARRAY_BUFFER, GL_STREAM_DRAW);
+    vertices = new_vertex_buffer_object(GL_STREAM_DRAW);
     VertexSpec vertices_spec = {
             .index = 0,
             .size = 3,
@@ -159,10 +157,10 @@ Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), 
 
     ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
     wireframe_ebo.buffer_data(s.mesh.edges.data(), 2 * (s32)s.mesh.edges.size());
-    wireframe = VertexArrayObject(wireframe_prog, &vertices, vertices_spec, std::move(wireframe_ebo));
+    wireframe = VertexArrayObject(wireframe_prog, &vertices, vertices_spec, wireframe_ebo);
 
     ElementBufferObject cell_ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-    selected_cell = VertexArrayObject(cell_prog, &vertices, vertices_spec, std::move(cell_ebo));
+    selected_cell = VertexArrayObject(cell_prog, &vertices, vertices_spec, cell_ebo);
 
     projection = HMM_Perspective(90, (f64)window_width / (f64)window_height, 0.1, 100.0);
 }

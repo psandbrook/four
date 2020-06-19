@@ -24,66 +24,45 @@ struct VertexSpec {
     ptrdiff_t offset;
 };
 
-class GlBuffer {
-private:
-    friend class VertexArrayObject;
-
+struct GlBuffer {
     u32 id;
     GLenum type;
     GLenum usage;
     size_t size = 0;
 
-public:
     GlBuffer() {}
     GlBuffer(GLenum type, GLenum usage);
-
-    GlBuffer(const GlBuffer&) = delete;
-    GlBuffer& operator=(const GlBuffer&) = delete;
-
-    GlBuffer(GlBuffer&&) = default;
-    GlBuffer& operator=(GlBuffer&&) = default;
-
-    ~GlBuffer() {}
 
     void buffer_data(const void* data, size_t size);
 };
 
-struct ElementBufferObject {
-private:
-    friend class VertexArrayObject;
+using VertexBufferObject = GlBuffer;
 
+inline VertexBufferObject new_vertex_buffer_object(GLenum usage) {
+    GlBuffer buf(GL_ARRAY_BUFFER, usage);
+    return buf;
+}
+
+struct ElementBufferObject {
     GlBuffer buf;
     GLenum primitive;
     s32 primitive_count = 0;
 
-public:
     ElementBufferObject() {}
-    ElementBufferObject(GLenum usage, GLenum primitive);
+    ElementBufferObject(GLenum usage, GLenum primitive) : buf(GL_ELEMENT_ARRAY_BUFFER, usage), primitive(primitive) {}
 
     void buffer_data(const void* data, s32 n);
 };
 
-class VertexArrayObject {
-public:
-    GlBuffer* vbo; // A vertex buffer object can be shared among many VAOs
-    ElementBufferObject ebo;
-
-private:
+struct VertexArrayObject {
     u32 id;
     u32 shader_program;
     std::unordered_map<const char*, s32, CStrHash, CStrEquals> uniform_locations;
+    VertexBufferObject* vbo; // A vertex buffer object can be shared among many VAOs
+    ElementBufferObject ebo;
 
-public:
     VertexArrayObject() {}
-    VertexArrayObject(u32 shader_program, GlBuffer* vbo, VertexSpec spec, ElementBufferObject ebo);
-
-    VertexArrayObject(const VertexArrayObject&) = delete;
-    VertexArrayObject& operator=(const VertexArrayObject&) = delete;
-
-    VertexArrayObject(VertexArrayObject&&) = default;
-    VertexArrayObject& operator=(VertexArrayObject&&) = default;
-
-    ~VertexArrayObject() {}
+    VertexArrayObject(u32 shader_program, VertexBufferObject* vbo, VertexSpec spec, ElementBufferObject ebo);
 
     void draw();
     void set_uniform_mat4(const char* name, const f32* data);
@@ -97,7 +76,7 @@ private:
     // Variables initialized in the constructor
     // ----------------------------------------
 
-    GlBuffer vertices;
+    VertexBufferObject vertices;
     VertexArrayObject wireframe;
     VertexArrayObject selected_cell;
     hmm_mat4 projection;
