@@ -48,6 +48,8 @@ void RenderFuncs::triangulate(const std::vector<hmm_vec3>& vertices, const std::
     hmm_vec3 l0 = v0 - vertices[edge0.v1];
 
     hmm_vec3 normal;
+
+    // FIXME: Change this to search for edges of v0 (like tetrahedralize())
     for (size_t i = 0; i < face.size(); i++) {
         const auto& edge = edges[face[i]];
         hmm_vec3 l1 = vertices[edge.v0] - vertices[edge.v1];
@@ -143,6 +145,55 @@ void RenderFuncs::triangulate(const std::vector<hmm_vec3>& vertices, const std::
     for (s32 i = 0; i < s.triangulate_out_f.rows(); i++) {
         for (s32 j = 0; j < 3; j++) {
             out.push_back(s.face2_vertex_i_mapping.right.at(s.triangulate_out_f(i, j)));
+        }
+    }
+}
+
+void RenderFuncs::triangulate_vertices(Slice<const hmm_vec3> vertices, std::vector<u32>& out) {
+    auto& s = *this->impl;
+
+    hmm_vec3 v0 = vertices[0];
+    hmm_vec3 l0 = vertices[1] - v0;
+    hmm_vec3 l1 = vertices[2] - v0;
+    hmm_vec3 normal = HMM_Normalize(HMM_Cross(l0, l1));
+
+    CHECK_F(!(float_eq(normal.X, 0.0) && float_eq(normal.Y, 0.0) && float_eq(normal.Z, 0.0)));
+
+    hmm_vec3 up;
+    if (float_eq(std::abs(normal.Y), 1.0, 0.001)) {
+        up = {1, 0, 0};
+    } else {
+        up = {0, 1, 0};
+    }
+
+    hmm_mat4 to_2d_trans = HMM_LookAt(v0, v0 + normal, up);
+
+    s.face2_vertices.clear();
+    for (size_t i = 0; i < vertices.len; i++) {
+        const auto& v = vertices[i];
+        hmm_vec3 v_ = transform(to_2d_trans, v);
+        s.face2_vertices.push_back(vec2(v_));
+    }
+
+    s.mesh_v.resize((s64)s.face2_vertices.size(), Eigen::NoChange);
+    for (size_t i = 0; i < s.face2_vertices.size(); i++) {
+        hmm_vec2 v = s.face2_vertices[i];
+        s.mesh_v((s64)i, 0) = v.X;
+        s.mesh_v((s64)i, 1) = v.Y;
+    }
+
+    s.mesh_e.resize(0, Eigen::NoChange);
+    const Eigen::MatrixX2d h;
+
+    s.triangulate_out_v.resize(0, Eigen::NoChange);
+    s.triangulate_out_f.resize(0, Eigen::NoChange);
+    igl::triangle::triangulate(s.mesh_v, s.mesh_e, h, "Q", s.triangulate_out_v, s.triangulate_out_f);
+
+    DCHECK_EQ_F((size_t)s.triangulate_out_v.rows(), s.face2_vertices.size());
+
+    for (s32 i = 0; i < s.triangulate_out_f.rows(); i++) {
+        for (s32 j = 0; j < 3; j++) {
+            out.push_back((u32)s.triangulate_out_f(i, j));
         }
     }
 }
@@ -281,23 +332,53 @@ bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
         s.tet_mesh_f.push_back(std::move(this_mesh_f));
     }
 
-    hmm_vec3 centroid = HMM_Vec3(0, 0, 0);
-    for (const auto& v : s.tet_mesh_v) {
-        centroid += HMM_Vec3(v[0], v[1], v[2]);
-    }
+    hmm_mat4 temp_transform_inverse;
+    {
+        const auto& v0 = s.tet_mesh_v[(size_t)s.tet_mesh_f[0][0]];
+        const auto& v1 = s.tet_mesh_v[(size_t)s.tet_mesh_f[0][1]];
+        const auto& v2 = s.tet_mesh_v[(size_t)s.tet_mesh_f[0][2]];
+        hmm_vec3 v0_ = HMM_Vec3(v0[0], v0[1], v0[2]);
+        hmm_vec3 v1_ = HMM_Vec3(v1[0], v1[1], v1[2]);
+        hmm_vec3 v2_ = HMM_Vec3(v2[0], v2[1], v2[2]);
+        hmm_vec3 l1 = v1_ - v0_;
+        hmm_vec3 n3d_normal = HMM_Normalize(HMM_Cross(l1, v2_ - v0_));
 
-    centroid.X /= (f64)s.tet_mesh_v.size();
-    centroid.Y /= (f64)s.tet_mesh_v.size();
-    centroid.Z /= (f64)s.tet_mesh_v.size();
+        hmm_vec3 up;
+        if (float_eq(std::abs(n3d_normal.Y), 1.0, 0.001)) {
+            up = {1, 0, 0};
+        } else {
+            up = {0, 1, 0};
+        }
 
-    hmm_mat4 temp_transform = HMM_Translate(-1.0 * centroid);
-    hmm_mat4 temp_transform_inverse = HMM_Translate(centroid);
+        hmm_mat4 temp_look_at = HMM_LookAt(v0_, v0_ + n3d_normal, l1);
+        hmm_mat4 temp_look_at_inverse = look_at_inverse(v0_, v0_ + n3d_normal, l1);
 
-    for (auto& v : s.tet_mesh_v) {
-        hmm_vec3 v_ = transform(temp_transform, HMM_Vec3(v[0], v[1], v[2]));
-        v[0] = v_.X;
-        v[1] = v_.Y;
-        v[2] = v_.Z;
+        for (auto& v : s.tet_mesh_v) {
+            hmm_vec3 v_ = transform(temp_look_at, HMM_Vec3(v[0], v[1], v[2]));
+            v[0] = v_.X;
+            v[1] = v_.Y;
+            v[2] = v_.Z;
+        }
+
+        hmm_vec3 centroid = HMM_Vec3(0, 0, 0);
+        for (const auto& v : s.tet_mesh_v) {
+            centroid += HMM_Vec3(v[0], v[1], v[2]);
+        }
+
+        centroid.X /= (f64)s.tet_mesh_v.size();
+        centroid.Y /= (f64)s.tet_mesh_v.size();
+        centroid.Z /= (f64)s.tet_mesh_v.size();
+
+        hmm_mat4 temp_translate = HMM_Translate(-1.0 * centroid);
+
+        for (auto& v : s.tet_mesh_v) {
+            hmm_vec3 v_ = transform(temp_translate, HMM_Vec3(v[0], v[1], v[2]));
+            v[0] = v_.X;
+            v[1] = v_.Y;
+            v[2] = v_.Z;
+        }
+
+        temp_transform_inverse = temp_look_at_inverse * HMM_Translate(centroid);
     }
 
 #ifdef FOUR_DEBUG
@@ -314,8 +395,8 @@ bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
     s.tet_out_v.clear();
     s.tet_out_t.clear();
     s.tet_out_f.clear();
-    int result = igl::copyleft::tetgen::tetrahedralize(s.tet_mesh_v, s.tet_mesh_f, "pq", s.tet_out_v, s.tet_out_t,
-                                                       s.tet_out_f);
+    int result = igl::copyleft::tetgen::tetrahedralize(s.tet_mesh_v, s.tet_mesh_f, "pq1.2/18YV", s.tet_out_v,
+                                                       s.tet_out_t, s.tet_out_f);
     fflush(stdout);
     fflush(stderr);
     if (result != 0) {

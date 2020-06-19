@@ -184,6 +184,15 @@ inline hmm_vec3 transform(const hmm_mat4& m, const hmm_vec3& v) {
     return vec3(m * HMM_Vec4v(v, 1));
 }
 
+inline hmm_mat4 look_at_inverse(const hmm_vec3& eye, const hmm_vec3& target, const hmm_vec3& up) {
+    hmm_mat4 m_t = HMM_Translate(eye);
+    hmm_vec3 f = HMM_Normalize(eye - target);
+    hmm_vec3 l = HMM_Normalize(HMM_Cross(up, f));
+    hmm_vec3 u = HMM_Cross(f, l);
+    hmm_mat4 m_r = mat4(vec4(l, 0), vec4(u, 0), vec4(f, 0), vec4(0, 0, 0, 1));
+    return m_t * m_r;
+}
+
 inline hmm_vec4 transform(const Mat5& m, const hmm_vec4& v) {
     return vec4(m * vec5(v, 1));
 }

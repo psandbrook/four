@@ -167,7 +167,7 @@ IGL_INLINE int igl::copyleft::tetgen::tetrahedralize(
     delete[] cswitches;
   }catch(int e)
   {
-    cerr<<"^"<<__FUNCTION__<<": TETGEN CRASHED... KABOOOM!!!"<<endl;
+    cerr<<"^"<<__FUNCTION__<<": TETGEN CRASHED... KABOOOM!!! ("<<e<<")"<<endl;
     return 1;
   }
   if(out.numberoftetrahedra == 0)

@@ -218,6 +218,8 @@ void Renderer::do_mesh_changed() {
 void Renderer::calculate_cross_section() {
     auto& s = *state;
 
+    const f64 epsilon = 0.0000001;
+
     cross_vertices.clear();
     cross_colors.clear();
     cross_tris.clear();
@@ -254,25 +256,9 @@ void Renderer::calculate_cross_section() {
             const Edge& e = edges[i];
             hmm_vec4 l_0 = tet_mesh_vertices_world[e.v0];
             hmm_vec4 l = tet_mesh_vertices_world[e.v1] - l_0;
-            if (float_eq(HMM_Dot(l, n), 0.0)) {
-                if (float_eq(HMM_Dot(p_0 - l_0, n), 0.0)) {
-                    // Edge is within hyperplane
-
-                    // Because of floating point error, we don't try to render
-                    // this case. Instead, we bump the mesh's w position and
-                    // hope for points of intersection instead.
-                    s.bump_mesh_pos_w();
-                    LOG_F(WARNING, "New mesh w: %.16f", s.mesh_pos.W);
-
-                    // Recalculate all intersections
-                    calc_tet_mesh_vertices_world();
-                    intersect_len = 0;
-                    i = -1;
-                    continue;
-                }
-            } else {
+            if (!float_eq(HMM_Dot(l, n), 0.0, DBL_EPSILON)) {
                 f64 d = HMM_Dot(p_0 - l_0, n) / HMM_Dot(l, n);
-                if (d >= 0.0 && d <= 1.0) {
+                if ((d > 0.0 && d < 1.0) || float_eq(d, 0.0, epsilon) || float_eq(d, 1.0, epsilon)) {
                     // Edge intersects with hyperplane at a point
                     hmm_vec4 point = d * l + l_0;
                     DCHECK_F(float_eq(point.W, 0.0));
@@ -282,13 +268,34 @@ void Renderer::calculate_cross_section() {
             }
         }
 
-        if (intersect_len == 3) {
+        s32 merged_intersect_len = 0;
+        hmm_vec3 merged_intersect[6];
+        for (s32 i = 0; i < intersect_len; i++) {
+            const auto& v = intersect[i];
+            bool unique = true;
+            for (s32 j = 0; j < intersect_len; j++) {
+                if (i != j) {
+                    const auto& u = intersect[j];
+                    if (float_eq(v.X, u.X, epsilon) && float_eq(v.Y, u.Y, epsilon) && float_eq(v.Z, u.Z, epsilon)) {
+                        unique = false;
+                        break;
+                    }
+                }
+            }
+
+            if (unique) {
+                merged_intersect[merged_intersect_len] = v;
+                merged_intersect_len++;
+            }
+        }
+
+        if (merged_intersect_len == 3) {
             // Intersection is a triangle
 
             for (s32 i = 0; i < 3; i++) {
                 DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
                 cross_tris.push_back((u32)(cross_vertices.size() / 3));
-                for (f64 e : intersect[i].Elements) {
+                for (f64 e : merged_intersect[i].Elements) {
                     cross_vertices.push_back((f32)e);
                 }
                 for (f32 e : tet.color) {
@@ -296,19 +303,19 @@ void Renderer::calculate_cross_section() {
                 }
             }
 
-        } else if (intersect_len == 4) {
+        } else if (merged_intersect_len == 4) {
             // Intersection is a quadrilateral
 
-            hmm_vec3 p0 = intersect[0];
-            hmm_vec3 p1 = intersect[1];
-            hmm_vec3 p2 = intersect[2];
-            hmm_vec3 p3 = intersect[3];
-            u32 p_mapping[4];
+            hmm_vec3 p0 = merged_intersect[0];
+            hmm_vec3 p1 = merged_intersect[1];
+            hmm_vec3 p2 = merged_intersect[2];
+            hmm_vec3 p3 = merged_intersect[3];
+            u32 v_mapping[4];
 
             for (s32 i = 0; i < 4; i++) {
                 DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
-                p_mapping[i] = (u32)(cross_vertices.size() / 3);
-                for (f64 e : intersect[i].Elements) {
+                v_mapping[i] = (u32)(cross_vertices.size() / 3);
+                for (f64 e : merged_intersect[i].Elements) {
                     cross_vertices.push_back((f32)e);
                 }
                 for (f32 e : tet.color) {
@@ -355,7 +362,47 @@ void Renderer::calculate_cross_section() {
             }
 
             for (u32 e : tris) {
-                cross_tris.push_back(p_mapping[e]);
+                cross_tris.push_back(v_mapping[e]);
+            }
+
+        } else if (merged_intersect_len > 4) {
+            LOG_F(WARNING, "merged_intersect_len: %i", merged_intersect_len);
+            intersect_tris.clear();
+            render_funcs.triangulate_vertices(c_slice((size_t)merged_intersect_len, merged_intersect), intersect_tris);
+
+            u32 v_mapping[6];
+            for (s32 i = 0; i < merged_intersect_len; i++) {
+                DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
+                v_mapping[i] = (u32)(cross_vertices.size() / 3);
+                for (f64 e : merged_intersect[i].Elements) {
+                    cross_vertices.push_back((f32)e);
+                }
+                for (f32 e : tet.color) {
+                    cross_colors.push_back(e);
+                }
+            }
+
+            for (u32 e : intersect_tris) {
+                cross_tris.push_back(v_mapping[e]);
+            }
+
+        } else {
+            // No intersections
+            for (s32 i = 0; i < 6; i++) {
+                const Edge& e = edges[i];
+                hmm_vec4 l_0 = tet_mesh_vertices_world[e.v0];
+                hmm_vec4 l = tet_mesh_vertices_world[e.v1] - l_0;
+                if (float_eq(HMM_Dot(l, n), 0.0, epsilon) && float_eq(HMM_Dot(p_0 - l_0, n), 0.0, epsilon)) {
+                    // Edge is within hyperplane
+
+                    // Because of floating point error, we don't try to render
+                    // this case. Instead, we bump the mesh's w position and
+                    // hope for points of intersection instead.
+                    s.bump_mesh_pos_w();
+                    calc_tet_mesh_vertices_world();
+                    i = -1;
+                    continue;
+                }
             }
         }
     }
@@ -380,6 +427,8 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     // This is needed to render the wireframe without z-fighting.
     glEnable(GL_POLYGON_OFFSET_LINE);
     glPolygonOffset(-1.0, -1.0);
+
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     // Wireframe
     // ---------

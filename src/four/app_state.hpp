@@ -44,7 +44,7 @@ public:
     bool window_size_changed = false;
     bool mesh_changed = false;
 
-    bool cross_section = false;
+    bool cross_section = true;
 
     Mesh4 mesh;
     hmm_vec4 mesh_pos;

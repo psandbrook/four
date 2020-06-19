@@ -30,7 +30,7 @@ f32 srgb_to_linear(f32 value) {
 
 void AppState::change_mesh(const char* path) {
     mesh = load_mesh_from_file(path);
-    mesh_pos = {0, 0, 0, 8};
+    mesh_pos = {0.0, 0.0, 0.0, 0.0};
     mesh_scale = {1, 1, 1, 1};
     if (mesh_rotation.is_rotor) {
         mesh_rotation.rotor = rotor4();
@@ -340,6 +340,10 @@ bool AppState::process_events_and_imgui() {
         mesh_rotation = new_mesh_rotation;
     }
 
+    if (float_eq(std::round(mesh_pos.W), mesh_pos.W)) {
+        bump_mesh_pos_w();
+    }
+
     return false;
 }
 
@@ -360,27 +364,23 @@ void AppState::step(const f64 ms) {
 }
 
 void AppState::bump_mesh_pos_w() {
-    const f64 mag = 0.000000000001;
+    const f64 mag = 0.0000001;
 
-    if (float_eq(mesh_pos.W, 0.0)) {
+    // We bump towards zero because we assume that the hyperplane used for
+    // cross-section visualization is at w = 0.
+    if (mesh_pos.W <= 0.001) {
         mesh_pos.W += mag;
     } else {
-        // We bump towards zero because we assume that the hyperplane used for
-        // cross-section visualization is at w = 0.
-        mesh_pos.W += std::copysign(mag, -mesh_pos.W);
-        if (float_eq(mesh_pos.W, 0.0)) {
-            mesh_pos.W += mag;
-        }
+        mesh_pos.W -= mag;
     }
 
-    if (float_eq(new_mesh_pos.W, 0.0)) {
+    if (new_mesh_pos.W <= 0.001) {
         new_mesh_pos.W += mag;
     } else {
-        new_mesh_pos.W += std::copysign(mag, -new_mesh_pos.W);
-        if (float_eq(new_mesh_pos.W, 0.0)) {
-            new_mesh_pos.W += mag;
-        }
+        new_mesh_pos.W -= mag;
     }
+
+    LOG_F(WARNING, "New mesh w: %.16f", mesh_pos.W);
 }
 
 Mat5 mk_model_mat(const hmm_vec4& pos, const hmm_vec4& v_scale, const Rotation4& rotation) {

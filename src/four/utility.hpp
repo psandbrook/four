@@ -43,21 +43,26 @@ struct Slice {
     size_t len;
     T* data;
 
-    Slice() {}
-    Slice(size_t len, T* data) : len(len), data(data) {}
+    Slice() noexcept {}
+    Slice(size_t len, T* data) noexcept : len(len), data(data) {}
 
-    T& operator[](size_t index) {
+    T& operator[](size_t index) noexcept {
         CHECK_LT_F(index, len);
         return data[index];
     }
 
-    const T& operator[](size_t index) const {
+    const T& operator[](size_t index) const noexcept {
         CHECK_LT_F(index, len);
         return data[index];
     }
 };
 
 #define AS_SLICE(arr) (four::Slice(ARRAY_SIZE((arr)), (arr)))
+
+template <class T>
+inline Slice<const T> c_slice(size_t len, const T* data) {
+    return Slice<const T>(len, data);
+}
 
 template <class T>
 inline void hash_combine(size_t& seed, const T& value) {
@@ -90,10 +95,16 @@ inline bool contains(const std::unordered_set<T>& set, const T& value) {
 }
 
 template <class T>
-inline bool contains(const Slice<T>& slice, const T& value) {
+inline bool contains(Slice<const T> slice, const T& value) {
     const T* begin = slice.data;
     const T* end = &slice.data[slice.len];
     return std::find(begin, end, value) != end;
+}
+
+template <class T>
+inline bool contains(Slice<T> slice, const T& value) {
+    Slice<const T> slice_(slice.len, slice.data);
+    return contains(slice_, value);
 }
 
 template <class K, class V, class Hash, class Equals>
