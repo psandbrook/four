@@ -13,11 +13,13 @@ inline f64 sq(f64 x) {
     return x * x;
 }
 
-union Vec5 {
-    struct {
-        f64 X, Y, Z, W, V;
+struct Vec5 {
+    CXX_EXTENSION union {
+        struct {
+            f64 X, Y, Z, W, V;
+        };
+        f64 elements[5];
     };
-    f64 elements[5];
 
     f64& operator[](size_t index) {
         return elements[index];
@@ -28,9 +30,11 @@ union Vec5 {
     }
 };
 
-union Mat3 {
-    hmm_vec3 columns[3];
-    f64 elements[3][3];
+struct Mat3 {
+    union {
+        hmm_vec3 columns[3];
+        f64 elements[3][3];
+    };
 
     hmm_vec3& operator[](size_t index) {
         return columns[index];
@@ -41,9 +45,11 @@ union Mat3 {
     }
 };
 
-union Mat5 {
-    Vec5 columns[5];
-    f64 elements[5][5];
+struct Mat5 {
+    union {
+        Vec5 columns[5];
+        f64 elements[5][5];
+    };
 
     Vec5& operator[](size_t index) {
         return columns[index];
@@ -398,11 +404,13 @@ inline hmm_mat4 to_mat4(const Rotor3& r) {
 // 4D Rotors
 // =========
 
-union Bivec4 {
-    struct {
-        f64 xy, xz, xw, yz, yw, zw;
+struct Bivec4 {
+    CXX_EXTENSION union {
+        struct {
+            f64 xy, xz, xw, yz, yw, zw;
+        };
+        f64 elements[6];
     };
-    f64 elements[6];
 
     f64& operator[](size_t index) {
         return elements[index];

@@ -60,7 +60,7 @@ struct Framebuffer {
     u32 id = 0;
     u32 width, height;
 
-    union {
+    CXX_EXTENSION union {
         struct {
             u32 color_rbo;
             u32 depth_rbo;

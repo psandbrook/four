@@ -10,6 +10,7 @@
 #include <loguru.hpp>
 
 #define ARRAY_SIZE(arr) (sizeof((arr)) / sizeof(*(arr)))
+#define CXX_EXTENSION __extension__
 
 namespace four {
 

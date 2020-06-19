@@ -11,12 +11,14 @@
 
 namespace four {
 
-union Edge {
-    struct {
-        u32 v0;
-        u32 v1;
+struct Edge {
+    CXX_EXTENSION union {
+        struct {
+            u32 v0;
+            u32 v1;
+        };
+        u32 vertices[2];
     };
-    u32 vertices[2];
 };
 
 using Face = std::vector<u32>;
