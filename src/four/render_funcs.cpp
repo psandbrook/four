@@ -287,31 +287,12 @@ bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
         search_next_vi:;
         }
 
-        CHECK_EQ_F(f.size(), this_mesh_f.size());
+        DCHECK_EQ_F(f.size(), this_mesh_f.size());
         s.tet_mesh_f.push_back(std::move(this_mesh_f));
     }
 
     hmm_mat4 temp_transform_inverse;
     {
-        const auto& v0 = s.tet_mesh_v[(size_t)s.tet_mesh_f[0][0]];
-        const auto& v1 = s.tet_mesh_v[(size_t)s.tet_mesh_f[0][1]];
-        const auto& v2 = s.tet_mesh_v[(size_t)s.tet_mesh_f[0][2]];
-        hmm_vec3 v0_ = HMM_Vec3(v0[0], v0[1], v0[2]);
-        hmm_vec3 v1_ = HMM_Vec3(v1[0], v1[1], v1[2]);
-        hmm_vec3 v2_ = HMM_Vec3(v2[0], v2[1], v2[2]);
-        hmm_vec3 l1 = v1_ - v0_;
-        hmm_vec3 n3d_normal = HMM_Normalize(HMM_Cross(l1, v2_ - v0_));
-
-        hmm_mat4 temp_look_at = HMM_LookAt(v0_, v0_ + n3d_normal, l1);
-        hmm_mat4 temp_look_at_inverse = look_at_inverse(v0_, v0_ + n3d_normal, l1);
-
-        for (auto& v : s.tet_mesh_v) {
-            hmm_vec3 v_ = transform(temp_look_at, HMM_Vec3(v[0], v[1], v[2]));
-            v[0] = v_.X;
-            v[1] = v_.Y;
-            v[2] = v_.Z;
-        }
-
         hmm_vec3 centroid = HMM_Vec3(0, 0, 0);
         for (const auto& v : s.tet_mesh_v) {
             centroid += HMM_Vec3(v[0], v[1], v[2]);
@@ -330,7 +311,7 @@ bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
             v[2] = v_.Z;
         }
 
-        temp_transform_inverse = temp_look_at_inverse * HMM_Translate(centroid);
+        temp_transform_inverse = HMM_Translate(centroid);
     }
 
 #ifdef FOUR_DEBUG
@@ -347,8 +328,8 @@ bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
     s.tet_out_v.clear();
     s.tet_out_t.clear();
     s.tet_out_f.clear();
-    int result = igl::copyleft::tetgen::tetrahedralize(s.tet_mesh_v, s.tet_mesh_f, "pq1.2/18YQ", s.tet_out_v,
-                                                       s.tet_out_t, s.tet_out_f);
+    int result = igl::copyleft::tetgen::tetrahedralize(s.tet_mesh_v, s.tet_mesh_f, "pYQ", s.tet_out_v, s.tet_out_t,
+                                                       s.tet_out_f);
     fflush(stdout);
     fflush(stderr);
     if (result != 0) {
@@ -360,14 +341,14 @@ bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
     for (size_t i = 0; i < s.tet_out_v.size(); i++) {
         s.tet_out_vertex_i_mapping.emplace(i, out_vertices.size());
         const auto& v = s.tet_out_v[i];
-        CHECK_EQ_F(v.size(), 3u);
+        DCHECK_EQ_F(v.size(), 3u);
         hmm_vec3 v_ = HMM_Vec3(v[0], v[1], v[2]);
         v_ = transform(temp_transform_inverse, v_);
         out_vertices.push_back(transform(to_3d_trans_inverse, vec4(v_, 0)));
     }
 
     for (const auto& tet : s.tet_out_t) {
-        CHECK_EQ_F(tet.size(), 4u);
+        DCHECK_EQ_F(tet.size(), 4u);
         for (s32 i : tet) {
             out_tets.push_back(s.tet_out_vertex_i_mapping.at((u32)i));
         }

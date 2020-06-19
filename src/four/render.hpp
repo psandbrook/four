@@ -33,7 +33,7 @@ public:
 
 struct VertexBufferObject : public gl_buffer_base::GlBuffer {
     VertexBufferObject() {}
-    VertexBufferObject(GLenum usage) : GlBuffer(GL_ARRAY_BUFFER, usage) {}
+    explicit VertexBufferObject(GLenum usage) : GlBuffer(GL_ARRAY_BUFFER, usage) {}
 };
 
 struct ElementBufferObject : public gl_buffer_base::GlBuffer {
@@ -60,8 +60,13 @@ struct Framebuffer {
     u32 id = 0;
     u32 width, height;
 
-    u32 color_rbo = 0;
-    u32 depth_rbo = 0;
+    union {
+        struct {
+            u32 color_rbo;
+            u32 depth_rbo;
+        };
+        u32 rbos[2] = {};
+    };
 
     Framebuffer() {}
     Framebuffer(u32 width, u32 height);

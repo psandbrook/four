@@ -166,7 +166,7 @@ Framebuffer::Framebuffer(u32 width, u32 height) : width(width), height(height) {
 
     const u32 samples = 8;
 
-    glGenRenderbuffers(2, &color_rbo);
+    glGenRenderbuffers(2, rbos);
     glBindRenderbuffer(GL_RENDERBUFFER, color_rbo);
     glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_RGB, width, height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color_rbo);
@@ -215,10 +215,8 @@ Framebuffer::Framebuffer(u32 width, u32 height) : width(width), height(height) {
 
 void Framebuffer::destroy() {
     glDeleteFramebuffers(1, &id);
-    glDeleteRenderbuffers(2, &color_rbo);
-    id = 0;
-    color_rbo = 0;
-    depth_rbo = 0;
+    glDeleteRenderbuffers(2, rbos);
+    *this = Framebuffer();
 }
 
 void Framebuffer::bind() {
@@ -443,7 +441,7 @@ void Renderer::do_mesh_changed() {
         const Cell& cell = s.mesh.cells[(size_t)i];
         out_tets.clear();
 
-        CHECK_GE_F(cell.size(), 4u);
+        DCHECK_GE_F(cell.size(), 4u);
         if (cell.size() == 4) {
             // The cell is already a tetrahedron
 
@@ -466,10 +464,10 @@ void Renderer::do_mesh_changed() {
             LOG_F(1, "Tetrahedralizing cell %li with %lu faces", i, cell.size());
             bool success = render_funcs.tetrahedralize(s.mesh.vertices, s.mesh.edges, s.mesh.faces, cell,
                                                        tet_mesh_vertices, out_tets);
-            CHECK_F(success);
+            DCHECK_F(success);
         }
 
-        CHECK_EQ_F((s64)out_tets.size() % 4, 0);
+        DCHECK_EQ_F((s64)out_tets.size() % 4, 0);
         f32 color[3] = {color_dist(s.random_eng_32), color_dist(s.random_eng_32), color_dist(s.random_eng_32)};
         for (size_t tet_i = 0; tet_i < out_tets.size() / 4; tet_i++) {
             Tet tet;
@@ -487,8 +485,6 @@ void Renderer::do_mesh_changed() {
 void Renderer::calculate_cross_section() {
     auto& s = *state;
 
-    const f64 epsilon = 0.0000001;
-
     const hmm_vec4 p_0 = HMM_Vec4(0, 0, 0, 0);
     const hmm_vec4 n = HMM_Vec4(0, 0, 0, 1);
 
@@ -503,7 +499,9 @@ redo_cross_section:
         tet_mesh_vertices_world.push_back(transform(model, v));
     }
 
-    for (const Tet& tet : tet_mesh_tets) {
+    for (s64 tet_i = 0; tet_i < (s64)tet_mesh_tets.size(); tet_i++) {
+        const Tet& tet = tet_mesh_tets[(size_t)tet_i];
+
         // clang-format off
         Edge edges[6] = {
             {tet.vertices[0], tet.vertices[1]},
@@ -521,59 +519,49 @@ redo_cross_section:
             const Edge& e = edges[i];
             hmm_vec4 l_0 = tet_mesh_vertices_world[e.v0];
             hmm_vec4 l = tet_mesh_vertices_world[e.v1] - l_0;
-            if (!float_eq(HMM_Dot(l, n), 0.0, DBL_EPSILON)) {
+
+            if (!float_eq(HMM_Dot(l, n), 0.0)) {
                 f64 d = HMM_Dot(p_0 - l_0, n) / HMM_Dot(l, n);
-                if ((d > 0.0 && d < 1.0) || float_eq(d, 0.0, epsilon) || float_eq(d, 1.0, epsilon)) {
+
+                if ((d >= 0.0 && d <= 1.0) || float_eq(d, 0.0) || float_eq(d, 1.0)) {
                     // Edge intersects with hyperplane at a point
                     hmm_vec4 point = d * l + l_0;
                     DCHECK_F(float_eq(point.W, 0.0));
-                    intersect.push_back(vec3(point));
-                }
-            }
-        }
 
-        BoundedVector<hmm_vec3, 6> merged_intersect;
-
-        {
-            f64 merge_epsilon = epsilon;
-            for (s32 i = 0; i < (s32)intersect.len; i++) {
-                const auto& v = intersect[(size_t)i];
-                bool unique = true;
-                for (s32 j = 0; j < (s32)intersect.len; j++) {
-                    if (i != j) {
-                        const auto& u = intersect[(size_t)j];
-                        if (float_eq(v.X, u.X, merge_epsilon) && float_eq(v.Y, u.Y, merge_epsilon)
-                            && float_eq(v.Z, u.Z, merge_epsilon)) {
-
+                    hmm_vec3 point3 = vec3(point);
+                    bool unique = true;
+                    for (const auto& v : intersect) {
+                        if (float_eq(point3.X, v.X) && float_eq(point3.Y, v.Y) && float_eq(point3.Z, v.Z)) {
                             unique = false;
                             break;
                         }
                     }
-                }
 
-                if (unique) {
-                    if (merged_intersect.len >= 4) {
-                        // Redo merging with a greater epsilon
-                        merge_epsilon *= 10.0;
-                        merged_intersect.len = 0;
-                        i = -1;
-                        continue;
-                    } else {
-                        merged_intersect.push_back(v);
+                    if (unique) {
+                        intersect.push_back(point3);
                     }
                 }
+
+            } else if (float_eq(HMM_Dot(p_0 - l_0, n), 0.0)) {
+                // Edge is within hyperplane
+
+                // Because of floating point error, we don't try to render
+                // this case. Instead, we bump the mesh's w position and
+                // hope for points of intersection instead.
+                s.bump_mesh_pos_w();
+                goto redo_cross_section;
             }
         }
 
-        CHECK_LE_F(merged_intersect.len, 4u);
+        DCHECK_LE_F(intersect.len, 4u);
 
-        if (merged_intersect.len == 3) {
+        if (intersect.len == 3) {
             // Intersection is a triangle
 
             for (s32 i = 0; i < 3; i++) {
                 DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
                 cross_tris.push_back((u32)(cross_vertices.size() / 3));
-                for (f64 e : merged_intersect[(size_t)i].Elements) {
+                for (f64 e : intersect[(size_t)i].Elements) {
                     cross_vertices.push_back((f32)e);
                 }
                 for (f32 e : tet.color) {
@@ -581,19 +569,19 @@ redo_cross_section:
                 }
             }
 
-        } else if (merged_intersect.len == 4) {
+        } else if (intersect.len == 4) {
             // Intersection is a quadrilateral
 
-            hmm_vec3 p0 = merged_intersect[0];
-            hmm_vec3 p1 = merged_intersect[1];
-            hmm_vec3 p2 = merged_intersect[2];
-            hmm_vec3 p3 = merged_intersect[3];
+            hmm_vec3 p0 = intersect[0];
+            hmm_vec3 p1 = intersect[1];
+            hmm_vec3 p2 = intersect[2];
+            hmm_vec3 p3 = intersect[3];
             u32 v_mapping[4];
 
             for (s32 i = 0; i < 4; i++) {
                 DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
                 v_mapping[i] = (u32)(cross_vertices.size() / 3);
-                for (f64 e : merged_intersect[(size_t)i].Elements) {
+                for (f64 e : intersect[(size_t)i].Elements) {
                     cross_vertices.push_back((f32)e);
                 }
                 for (f32 e : tet.color) {
@@ -606,9 +594,9 @@ redo_cross_section:
             hmm_vec3 l2 = p3 - p0;
             DCHECK_F(float_eq(HMM_Dot(HMM_Cross(l0, l1), l2), 0.0));
 
-            f64 sum0 = HMM_LengthSquared(p1 - p0) + HMM_LengthSquared(p3 - p2);
-            f64 sum1 = HMM_LengthSquared(p2 - p0) + HMM_LengthSquared(p3 - p1);
-            f64 sum2 = HMM_LengthSquared(p3 - p0) + HMM_LengthSquared(p2 - p1);
+            f64 sum0 = HMM_Length(p1 - p0) + HMM_Length(p3 - p2);
+            f64 sum1 = HMM_Length(p2 - p0) + HMM_Length(p3 - p1);
+            f64 sum2 = HMM_Length(p3 - p0) + HMM_Length(p2 - p1);
             u32 tris[6];
             if (sum0 > sum1 && sum0 > sum2) {
                 // p0 p1 is a diagonal
@@ -641,23 +629,6 @@ redo_cross_section:
 
             for (u32 e : tris) {
                 cross_tris.push_back(v_mapping[e]);
-            }
-
-        } else {
-            // Less than 3 intersections
-            for (s32 i = 0; i < 6; i++) {
-                const Edge& e = edges[i];
-                hmm_vec4 l_0 = tet_mesh_vertices_world[e.v0];
-                hmm_vec4 l = tet_mesh_vertices_world[e.v1] - l_0;
-                if (float_eq(HMM_Dot(l, n), 0.0, epsilon) && float_eq(HMM_Dot(p_0 - l_0, n), 0.0, epsilon)) {
-                    // Edge is within hyperplane
-
-                    // Because of floating point error, we don't try to render
-                    // this case. Instead, we bump the mesh's w position and
-                    // hope for points of intersection instead.
-                    s.bump_mesh_pos_w();
-                    goto redo_cross_section;
-                }
             }
         }
     }
@@ -699,7 +670,7 @@ void Renderer::render() {
         xz_grid.draw();
 
         calculate_cross_section();
-        CHECK_EQ_F(cross_vertices.size(), cross_colors.size());
+        DCHECK_EQ_F(cross_vertices.size(), cross_colors.size());
         cross_section.get_vbo(0).buffer_data(cross_vertices.data(), cross_vertices.size() * sizeof(f32));
         cross_section.get_vbo(1).buffer_data(cross_colors.data(), cross_colors.size() * sizeof(f32));
         cross_section.ebo.buffer_elements(cross_tris.data(), (s32)cross_tris.size());

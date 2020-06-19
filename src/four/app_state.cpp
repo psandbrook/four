@@ -79,7 +79,8 @@ void AppState::change_mesh(const char* path) {
     if (mesh_rotation.is_rotor) {
         mesh_rotation.rotor = rotor4();
     } else {
-        mesh_rotation.euler = (Bivec4){};
+        Bivec4 rot = {};
+        mesh_rotation.euler = rot;
     }
 
     selected_cell = 0;
@@ -470,10 +471,6 @@ bool AppState::process_events_and_imgui() {
 
     apply_new_transformation(prev_new_mesh_pos, prev_new_mesh_scale, prev_new_mesh_rotation, prev_new_camera4);
 
-    if (float_eq(std::round(mesh_pos.W), mesh_pos.W)) {
-        bump_mesh_pos_w();
-    }
-
     return false;
 }
 
@@ -510,22 +507,9 @@ void AppState::step(const f64 ms) {
 
 void AppState::bump_mesh_pos_w() {
     const f64 mag = 0.0000001;
-
-    // We bump towards zero because we assume that the hyperplane used for
-    // cross-section visualization is at w = 0.
-    if (mesh_pos.W <= 0.001) {
-        mesh_pos.W += mag;
-    } else {
-        mesh_pos.W -= mag;
-    }
-
-    if (new_mesh_pos.W <= 0.001) {
-        new_mesh_pos.W += mag;
-    } else {
-        new_mesh_pos.W -= mag;
-    }
-
-    LOG_F(WARNING, "New mesh w: %.16f", mesh_pos.W);
+    mesh_pos.W += mag;
+    new_mesh_pos.W += mag;
+    LOG_F(WARNING, "New mesh w: %+.16f", mesh_pos.W);
 }
 
 Mat5 mk_model_mat(const hmm_vec4& pos, const hmm_vec4& v_scale, const Rotation4& rotation) {
