@@ -76,6 +76,23 @@ struct VertexArrayObject {
     void draw();
 };
 
+struct RenderFuncs {
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl;
+
+public:
+    RenderFuncs();
+    ~RenderFuncs();
+
+    void triangulate(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
+                     std::vector<u32>& out);
+
+    void tetrahedralize(const std::vector<hmm_vec4>& vertices, const std::vector<Edge>& edges,
+                        const std::vector<Face>& faces, const Cell& cell, std::vector<hmm_vec4>& out_vertices,
+                        std::vector<u32>& out_tets);
+};
+
 struct Renderer {
 private:
     SDL_Window* window;
@@ -106,18 +123,7 @@ private:
     std::vector<f32> projected_vertices_f32;
     std::vector<u32> selected_cell_tri_faces;
 
-    struct TriangulateFn {
-    private:
-        struct Impl;
-        std::unique_ptr<Impl> impl;
-
-    public:
-        TriangulateFn();
-        ~TriangulateFn();
-
-        void operator()(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
-                        std::vector<u32>& out);
-    } triangulate;
+    RenderFuncs render_funcs;
 
     // ------------------------------------------------
 

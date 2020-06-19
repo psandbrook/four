@@ -303,6 +303,11 @@ void Renderer::render() {
         update_mesh_buffers();
     }
 
+    std::vector<hmm_vec4> tet_out_vertices;
+    std::vector<u32> tet_out_tets;
+    render_funcs.tetrahedralize(s.mesh.vertices, s.mesh.edges, s.mesh.faces, s.mesh.cells[0], tet_out_vertices,
+                                tet_out_tets);
+
     // Perform 4D to 3D projection
     {
         projected_vertices.clear();
@@ -322,7 +327,7 @@ void Renderer::render() {
     selected_cell_tri_faces.clear();
     for (u32 face_i : s.mesh.cells[(size_t)s.selected_cell]) {
         const auto& face = s.mesh.faces[face_i];
-        triangulate(projected_vertices3, s.mesh.edges, face, selected_cell_tri_faces);
+        render_funcs.triangulate(projected_vertices3, s.mesh.edges, face, selected_cell_tri_faces);
     }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

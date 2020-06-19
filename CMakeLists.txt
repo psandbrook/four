@@ -18,7 +18,7 @@ set(SOURCES
   four/mesh.cpp
   four/render.cpp
   four/app_state.cpp
-  four/triangulate.cpp
+  four/render_funcs.cpp
 )
 
 # Add prefix
@@ -46,6 +46,7 @@ include_directories(SYSTEM
   depends/loguru
   depends/tinyxml2
   depends/imgui
+  depends/tetgen
 )
 
 set(CXX_FLAGS_COMMON
@@ -126,9 +127,13 @@ target_compile_options(imgui PRIVATE -w -fno-lto)
 add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
 target_link_libraries(imgui SDL2::SDL2)
 
+add_library(tetgen STATIC depends/tetgen/predicates.cxx depends/tetgen/tetgen.cxx)
+target_compile_options(tetgen PRIVATE -w)
+add_compile_definitions(TETLIBRARY)
+
 # ============
 
-target_link_libraries(four rt dl m pthread SDL2::SDL2 glad triangle loguru tinyxml2 imgui)
+target_link_libraries(four rt dl m pthread SDL2::SDL2 glad triangle loguru tinyxml2 imgui tetgen)
 
 set_property(TARGET four PROPERTY COTIRE_PREFIX_HEADER_INCLUDE_PATH ${CMAKE_SOURCE_DIR}/depends)
 set_property(TARGET four PROPERTY COTIRE_PREFIX_HEADER_IGNORE_PATH

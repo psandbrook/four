@@ -78,6 +78,10 @@ inline hmm_vec4 vec4(f64 x, f64 y, f64 z, f64 w) {
     return result;
 }
 
+inline hmm_vec4 vec4(const hmm_vec3& vec, f64 v) {
+    return vec4(vec.X, vec.Y, vec.Z, v);
+}
+
 inline hmm_vec4 vec4(const Vec5& v) {
     hmm_vec4 result = {};
     result.X = v.X;
@@ -220,6 +224,16 @@ inline Mat5 look_at(const hmm_vec4& eye, const hmm_vec4& target, const hmm_vec4&
     Mat5 m_r = mat5(vec5(l.X, u.X, o.X, f.X, 0), vec5(l.Y, u.Y, o.Y, f.Y, 0), vec5(l.Z, u.Z, o.Z, f.Z, 0),
                     vec5(l.W, u.W, o.W, f.W, 0), vec5(0, 0, 0, 0, 1));
     return m_r * m_t;
+}
+
+inline Mat5 look_at_inverse(const hmm_vec4& eye, const hmm_vec4& target, const hmm_vec4& up, const hmm_vec4& over) {
+    Mat5 m_t = translate(eye);
+    hmm_vec4 f = HMM_Normalize(eye - target);
+    hmm_vec4 l = HMM_Normalize(cross(up, over, f));
+    hmm_vec4 u = HMM_Normalize(cross(over, f, l));
+    hmm_vec4 o = cross(f, l, u);
+    Mat5 m_r = mat5(vec5(l, 0), vec5(u, 0), vec5(o, 0), vec5(f, 0), vec5(0, 0, 0, 0, 1));
+    return m_t * m_r;
 }
 
 inline hmm_vec4 project_orthographic(const Vec5& v, f64 near) {
