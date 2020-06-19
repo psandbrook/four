@@ -43,29 +43,35 @@ void RenderFuncs::triangulate(const std::vector<hmm_vec3>& vertices, const std::
 
     // Calculate normal vector
 
-    const auto& edge0 = edges[face[0]];
-    hmm_vec3 v0 = vertices[edge0.v0];
-    hmm_vec3 l0 = v0 - vertices[edge0.v1];
+    u32 edge0_i = face[0];
+    const Edge& edge0 = edges[edge0_i];
+    u32 v0_i = edge0.v0;
+    hmm_vec3 v0 = vertices[v0_i];
 
     hmm_vec3 normal;
+    {
+        hmm_vec3 other_edge;
+        for (u32 e_i : face) {
+            if (e_i == edge0_i) {
+                continue;
+            }
 
-    // FIXME: Change this to search for edges of v0 (like tetrahedralize())
-    for (size_t i = 0; i < face.size(); i++) {
-        const auto& edge = edges[face[i]];
-        hmm_vec3 l1 = vertices[edge.v0] - vertices[edge.v1];
-        normal = HMM_Cross(l0, l1);
-        if (float_eq(normal.X, 0.0) && float_eq(normal.Y, 0.0) && float_eq(normal.Z, 0.0)) {
-            // `normal` is the zero vector
-
-            // Fail if there are no more edges---this means the face has
-            // no surface area
-            CHECK_LT_F(i, face.size() - 1);
-        } else {
-            break;
+            const Edge& e = edges[e_i];
+            if (e.v0 == v0_i || e.v1 == v0_i) {
+                u32 other_vi = e.v0 == v0_i ? e.v1 : e.v0;
+                other_edge = vertices[other_vi] - v0;
+                goto find_v0_edges_end;
+            }
         }
+        ABORT_F("Could not find normal vector");
+    find_v0_edges_end:
+        normal = HMM_Normalize(HMM_Cross(vertices[edge0.v1] - v0, other_edge));
     }
 
-    normal = HMM_Normalize(normal);
+    if (float_eq(normal.X, 0.0) && float_eq(normal.Y, 0.0) && float_eq(normal.Z, 0.0)) {
+        // Don't triangulate if the normal vector is the zero vector.
+        return;
+    }
 
     // Calculate transformation to 2D
 
@@ -86,9 +92,20 @@ void RenderFuncs::triangulate(const std::vector<hmm_vec3>& vertices, const std::
         const auto& e = edges[edge_i];
         for (u32 v_i : e.vertices) {
             if (s.face2_vertex_i_mapping.left.find(v_i) == s.face2_vertex_i_mapping.left.end()) {
+
+                hmm_vec3 v = vertices[v_i];
+                for (const auto& entry : s.face2_vertex_i_mapping.left) {
+                    hmm_vec3 u = vertices[entry.first];
+                    if (float_eq(v.X, u.X) && float_eq(v.Y, u.Y) && float_eq(v.Z, u.Z)) {
+                        // Don't triangulate if there are duplicate vertices.
+                        return;
+                    }
+                }
+
                 s.face2_vertex_i_mapping.left.insert(
                         VertexIMapping::left_value_type(v_i, (u32)s.face2_vertices.size()));
-                hmm_vec3 v_ = transform(to_2d_trans, vertices[v_i]);
+
+                hmm_vec3 v_ = transform(to_2d_trans, v);
                 DCHECK_F(float_eq(v_.Z, 0.0));
                 s.face2_vertices.push_back(vec2(v_));
             }

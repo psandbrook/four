@@ -91,6 +91,7 @@ public:
     bool auto_rotate[Plane_count];
     f64 auto_rotate_mag[Plane_count];
 
+    bool perspective_projection = true;
     Camera4 camera4;
 
     hmm_vec3 camera_pos = {-1.5, 2, 3.5};
@@ -101,6 +102,7 @@ private:
     hmm_vec4 new_mesh_pos;
     hmm_vec4 new_mesh_scale;
     Rotation4 new_mesh_rotation;
+    Camera4 new_camera4;
 
     bool dragging_ui = false;
     bool dragging_divider = false;
@@ -130,6 +132,8 @@ private:
     void change_mesh(const char* path);
     bool is_mouse_around_x(f64 x);
     bool is_new_transformation_valid();
+    void apply_new_transformation(const hmm_vec4& prev_pos, const hmm_vec4& prev_scale, const Rotation4& prev_rotation,
+                                  const Camera4& prev_camera4);
     void calc_ui_size_screen();
 };
 

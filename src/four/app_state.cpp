@@ -90,6 +90,9 @@ void AppState::change_mesh(const char* path) {
     new_mesh_scale = mesh_scale;
     new_mesh_rotation = mesh_rotation;
 
+    camera4 = Camera4();
+    new_camera4 = camera4;
+
     for (auto& e : auto_rotate) {
         e = false;
     }
@@ -103,18 +106,34 @@ void AppState::change_mesh(const char* path) {
 
 bool AppState::is_new_transformation_valid() {
     Mat5 model = mk_model_mat(new_mesh_pos, new_mesh_scale, new_mesh_rotation);
-    Mat5 mv = mk_model_view_mat(model, camera4);
+    Mat5 mv = mk_model_view_mat(model, new_camera4);
 
-    bool valid = true;
     for (const auto& v : mesh.vertices) {
         Vec5 view_v = mv * vec5(v, 1);
         if (view_v.W > -camera4.near) {
-            valid = false;
-            break;
+            return false;
         }
     }
 
-    return valid;
+    return true;
+}
+
+void AppState::apply_new_transformation(const hmm_vec4& prev_pos, const hmm_vec4& prev_scale,
+                                        const Rotation4& prev_rotation, const Camera4& prev_camera4) {
+
+    if (!is_new_transformation_valid()) {
+        new_mesh_pos = prev_pos;
+        new_mesh_scale = prev_scale;
+        new_mesh_rotation = prev_rotation;
+        new_camera4 = prev_camera4;
+    }
+
+    if (!imgui_io->WantTextInput) {
+        mesh_pos = new_mesh_pos;
+        mesh_scale = new_mesh_scale;
+        mesh_rotation = new_mesh_rotation;
+        camera4 = new_camera4;
+    }
 }
 
 void AppState::calc_ui_size_screen() {
@@ -271,6 +290,7 @@ bool AppState::process_events_and_imgui() {
     hmm_vec4 prev_new_mesh_pos = new_mesh_pos;
     hmm_vec4 prev_new_mesh_scale = new_mesh_scale;
     Rotation4 prev_new_mesh_rotation = new_mesh_rotation;
+    Camera4 prev_new_camera4 = new_camera4;
 
     ImGui::BeginChild("ui_left", ImVec2(ImGui::GetContentRegionAvailWidth() * 0.57f, 0), true, window_flags);
 
@@ -282,6 +302,19 @@ bool AppState::process_events_and_imgui() {
     {
         const f32 speed = 0.01f;
         const auto fmt = "%.3f";
+
+        {
+            ImGui::Text("4D Camera");
+            const char* label = perspective_projection ? "Perspective###projection" : "Orthographic###projection";
+            if (ImGui::Button(label, ImVec2(ImGui::GetContentRegionAvailWidth(), 0))) {
+                perspective_projection = !perspective_projection;
+            }
+
+            imgui_drag_f64("w##camera", &new_camera4.pos.W, speed, fmt);
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
 
         ImGui::Text("Translate");
         imgui_drag_f64("x##t", &new_mesh_pos.X, speed, fmt);
@@ -295,8 +328,7 @@ bool AppState::process_events_and_imgui() {
         {
             ImGui::Text("Scale");
 
-            auto button_size = ImVec2(ImGui::GetContentRegionAvailWidth(), 0);
-            ImGui::Button("xyzw", button_size);
+            ImGui::Button("xyzw##s", ImVec2(ImGui::GetContentRegionAvailWidth(), 0));
             if (ImGui::IsItemActive()) {
                 f64 scale_magnitude = (std::abs(mesh_scale.X) + std::abs(mesh_scale.Y) + std::abs(mesh_scale.Z)
                                        + std::abs(mesh_scale.W))
@@ -436,17 +468,7 @@ bool AppState::process_events_and_imgui() {
     ImGui::End();
     ImGui::EndFrame();
 
-    if (!is_new_transformation_valid()) {
-        new_mesh_pos = prev_new_mesh_pos;
-        new_mesh_scale = prev_new_mesh_scale;
-        new_mesh_rotation = prev_new_mesh_rotation;
-    }
-
-    if (!imgui_io->WantTextInput) {
-        mesh_pos = new_mesh_pos;
-        mesh_scale = new_mesh_scale;
-        mesh_rotation = new_mesh_rotation;
-    }
+    apply_new_transformation(prev_new_mesh_pos, prev_new_mesh_scale, prev_new_mesh_rotation, prev_new_camera4);
 
     if (float_eq(std::round(mesh_pos.W), mesh_pos.W)) {
         bump_mesh_pos_w();
@@ -473,6 +495,7 @@ void AppState::step(const f64 ms) {
     hmm_vec4 prev_new_mesh_pos = new_mesh_pos;
     hmm_vec4 prev_new_mesh_scale = new_mesh_scale;
     Rotation4 prev_new_mesh_rotation = new_mesh_rotation;
+    Camera4 prev_new_camera4 = new_camera4;
 
     if (!imgui_io->WantTextInput) {
         for (s32 i = 0; i < Plane_count; i++) {
@@ -482,17 +505,7 @@ void AppState::step(const f64 ms) {
         }
     }
 
-    if (!is_new_transformation_valid()) {
-        new_mesh_pos = prev_new_mesh_pos;
-        new_mesh_scale = prev_new_mesh_scale;
-        new_mesh_rotation = prev_new_mesh_rotation;
-    }
-
-    if (!imgui_io->WantTextInput) {
-        mesh_pos = new_mesh_pos;
-        mesh_scale = new_mesh_scale;
-        mesh_rotation = new_mesh_rotation;
-    }
+    apply_new_transformation(prev_new_mesh_pos, prev_new_mesh_scale, prev_new_mesh_rotation, prev_new_camera4);
 }
 
 void AppState::bump_mesh_pos_w() {

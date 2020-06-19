@@ -252,7 +252,7 @@ inline Mat5 look_at_inverse(const hmm_vec4& eye, const hmm_vec4& target, const h
 inline hmm_vec4 project_orthographic(const Vec5& v, f64 near) {
     DCHECK_GT_F(near, 0.0);
     DCHECK_LE_F(v.W, -near);
-    return vec4(v.X, v.Y, v.Z, v.W + near);
+    return vec4(v.X, v.Y, v.Z, std::abs(v.W - (-near)));
 }
 
 inline hmm_vec4 project_perspective(const Vec5& v, f64 near) {

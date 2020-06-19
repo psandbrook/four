@@ -733,7 +733,14 @@ void Renderer::render() {
         Mat5 mv = mk_model_view_mat(model, s.camera4);
         for (const hmm_vec4& v : s.mesh.vertices) {
             Vec5 view_v = mv * vec5(v, 1);
-            hmm_vec4 v_ = project_perspective(view_v, s.camera4.near);
+
+            hmm_vec4 v_;
+            if (s.perspective_projection) {
+                v_ = project_perspective(view_v, s.camera4.near);
+            } else {
+                v_ = project_orthographic(view_v, s.camera4.near);
+            }
+
             projected_vertices.push_back(v_);
             projected_vertices3.push_back(vec3(v_));
         }
