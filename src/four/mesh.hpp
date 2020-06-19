@@ -7,7 +7,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <unordered_set>
 #include <vector>
 
 namespace four {
@@ -17,9 +16,8 @@ struct Edge {
     uint32_t v2;
 };
 
-// TODO: `std::set` or `std::unordered_set`?
-using Face = std::unordered_set<uint32_t>;
-using Cell = std::unordered_set<uint32_t>;
+using Face = std::vector<uint32_t>;
+using Cell = std::vector<uint32_t>;
 
 struct Mesh4 {
     std::vector<hmm_vec4> vertices;
@@ -29,10 +27,15 @@ struct Mesh4 {
 };
 
 struct FaceHash {
-    size_t operator()(const std::unordered_set<uint32_t>& x) const;
+    size_t operator()(const std::vector<uint32_t>& x) const;
+};
+
+struct FaceEquals {
+    bool operator()(const std::vector<uint32_t>& lhs, const std::vector<uint32_t>& rhs) const;
 };
 
 using CellHash = FaceHash;
+using CellEquals = FaceEquals;
 
 bool operator==(const Edge& lhs, const Edge& rhs);
 
