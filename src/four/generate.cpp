@@ -4,7 +4,6 @@
 
 #include <loguru.hpp>
 
-#include <assert.h>
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
@@ -279,7 +278,7 @@ Mesh4 generate_mesh4(const glm::dvec4* vertices, const u32 n_vertices, const f64
             }
         }
 
-        assert(vertex_edge_indices.size() == mesh.vertices.size() * vertex_edge_n);
+        CHECK_EQ_F(vertex_edge_indices.size(), mesh.vertices.size() * vertex_edge_n);
 
         std::unordered_map<u32, s32> vertices_count;
         const auto face_is_valid = [&](const std::unordered_set<u32>& face) -> bool {
@@ -314,7 +313,7 @@ Mesh4 generate_mesh4(const glm::dvec4* vertices, const u32 n_vertices, const f64
         // Recursive lambda definition
         std::function<void(u32)> fill_face_set;
         fill_face_set = [&](u32 vertex_i) {
-            assert(edge_path.size() <= (size_t)edges_per_face);
+            CHECK_LE_F(edge_path.size(), (size_t)edges_per_face);
 
             if (edge_path.size() == (size_t)edges_per_face) {
                 if (face_is_valid(edge_path)) {
@@ -335,7 +334,7 @@ Mesh4 generate_mesh4(const glm::dvec4* vertices, const u32 n_vertices, const f64
         };
 
         for (u32 i = 0; i < mesh.vertices.size(); i++) {
-            assert(edge_path.size() == 0);
+            CHECK_EQ_F(edge_path.size(), (size_t)0);
             fill_face_set(i);
         }
 
@@ -379,7 +378,7 @@ Mesh4 generate_mesh4(const glm::dvec4* vertices, const u32 n_vertices, const f64
             }
         }
 
-        assert(adjacent_faces.size() == mesh.faces.size() * adjacent_faces_n);
+        CHECK_EQ_F(adjacent_faces.size(), mesh.faces.size() * adjacent_faces_n);
 
         // Collect vertex indices of all faces
         std::vector<u32> face_vertex_indices;
