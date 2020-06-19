@@ -2,12 +2,16 @@
 
 #include <HandmadeMath.h>
 
+#include <assert.h>
 #include <stdlib.h>
 
 namespace four {
 
-struct Vec5 {
+union Vec5 {
     float elements[5];
+    struct {
+        float X, Y, Z, W, V;
+    };
 
     float& operator[](size_t index) {
         return elements[index];
@@ -31,6 +35,14 @@ union Mat5 {
         return columns[index];
     }
 };
+
+inline Vec5 operator*(Vec5 v, float x) {
+    return {v.X * x, v.Y * x, v.Z * x, v.W * x};
+}
+
+inline Vec5 operator*(float x, Vec5 v) {
+    return v * x;
+}
 
 inline Vec5 operator*(Mat5 m, Vec5 v) {
     // Code adapted from HandmadeMath.h.
@@ -132,5 +144,19 @@ inline Mat5 look_at(hmm_vec4 eye, hmm_vec4 target, hmm_vec4 up, hmm_vec4 over) {
     Mat5 m_r = mat5({l.X, u.X, o.X, f.X, 0}, {l.Y, u.Y, o.Y, f.Y, 0}, {l.Z, u.Z, o.Z, f.Z, 0}, {l.W, u.W, o.W, f.W, 0},
                     {0, 0, 0, 0, 1});
     return m_r * m_t;
+}
+
+inline hmm_vec4 project_orthographic(Vec5 v, float near) {
+    assert(near > 0.0f);
+    assert(v.W <= -near);
+    return {v.X, v.Y, v.Z, -v.W - near};
+}
+
+inline hmm_vec4 project_perspective(Vec5 v, float near) {
+    assert(near > 0.0f);
+    assert(v.W <= -near);
+    float d = near / -v.W;
+    hmm_vec4 v_4 = vec4(v);
+    return {d * v.X, d * v.Y, d * v.Z, HMM_Length(v_4 - d * v_4)};
 }
 } // namespace four

@@ -134,8 +134,8 @@ int main() {
 
     glUseProgram(shader_prog);
 
-    Mesh4 mesh = generate_5cell();
-    hmm_vec4 mesh_pos = {0, 0, 0, 0};
+    Mesh4 mesh = generate_tesseract();
+    hmm_vec4 mesh_pos = {0, 0, 0, 2};
     printf("%lu %lu %lu %lu\n", mesh.vertices.size(), mesh.edges.size(), mesh.faces.size(), mesh.cells.size());
 
     uint32_t vao;
@@ -160,12 +160,10 @@ int main() {
 
     int vp_location = glGetUniformLocation(shader_prog, "vp");
 
-    hmm_vec4 camera4_pos = {4, 4, 4, 4};
-    hmm_vec4 camera4_target = {0, 0, 0, 0};
+    hmm_vec4 camera4_pos = {0, 0, 0, 0};
+    hmm_vec4 camera4_target = {0, 0, 0, 1};
     hmm_vec4 camera4_up = {0, 1, 0, 0};
     hmm_vec4 camera4_over = {0, 0, 1, 0};
-
-    Mat5 projection4 = mat5({1, 0, 0, 0, 0}, {0, 1, 0, 0, 0}, {0, 0, 1, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 1});
 
     hmm_vec3 camera_pos = {0, 0, 4};
     hmm_vec3 camera_target = {0, 0, 0};
@@ -359,9 +357,9 @@ int main() {
             projected_vertices.clear();
             Mat5 model = translate(mesh_pos);
             Mat5 view = look_at(camera4_pos, camera4_target, camera4_up, camera4_over);
-            Mat5 mvp = projection4 * view * model;
+            Mat5 mv = view * model;
             for (const hmm_vec4& v : mesh.vertices) {
-                hmm_vec3 v_ = vec3(vec4(mvp * vec5(v, 1)));
+                hmm_vec3 v_ = vec3(project_perspective(mv * vec5(v, 1), 1.0f));
                 projected_vertices.push_back(v_);
             }
             assert(mesh.vertices.size() == projected_vertices.size());
