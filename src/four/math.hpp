@@ -20,10 +20,6 @@ static_assert(sizeof(glm::dvec4) == sizeof(f64) * 4);
 static_assert(sizeof(glm::dmat3) == sizeof(f64) * 3 * 3);
 static_assert(sizeof(glm::dmat4) == sizeof(f64) * 4 * 4);
 
-inline f64 sq(f64 x) {
-    return x * x;
-}
-
 struct Vec5 {
     CXX_EXTENSION union {
         struct {
@@ -64,6 +60,20 @@ struct Mat5 {
         return columns[index];
     }
 };
+
+template <>
+inline std::string dstr(const glm::dvec3& v) {
+    return strprintf("%.16f %.16f %.16f", v.x, v.y, v.z);
+}
+
+template <>
+inline std::string dstr(const glm::dvec4& v) {
+    return strprintf("%.16f %.16f %.16f %.16f", v.x, v.y, v.z, v.w);
+}
+
+inline f64 sq(f64 x) {
+    return x * x;
+}
 
 inline glm::dvec4 to_vec4(const Vec5& v) {
     return glm::dvec4(v.x, v.y, v.z, v.w);

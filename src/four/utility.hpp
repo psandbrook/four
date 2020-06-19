@@ -5,12 +5,25 @@
 #include <functional>
 #include <stdint.h>
 #include <string.h>
+#include <string>
 #include <unordered_set>
 
 #include <loguru.hpp>
 
 #define ARRAY_SIZE(arr) (sizeof((arr)) / sizeof(*(arr)))
 #define CXX_EXTENSION __extension__
+
+#ifdef FOUR_DEBUG
+#    define DPRINT(...) DRAW_LOG_F(INFO, __VA_ARGS__)
+
+// clang-format off
+#    define DEXPR(expr) ::four::dexpr(#expr, (expr))
+// clang-format on
+
+#else
+#    define DPRINT(...)
+#    define DEXPR(expr)
+#endif
 
 namespace four {
 
@@ -84,6 +97,70 @@ struct BoundedVector {
         len++;
     }
 };
+
+using loguru::strprintf;
+
+template <class T>
+std::string dstr(const T& value);
+
+template <>
+inline std::string dstr(const u8& value) {
+    return strprintf("%hhu", value);
+}
+
+template <>
+inline std::string dstr(const u16& value) {
+    return strprintf("%hu", value);
+}
+
+template <>
+inline std::string dstr(const u32& value) {
+    return strprintf("%u", value);
+}
+
+template <>
+inline std::string dstr(const u64& value) {
+    return strprintf("%llu", (unsigned long long)value);
+}
+
+template <>
+inline std::string dstr(const s8& value) {
+    return strprintf("%hhi", value);
+}
+
+template <>
+inline std::string dstr(const s16& value) {
+    return strprintf("%hi", value);
+}
+
+template <>
+inline std::string dstr(const s32& value) {
+    return strprintf("%i", value);
+}
+
+template <>
+inline std::string dstr(const s64& value) {
+    return strprintf("%lli", (long long)value);
+}
+
+template <>
+inline std::string dstr(const f32& value) {
+    return strprintf("%.7f", value);
+}
+
+template <>
+inline std::string dstr(const f64& value) {
+    return strprintf("%.16f", value);
+}
+
+template <class T>
+inline void dexpr(const char* name, const T& value) {
+    DPRINT("%s: %s", name, dstr(value).c_str());
+}
+
+inline void dline() {
+    DPRINT(" ");
+}
 
 template <class T>
 inline void hash_combine(size_t& seed, const T& value) {
