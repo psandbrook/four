@@ -31,9 +31,42 @@ static_assert(sizeof(f32) == 4);
 static_assert(sizeof(f64) == 8);
 
 template <class T>
+struct Slice {
+    size_t len;
+    T* data;
+
+    Slice() {}
+    Slice(size_t len, T* data) : len(len), data(data) {}
+
+    T& operator[](size_t index) {
+        return data[index];
+    }
+
+    const T& operator[](size_t index) const {
+        return data[index];
+    }
+};
+
+#define AS_SLICE(arr) (Slice(ARRAY_SIZE((arr)), (arr)))
+
+template <class T>
 inline void hash_combine(size_t& seed, const T& value) {
     std::hash<T> hasher;
     seed ^= hasher(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+template <class T>
+inline size_t insert_back(std::vector<T>& vec, const T& value) {
+    size_t index = vec.size();
+    vec.push_back(value);
+    return index;
+}
+
+template <class T>
+inline size_t insert_back(std::vector<T>& vec, T&& value) {
+    size_t index = vec.size();
+    vec.push_back(std::forward<T>(value));
+    return index;
 }
 
 template <class T>

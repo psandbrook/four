@@ -16,6 +16,16 @@
 
 namespace four {
 
+struct ShaderProgram {
+    u32 id;
+    std::unordered_map<const char*, s32, CStrHash, CStrEquals> uniform_locations;
+
+    ShaderProgram() {}
+    ShaderProgram(const char* vert_path, const char* frag_path);
+
+    void set_uniform_mat4(const char* name, const f32* data);
+};
+
 struct VertexSpec {
     u32 index;
     s32 size;
@@ -56,16 +66,15 @@ struct ElementBufferObject {
 
 struct VertexArrayObject {
     u32 id;
-    u32 shader_program;
-    std::unordered_map<const char*, s32, CStrHash, CStrEquals> uniform_locations;
-    VertexBufferObject* vbo; // A vertex buffer object can be shared among many VAOs
+    ShaderProgram* shader_program;
+    std::vector<VertexBufferObject*> vbos; // Vertex buffer objects can be shared among many VAOs
     ElementBufferObject ebo;
 
     VertexArrayObject() {}
-    VertexArrayObject(u32 shader_program, VertexBufferObject* vbo, VertexSpec spec, ElementBufferObject ebo);
+    VertexArrayObject(ShaderProgram* shader_program, Slice<VertexBufferObject*> vbos, Slice<VertexSpec> specs,
+                      ElementBufferObject ebo);
 
     void draw();
-    void set_uniform_mat4(const char* name, const f32* data);
 };
 
 struct Renderer {
@@ -76,9 +85,14 @@ private:
     // Variables initialized in the constructor
     // ----------------------------------------
 
-    VertexBufferObject vertices;
+    ShaderProgram shader_program;
+
+    std::vector<VertexBufferObject> vbos;
+
     VertexArrayObject wireframe;
     VertexArrayObject selected_cell;
+    VertexArrayObject xz_grid;
+
     hmm_mat4 projection;
 
     // ----------------------------------------
@@ -107,7 +121,7 @@ public:
     void render();
 
 private:
-    void triangulate(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges,
-                     const std::vector<u32>& face, std::vector<u32>& out);
+    void triangulate(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
+                     std::vector<u32>& out);
 };
 } // namespace four
