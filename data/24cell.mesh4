@@ -1,0 +1,851 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mesh4>
+    <vertices>
+        <vec4 x="1" y="1" z="0" w="0"/>
+        <vec4 x="1" y="0" z="1" w="0"/>
+        <vec4 x="1" y="0" z="0" w="1"/>
+        <vec4 x="0" y="1" z="1" w="0"/>
+        <vec4 x="0" y="1" z="0" w="1"/>
+        <vec4 x="0" y="0" z="1" w="1"/>
+        <vec4 x="-1" y="1" z="0" w="0"/>
+        <vec4 x="-1" y="0" z="1" w="0"/>
+        <vec4 x="-1" y="0" z="0" w="1"/>
+        <vec4 x="0" y="-1" z="1" w="0"/>
+        <vec4 x="0" y="-1" z="0" w="1"/>
+        <vec4 x="0" y="0" z="-1" w="1"/>
+        <vec4 x="1" y="-1" z="0" w="0"/>
+        <vec4 x="1" y="0" z="-1" w="0"/>
+        <vec4 x="1" y="0" z="0" w="-1"/>
+        <vec4 x="0" y="1" z="-1" w="0"/>
+        <vec4 x="0" y="1" z="0" w="-1"/>
+        <vec4 x="0" y="0" z="1" w="-1"/>
+        <vec4 x="-1" y="-1" z="0" w="0"/>
+        <vec4 x="-1" y="0" z="-1" w="0"/>
+        <vec4 x="-1" y="0" z="0" w="-1"/>
+        <vec4 x="0" y="-1" z="-1" w="0"/>
+        <vec4 x="0" y="-1" z="0" w="-1"/>
+        <vec4 x="0" y="0" z="-1" w="-1"/>
+    </vertices>
+    <edges>
+        <edge v0="21" v1="23"/>
+        <edge v0="20" v1="23"/>
+        <edge v0="20" v1="22"/>
+        <edge v0="19" v1="23"/>
+        <edge v0="19" v1="21"/>
+        <edge v0="19" v1="20"/>
+        <edge v0="21" v1="22"/>
+        <edge v0="18" v1="20"/>
+        <edge v0="17" v1="20"/>
+        <edge v0="16" v1="20"/>
+        <edge v0="16" v1="17"/>
+        <edge v0="15" v1="23"/>
+        <edge v0="5" v1="9"/>
+        <edge v0="13" v1="14"/>
+        <edge v0="13" v1="15"/>
+        <edge v0="11" v1="13"/>
+        <edge v0="4" v1="11"/>
+        <edge v0="4" v1="8"/>
+        <edge v0="7" v1="18"/>
+        <edge v0="1" v1="3"/>
+        <edge v0="4" v1="6"/>
+        <edge v0="5" v1="7"/>
+        <edge v0="0" v1="15"/>
+        <edge v0="3" v1="17"/>
+        <edge v0="12" v1="13"/>
+        <edge v0="15" v1="16"/>
+        <edge v0="8" v1="19"/>
+        <edge v0="3" v1="4"/>
+        <edge v0="4" v1="15"/>
+        <edge v0="2" v1="10"/>
+        <edge v0="5" v1="8"/>
+        <edge v0="2" v1="5"/>
+        <edge v0="12" v1="14"/>
+        <edge v0="0" v1="14"/>
+        <edge v0="8" v1="18"/>
+        <edge v0="0" v1="13"/>
+        <edge v0="18" v1="21"/>
+        <edge v0="0" v1="4"/>
+        <edge v0="2" v1="13"/>
+        <edge v0="0" v1="3"/>
+        <edge v0="10" v1="12"/>
+        <edge v0="2" v1="12"/>
+        <edge v0="0" v1="1"/>
+        <edge v0="1" v1="14"/>
+        <edge v0="1" v1="9"/>
+        <edge v0="2" v1="11"/>
+        <edge v0="22" v1="23"/>
+        <edge v0="15" v1="19"/>
+        <edge v0="0" v1="2"/>
+        <edge v0="4" v1="5"/>
+        <edge v0="0" v1="16"/>
+        <edge v0="9" v1="18"/>
+        <edge v0="17" v1="22"/>
+        <edge v0="14" v1="16"/>
+        <edge v0="5" v1="10"/>
+        <edge v0="3" v1="7"/>
+        <edge v0="14" v1="23"/>
+        <edge v0="1" v1="2"/>
+        <edge v0="3" v1="16"/>
+        <edge v0="1" v1="5"/>
+        <edge v0="10" v1="21"/>
+        <edge v0="18" v1="19"/>
+        <edge v0="11" v1="15"/>
+        <edge v0="2" v1="4"/>
+        <edge v0="1" v1="12"/>
+        <edge v0="13" v1="23"/>
+        <edge v0="3" v1="6"/>
+        <edge v0="6" v1="7"/>
+        <edge v0="6" v1="8"/>
+        <edge v0="16" v1="23"/>
+        <edge v0="7" v1="20"/>
+        <edge v0="8" v1="10"/>
+        <edge v0="12" v1="22"/>
+        <edge v0="6" v1="16"/>
+        <edge v0="3" v1="5"/>
+        <edge v0="6" v1="19"/>
+        <edge v0="1" v1="17"/>
+        <edge v0="6" v1="20"/>
+        <edge v0="7" v1="8"/>
+        <edge v0="7" v1="9"/>
+        <edge v0="7" v1="17"/>
+        <edge v0="8" v1="11"/>
+        <edge v0="9" v1="10"/>
+        <edge v0="6" v1="15"/>
+        <edge v0="9" v1="12"/>
+        <edge v0="9" v1="17"/>
+        <edge v0="18" v1="22"/>
+        <edge v0="14" v1="17"/>
+        <edge v0="9" v1="22"/>
+        <edge v0="10" v1="11"/>
+        <edge v0="10" v1="18"/>
+        <edge v0="11" v1="19"/>
+        <edge v0="14" v1="22"/>
+        <edge v0="11" v1="21"/>
+        <edge v0="12" v1="21"/>
+        <edge v0="13" v1="21"/>
+    </edges>
+    <faces>
+        <indices>
+            <index>6</index>
+            <index>46</index>
+            <index>0</index>
+        </indices>
+        <indices>
+            <index>5</index>
+            <index>1</index>
+            <index>3</index>
+        </indices>
+        <indices>
+            <index>86</index>
+            <index>6</index>
+            <index>36</index>
+        </indices>
+        <indices>
+            <index>61</index>
+            <index>4</index>
+            <index>36</index>
+        </indices>
+        <indices>
+            <index>61</index>
+            <index>5</index>
+            <index>7</index>
+        </indices>
+        <indices>
+            <index>86</index>
+            <index>2</index>
+            <index>7</index>
+        </indices>
+        <indices>
+            <index>52</index>
+            <index>2</index>
+            <index>8</index>
+        </indices>
+        <indices>
+            <index>69</index>
+            <index>1</index>
+            <index>9</index>
+        </indices>
+        <indices>
+            <index>92</index>
+            <index>52</index>
+            <index>87</index>
+        </indices>
+        <indices>
+            <index>56</index>
+            <index>69</index>
+            <index>53</index>
+        </indices>
+        <indices>
+            <index>87</index>
+            <index>10</index>
+            <index>53</index>
+        </indices>
+        <indices>
+            <index>55</index>
+            <index>80</index>
+            <index>23</index>
+        </indices>
+        <indices>
+            <index>66</index>
+            <index>73</index>
+            <index>58</index>
+        </indices>
+        <indices>
+            <index>48</index>
+            <index>57</index>
+            <index>42</index>
+        </indices>
+        <indices>
+            <index>10</index>
+            <index>58</index>
+            <index>23</index>
+        </indices>
+        <indices>
+            <index>65</index>
+            <index>11</index>
+            <index>14</index>
+        </indices>
+        <indices>
+            <index>59</index>
+            <index>12</index>
+            <index>44</index>
+        </indices>
+        <indices>
+            <index>31</index>
+            <index>54</index>
+            <index>29</index>
+        </indices>
+        <indices>
+            <index>69</index>
+            <index>25</index>
+            <index>11</index>
+        </indices>
+        <indices>
+            <index>45</index>
+            <index>89</index>
+            <index>29</index>
+        </indices>
+        <indices>
+            <index>59</index>
+            <index>31</index>
+            <index>57</index>
+        </indices>
+        <indices>
+            <index>63</index>
+            <index>49</index>
+            <index>31</index>
+        </indices>
+        <indices>
+            <index>35</index>
+            <index>13</index>
+            <index>33</index>
+        </indices>
+        <indices>
+            <index>95</index>
+            <index>0</index>
+            <index>65</index>
+        </indices>
+        <indices>
+            <index>71</index>
+            <index>90</index>
+            <index>34</index>
+        </indices>
+        <indices>
+            <index>28</index>
+            <index>62</index>
+            <index>16</index>
+        </indices>
+        <indices>
+            <index>63</index>
+            <index>16</index>
+            <index>45</index>
+        </indices>
+        <indices>
+            <index>35</index>
+            <index>14</index>
+            <index>22</index>
+        </indices>
+        <indices>
+            <index>92</index>
+            <index>46</index>
+            <index>56</index>
+        </indices>
+        <indices>
+            <index>41</index>
+            <index>64</index>
+            <index>57</index>
+        </indices>
+        <indices>
+            <index>74</index>
+            <index>21</index>
+            <index>55</index>
+        </indices>
+        <indices>
+            <index>37</index>
+            <index>28</index>
+            <index>22</index>
+        </indices>
+        <indices>
+            <index>88</index>
+            <index>72</index>
+            <index>84</index>
+        </indices>
+        <indices>
+            <index>84</index>
+            <index>40</index>
+            <index>82</index>
+        </indices>
+        <indices>
+            <index>65</index>
+            <index>56</index>
+            <index>13</index>
+        </indices>
+        <indices>
+            <index>72</index>
+            <index>92</index>
+            <index>32</index>
+        </indices>
+        <indices>
+            <index>4</index>
+            <index>0</index>
+            <index>3</index>
+        </indices>
+        <indices>
+            <index>64</index>
+            <index>84</index>
+            <index>44</index>
+        </indices>
+        <indices>
+            <index>66</index>
+            <index>20</index>
+            <index>27</index>
+        </indices>
+        <indices>
+            <index>48</index>
+            <index>38</index>
+            <index>35</index>
+        </indices>
+        <indices>
+            <index>39</index>
+            <index>27</index>
+            <index>37</index>
+        </indices>
+        <indices>
+            <index>50</index>
+            <index>53</index>
+            <index>33</index>
+        </indices>
+        <indices>
+            <index>50</index>
+            <index>58</index>
+            <index>39</index>
+        </indices>
+        <indices>
+            <index>78</index>
+            <index>34</index>
+            <index>18</index>
+        </indices>
+        <indices>
+            <index>2</index>
+            <index>46</index>
+            <index>1</index>
+        </indices>
+        <indices>
+            <index>41</index>
+            <index>40</index>
+            <index>29</index>
+        </indices>
+        <indices>
+            <index>90</index>
+            <index>36</index>
+            <index>60</index>
+        </indices>
+        <indices>
+            <index>42</index>
+            <index>43</index>
+            <index>33</index>
+        </indices>
+        <indices>
+            <index>76</index>
+            <index>85</index>
+            <index>44</index>
+        </indices>
+        <indices>
+            <index>93</index>
+            <index>95</index>
+            <index>15</index>
+        </indices>
+        <indices>
+            <index>93</index>
+            <index>4</index>
+            <index>91</index>
+        </indices>
+        <indices>
+            <index>59</index>
+            <index>74</index>
+            <index>19</index>
+        </indices>
+        <indices>
+            <index>70</index>
+            <index>7</index>
+            <index>18</index>
+        </indices>
+        <indices>
+            <index>42</index>
+            <index>19</index>
+            <index>39</index>
+        </indices>
+        <indices>
+            <index>77</index>
+            <index>70</index>
+            <index>67</index>
+        </indices>
+        <indices>
+            <index>66</index>
+            <index>67</index>
+            <index>55</index>
+        </indices>
+        <indices>
+            <index>94</index>
+            <index>6</index>
+            <index>72</index>
+        </indices>
+        <indices>
+            <index>49</index>
+            <index>30</index>
+            <index>17</index>
+        </indices>
+        <indices>
+            <index>41</index>
+            <index>24</index>
+            <index>38</index>
+        </indices>
+        <indices>
+            <index>32</index>
+            <index>64</index>
+            <index>43</index>
+        </indices>
+        <indices>
+            <index>28</index>
+            <index>83</index>
+            <index>20</index>
+        </indices>
+        <indices>
+            <index>76</index>
+            <index>23</index>
+            <index>19</index>
+        </indices>
+        <indices>
+            <index>25</index>
+            <index>50</index>
+            <index>22</index>
+        </indices>
+        <indices>
+            <index>76</index>
+            <index>87</index>
+            <index>43</index>
+        </indices>
+        <indices>
+            <index>88</index>
+            <index>86</index>
+            <index>51</index>
+        </indices>
+        <indices>
+            <index>17</index>
+            <index>81</index>
+            <index>16</index>
+        </indices>
+        <indices>
+            <index>83</index>
+            <index>25</index>
+            <index>73</index>
+        </indices>
+        <indices>
+            <index>20</index>
+            <index>68</index>
+            <index>17</index>
+        </indices>
+        <indices>
+            <index>54</index>
+            <index>82</index>
+            <index>12</index>
+        </indices>
+        <indices>
+            <index>30</index>
+            <index>78</index>
+            <index>21</index>
+        </indices>
+        <indices>
+            <index>54</index>
+            <index>71</index>
+            <index>30</index>
+        </indices>
+        <indices>
+            <index>68</index>
+            <index>78</index>
+            <index>67</index>
+        </indices>
+        <indices>
+            <index>75</index>
+            <index>26</index>
+            <index>68</index>
+        </indices>
+        <indices>
+            <index>10</index>
+            <index>8</index>
+            <index>9</index>
+        </indices>
+        <indices>
+            <index>81</index>
+            <index>91</index>
+            <index>26</index>
+        </indices>
+        <indices>
+            <index>77</index>
+            <index>9</index>
+            <index>73</index>
+        </indices>
+        <indices>
+            <index>77</index>
+            <index>5</index>
+            <index>75</index>
+        </indices>
+        <indices>
+            <index>83</index>
+            <index>47</index>
+            <index>75</index>
+        </indices>
+        <indices>
+            <index>79</index>
+            <index>51</index>
+            <index>18</index>
+        </indices>
+        <indices>
+            <index>74</index>
+            <index>49</index>
+            <index>27</index>
+        </indices>
+        <indices>
+            <index>80</index>
+            <index>85</index>
+            <index>79</index>
+        </indices>
+        <indices>
+            <index>15</index>
+            <index>45</index>
+            <index>38</index>
+        </indices>
+        <indices>
+            <index>21</index>
+            <index>79</index>
+            <index>12</index>
+        </indices>
+        <indices>
+            <index>34</index>
+            <index>61</index>
+            <index>26</index>
+        </indices>
+        <indices>
+            <index>47</index>
+            <index>3</index>
+            <index>11</index>
+        </indices>
+        <indices>
+            <index>48</index>
+            <index>63</index>
+            <index>37</index>
+        </indices>
+        <indices>
+            <index>82</index>
+            <index>90</index>
+            <index>51</index>
+        </indices>
+        <indices>
+            <index>88</index>
+            <index>52</index>
+            <index>85</index>
+        </indices>
+        <indices>
+            <index>60</index>
+            <index>94</index>
+            <index>40</index>
+        </indices>
+        <indices>
+            <index>89</index>
+            <index>93</index>
+            <index>60</index>
+        </indices>
+        <indices>
+            <index>62</index>
+            <index>14</index>
+            <index>15</index>
+        </indices>
+        <indices>
+            <index>91</index>
+            <index>47</index>
+            <index>62</index>
+        </indices>
+        <indices>
+            <index>80</index>
+            <index>8</index>
+            <index>70</index>
+        </indices>
+        <indices>
+            <index>32</index>
+            <index>13</index>
+            <index>24</index>
+        </indices>
+        <indices>
+            <index>81</index>
+            <index>89</index>
+            <index>71</index>
+        </indices>
+        <indices>
+            <index>95</index>
+            <index>94</index>
+            <index>24</index>
+        </indices>
+    </faces>
+    <cells>
+        <indices>
+            <index>27</index>
+            <index>31</index>
+            <index>85</index>
+            <index>90</index>
+            <index>39</index>
+            <index>81</index>
+            <index>26</index>
+            <index>25</index>
+        </indices>
+        <indices>
+            <index>78</index>
+            <index>82</index>
+            <index>68</index>
+            <index>70</index>
+            <index>86</index>
+            <index>69</index>
+            <index>43</index>
+            <index>24</index>
+        </indices>
+        <indices>
+            <index>95</index>
+            <index>88</index>
+            <index>89</index>
+            <index>49</index>
+            <index>81</index>
+            <index>58</index>
+            <index>45</index>
+            <index>19</index>
+        </indices>
+        <indices>
+            <index>65</index>
+            <index>57</index>
+            <index>21</index>
+            <index>94</index>
+            <index>26</index>
+            <index>70</index>
+            <index>19</index>
+            <index>17</index>
+        </indices>
+        <indices>
+            <index>29</index>
+            <index>45</index>
+            <index>68</index>
+            <index>17</index>
+            <index>37</index>
+            <index>20</index>
+            <index>33</index>
+            <index>16</index>
+        </indices>
+        <indices>
+            <index>90</index>
+            <index>84</index>
+            <index>50</index>
+            <index>36</index>
+            <index>91</index>
+            <index>23</index>
+            <index>49</index>
+            <index>15</index>
+        </indices>
+        <indices>
+            <index>93</index>
+            <index>59</index>
+            <index>22</index>
+            <index>39</index>
+            <index>58</index>
+            <index>29</index>
+            <index>47</index>
+            <index>13</index>
+        </indices>
+        <indices>
+            <index>94</index>
+            <index>89</index>
+            <index>50</index>
+            <index>74</index>
+            <index>83</index>
+            <index>24</index>
+            <index>46</index>
+            <index>3</index>
+        </indices>
+        <indices>
+            <index>79</index>
+            <index>57</index>
+            <index>69</index>
+            <index>71</index>
+            <index>67</index>
+            <index>38</index>
+            <index>55</index>
+            <index>30</index>
+        </indices>
+        <indices>
+            <index>64</index>
+            <index>32</index>
+            <index>56</index>
+            <index>88</index>
+            <index>33</index>
+            <index>86</index>
+            <index>46</index>
+            <index>2</index>
+        </indices>
+        <indices>
+            <index>83</index>
+            <index>76</index>
+            <index>54</index>
+            <index>71</index>
+            <index>43</index>
+            <index>52</index>
+            <index>72</index>
+            <index>4</index>
+        </indices>
+        <indices>
+            <index>40</index>
+            <index>53</index>
+            <index>85</index>
+            <index>51</index>
+            <index>79</index>
+            <index>21</index>
+            <index>20</index>
+            <index>13</index>
+        </indices>
+        <indices>
+            <index>84</index>
+            <index>77</index>
+            <index>76</index>
+            <index>66</index>
+            <index>75</index>
+            <index>7</index>
+            <index>18</index>
+            <index>1</index>
+        </indices>
+        <indices>
+            <index>72</index>
+            <index>91</index>
+            <index>74</index>
+            <index>65</index>
+            <index>67</index>
+            <index>77</index>
+            <index>60</index>
+            <index>25</index>
+        </indices>
+        <indices>
+            <index>1</index>
+            <index>44</index>
+            <index>5</index>
+            <index>36</index>
+            <index>2</index>
+            <index>0</index>
+            <index>3</index>
+            <index>4</index>
+        </indices>
+        <indices>
+            <index>93</index>
+            <index>95</index>
+            <index>56</index>
+            <index>35</index>
+            <index>28</index>
+            <index>23</index>
+            <index>34</index>
+            <index>0</index>
+        </indices>
+        <indices>
+            <index>80</index>
+            <index>92</index>
+            <index>52</index>
+            <index>78</index>
+            <index>64</index>
+            <index>87</index>
+            <index>6</index>
+            <index>5</index>
+        </indices>
+        <indices>
+            <index>42</index>
+            <index>62</index>
+            <index>66</index>
+            <index>60</index>
+            <index>31</index>
+            <index>40</index>
+            <index>38</index>
+            <index>12</index>
+        </indices>
+        <indices>
+            <index>87</index>
+            <index>48</index>
+            <index>63</index>
+            <index>37</index>
+            <index>32</index>
+            <index>35</index>
+            <index>59</index>
+            <index>8</index>
+        </indices>
+        <indices>
+            <index>73</index>
+            <index>7</index>
+            <index>28</index>
+            <index>9</index>
+            <index>44</index>
+            <index>10</index>
+            <index>8</index>
+            <index>6</index>
+        </indices>
+        <indices>
+            <index>34</index>
+            <index>22</index>
+            <index>41</index>
+            <index>62</index>
+            <index>27</index>
+            <index>15</index>
+            <index>18</index>
+            <index>9</index>
+        </indices>
+        <indices>
+            <index>63</index>
+            <index>53</index>
+            <index>47</index>
+            <index>41</index>
+            <index>42</index>
+            <index>14</index>
+            <index>61</index>
+            <index>10</index>
+        </indices>
+        <indices>
+            <index>73</index>
+            <index>92</index>
+            <index>75</index>
+            <index>54</index>
+            <index>55</index>
+            <index>12</index>
+            <index>14</index>
+            <index>11</index>
+        </indices>
+        <indices>
+            <index>61</index>
+            <index>80</index>
+            <index>48</index>
+            <index>82</index>
+            <index>16</index>
+            <index>51</index>
+            <index>30</index>
+            <index>11</index>
+        </indices>
+    </cells>
+</mesh4>

@@ -12,11 +12,11 @@ namespace txml = tinyxml2;
 namespace four {
 
 size_t FaceHash::operator()(const std::vector<u32>& x) const {
-    std::vector<u32> x_p(x);
-    std::sort(x_p.begin(), x_p.end());
+    this->x_ = x;
+    std::sort(this->x_.begin(), this->x_.end());
 
     size_t hash = 0;
-    for (u32 value : x_p) {
+    for (u32 value : this->x_) {
         hash_combine(hash, value);
     }
 
@@ -24,13 +24,16 @@ size_t FaceHash::operator()(const std::vector<u32>& x) const {
 }
 
 bool FaceEquals::operator()(const std::vector<u32>& lhs, const std::vector<u32>& rhs) const {
-    for (u32 value : lhs) {
-        if (!contains(rhs, value)) {
-            return false;
+    if (lhs.size() != rhs.size()) {
+        return false;
+    } else {
+        for (u32 value : lhs) {
+            if (!contains(rhs, value)) {
+                return false;
+            }
         }
+        return true;
     }
-
-    return true;
 }
 
 bool operator==(const Edge& lhs, const Edge& rhs) {

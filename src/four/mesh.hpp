@@ -30,6 +30,10 @@ struct Mesh4 {
 };
 
 struct FaceHash {
+private:
+    mutable std::vector<u32> x_;
+
+public:
     size_t operator()(const std::vector<u32>& x) const;
 };
 

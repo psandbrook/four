@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*arr))
+#define ARRAY_SIZE(arr) (sizeof((arr)) / sizeof(*(arr)))
 
 namespace four {
 

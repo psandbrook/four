@@ -172,12 +172,14 @@ int main(int argc, char** argv) {
         }
     }
 
+    const char* mesh_path = "120cell.mesh4";
+
     {
         Mesh4 mesh = generate_120cell();
-        CHECK_F(save_mesh_to_file(mesh, "120cell.mesh4"));
+        CHECK_F(save_mesh_to_file(mesh, mesh_path));
     }
 
-    Mesh4 mesh = load_mesh_from_file("120cell.mesh4");
+    Mesh4 mesh = load_mesh_from_file(mesh_path);
     hmm_vec4 mesh_pos = {0, 0, 0, 2.5};
     s32 selected_cell = 0;
 

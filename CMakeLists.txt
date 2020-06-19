@@ -48,7 +48,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-  add_compile_definitions(FOUR_DEBUG)
 endif()
 
 include_directories(src)
@@ -74,7 +73,7 @@ set(CXX_FLAGS_COMMON
 )
 
 set(CXX_FLAGS_DEBUG
-  -Og -ggdb3 -fvar-tracking -fvar-tracking-assignments -fsanitize=undefined
+  -DFOUR_DEBUG -Og -ggdb3 -fvar-tracking -fvar-tracking-assignments -fsanitize=undefined
 )
 
 set(CXX_FLAGS_RELEASE
