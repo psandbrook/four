@@ -4,11 +4,14 @@
 #include <SDL.h>
 #include <glad/glad.h>
 
+#include <assert.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include <fstream>
 #include <sstream>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -18,15 +21,6 @@ public:
     ~SdlGuard() {
         SDL_Quit();
     }
-};
-
-struct Vertex {
-    hmm_vec3 pos;
-    hmm_vec3 norm;
-};
-
-struct Face {
-    Vertex vs[3];
 };
 
 uint32_t compile_shader(const char* path, GLenum shader_type) {
@@ -58,13 +52,6 @@ uint32_t compile_shader(const char* path, GLenum shader_type) {
     }
 
     return shader;
-}
-
-void fill_normal(Face& face) {
-    hmm_vec3 normal = HMM_Cross(face.vs[1].pos - face.vs[0].pos, face.vs[2].pos - face.vs[0].pos);
-    face.vs[0].norm = normal;
-    face.vs[1].norm = normal;
-    face.vs[2].norm = normal;
 }
 } // namespace
 
@@ -103,67 +90,54 @@ int main() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glEnable(GL_DEPTH_TEST);
 
-    glPointSize(5.0f);
+    glLineWidth(3.0f);
 
-    // clang-format off
-    hmm_vec4 v0 = { 1.0f, 0.0f, 0.0f, 0.0f};
-    hmm_vec4 v1 = { 0.0f, 1.0f, 0.0f, 0.0f};
-    hmm_vec4 v2 = { 0.0f, 0.0f, 1.0f, 0.0f};
-    hmm_vec4 v3 = {-1.0f, 0.0f, 0.0f, 0.0f};
-    hmm_vec4 v4 = { 0.0f, 0.0f, 0.0f, 1.0f};
-
-    hmm_vec4 cells[5][4] = {
-        {v0, v1, v2, v3},
-        {v4, v1, v2, v3},
-        {v0, v4, v2, v3},
-        {v0, v1, v4, v3},
-        {v0, v1, v2, v4},
+    struct Edge4 {
+        hmm_vec4 vertices[2];
     };
 
-    hmm_vec4 edges[10][2] = {
-        {v1, v0},
-        {v2, v0},
-        {v3, v0},
-        {v4, v0},
-        {v2, v1},
-        {v3, v1},
-        {v4, v1},
-        {v3, v2},
-        {v4, v2},
-        {v4, v3},
+    constexpr float phi_f = (float)((1.0 + sqrt(5.0)) / 2.0);
+
+    // clang-format off
+    Edge4 edges[] = {
+        {{{2.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 2.0f, 0.0f, 0.0f}}},
+        {{{2.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 2.0f, 0.0f}}},
+        {{{2.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 2.0f}}},
+        {{{2.0f, 0.0f, 0.0f, 0.0f}, {phi_f, phi_f, phi_f, phi_f}}},
+
+        {{{0.0f, 2.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 2.0f, 0.0f}}},
+        {{{0.0f, 2.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 2.0f}}},
+        {{{0.0f, 2.0f, 0.0f, 0.0f}, {phi_f, phi_f, phi_f, phi_f}}},
+
+        {{{0.0f, 0.0f, 2.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 2.0f}}},
+        {{{0.0f, 0.0f, 2.0f, 0.0f}, {phi_f, phi_f, phi_f, phi_f}}},
+
+        {{{0.0f, 0.0f, 0.0f, 2.0f}, {phi_f, phi_f, phi_f, phi_f}}},
     };
     // clang-format on
 
-    auto edge_vec = [](hmm_vec4* edge) -> hmm_vec4 { return edge[1] - edge[0]; };
-
+    // TODO: For arbitrary hyperplanes, every point in the world must be
+    // transformed so that the hyperplane has p_0 = (x, y, z, 0) and n = (0, 0,
+    // 0, 1).
     hmm_vec4 hplane_p0 = {0.0f, 0.0f, 0.0f, 0.0f};
     hmm_vec4 hplane_n = {0.0f, 0.0f, 0.0f, 1.0f};
 
-    std::vector<hmm_vec4> intersection_points;
+    struct Edge3 {
+        hmm_vec3 vertices[2];
+    };
 
-    for (int i = 0; i < 10; i++) {
-        hmm_vec4 l0 = edges[i][0];
-        hmm_vec4 l = edge_vec(edges[i]);
-        float d = HMM_Dot(hplane_p0 - l0, hplane_n) / HMM_Dot(l, hplane_n);
-        if (d >= 0.0f && d <= 1.0f) {
-            hmm_vec4 intersect = d * l + l0;
-            intersection_points.push_back(intersect);
-        }
+    constexpr size_t edges_size = sizeof(edges) / sizeof(*edges);
+    Edge3 edges3[edges_size];
+    for (size_t i = 0; i < edges_size; i++) {
+        edges3[i] = {{edges[i].vertices[0].XYZ, edges[i].vertices[1].XYZ}};
     }
 
-    printf("%lu points of intersection\n", intersection_points.size());
-
-    std::vector<hmm_vec3> points;
-    for (auto& p : intersection_points) {
-        points.push_back(p.XYZ);
-    }
-
-    uint32_t vert_shader = compile_shader("data/vertex_point.glsl", GL_VERTEX_SHADER);
+    uint32_t vert_shader = compile_shader("data/vertex_line.glsl", GL_VERTEX_SHADER);
     if (!vert_shader) {
         return 1;
     }
 
-    uint32_t frag_shader = compile_shader("data/fragment_point.glsl", GL_FRAGMENT_SHADER);
+    uint32_t frag_shader = compile_shader("data/fragment_line.glsl", GL_FRAGMENT_SHADER);
     if (!frag_shader) {
         return 1;
     }
@@ -198,113 +172,21 @@ int main() {
     uint32_t vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, points.size() * sizeof(points[0]), points.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, edges_size * sizeof(edges3[0]), edges3, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(points[0]), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(hmm_vec3), (void*)0);
     glEnableVertexAttribArray(0);
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     glBindVertexArray(vao);
-
-#if 0
-    Vertex v1, v2, v3, v4;
-    // clang-format off
-    v1.pos = {-1.0f, -1.0f,  1.0f};
-    v2.pos = { 1.0f, -1.0f,  1.0f};
-    v3.pos = { 0.0f, -1.0f, -1.0f};
-    v4.pos = { 0.0f,  1.0f,  0.0f};
-    // clang-format on
-
-    Face faces[4];
-    memset(faces, 0, sizeof(faces));
-
-    faces[0].vs[0] = v1;
-    faces[0].vs[1] = v3;
-    faces[0].vs[2] = v2;
-
-    faces[1].vs[0] = v1;
-    faces[1].vs[1] = v2;
-    faces[1].vs[2] = v4;
-
-    faces[2].vs[0] = v3;
-    faces[2].vs[1] = v1;
-    faces[2].vs[2] = v4;
-
-    faces[3].vs[0] = v2;
-    faces[3].vs[1] = v3;
-    faces[3].vs[2] = v4;
-
-    for (uint32_t i = 0; i < sizeof(faces) / sizeof(*faces); i++) {
-        fill_normal(faces[i]);
-    }
-
-    uint32_t vert_shader = compile_shader("data/vertex.glsl", GL_VERTEX_SHADER);
-    if (!vert_shader) {
-        return 1;
-    }
-
-    uint32_t frag_shader = compile_shader("data/fragment.glsl", GL_FRAGMENT_SHADER);
-    if (!frag_shader) {
-        return 1;
-    }
-
-    uint32_t shader_prog = glCreateProgram();
-    glAttachShader(shader_prog, vert_shader);
-    glAttachShader(shader_prog, frag_shader);
-    glLinkProgram(shader_prog);
-
-    {
-        int success;
-        glGetProgramiv(shader_prog, GL_LINK_STATUS, &success);
-
-        if (!success) {
-            int len;
-            glGetProgramiv(shader_prog, GL_INFO_LOG_LENGTH, &len);
-
-            std::vector<char> log;
-            log.reserve(len);
-            glGetProgramInfoLog(shader_prog, len, nullptr, log.data());
-            fprintf(stderr, "Program linking failed: %s\n", log.data());
-            return 1;
-        }
-    }
-
-    glUseProgram(shader_prog);
-
-    uint32_t vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    uint32_t vbo;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(faces), faces, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(Vertex), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    glBindVertexArray(vao);
-
-    int model_location = glGetUniformLocation(shader_prog, "model");
-    int mvp_location = glGetUniformLocation(shader_prog, "mvp");
-    int camera_pos_location = glGetUniformLocation(shader_prog, "camera_pos");
-
-    hmm_mat4 model = HMM_Translate(HMM_Vec3(0.0f, 0.0f, 0.0f));
-#endif
 
     int vp_location = glGetUniformLocation(shader_prog, "vp");
 
-    hmm_vec4 camera_pos = {0.0f, 0.0f, 8.0f, 1.0f};
-    hmm_vec4 camera_target = {0.0f, 0.0f, 0.0f, 1.0f};
-    hmm_vec4 camera_up = {0.0f, 1.0f, 0.0f, 1.0f};
+    hmm_vec3 camera_pos = {1.0f, 1.0f, 8.0f};
+    hmm_vec3 camera_target = {1.0f, 1.0f, 0.0f};
+    hmm_vec3 camera_up = {0.0f, 1.0f, 0.0f};
 
     hmm_mat4 projection = HMM_Perspective(45.0f, (float)window_width / (float)window_height, 0.1f, 100.0f);
 
@@ -342,19 +224,18 @@ int main() {
 
         int steps = 0;
         while (lag_ms >= step_ms && steps < steps_per_sec) {
-            float degrees_per_sec = 45.0f;
-            camera_pos = HMM_Rotate(degrees_per_sec * (float)(step_ms / 1000), HMM_Vec3(0.0f, 1.0f, 0.0f)) * camera_pos;
+            camera_pos = (HMM_Rotate(1.0f, HMM_Vec3(0.0f, 1.0f, 0.0f)) * HMM_Vec4v(camera_pos, 1.0f)).XYZ;
             lag_ms -= step_ms;
             steps++;
         }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        hmm_mat4 view = HMM_LookAt(camera_pos.XYZ, camera_target.XYZ, camera_up.XYZ);
+        hmm_mat4 view = HMM_LookAt(camera_pos, camera_target, camera_up);
         hmm_mat4 vp = projection * view;
         glUniformMatrix4fv(vp_location, 1, false, (float*)&vp);
 
-        glDrawArrays(GL_POINTS, 0, (GLsizei)points.size());
+        glDrawArrays(GL_LINES, 0, edges_size * 2);
         SDL_GL_SwapWindow(window);
     }
 main_loop_end:
