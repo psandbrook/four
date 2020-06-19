@@ -20,6 +20,15 @@ public:
     }
 };
 
+struct Vertex {
+    hmm_vec3 pos;
+    hmm_vec3 norm;
+};
+
+struct Face {
+    Vertex vs[3];
+};
+
 uint32_t compile_shader(const char* path, GLenum shader_type) {
 
     // FIXME: This is inefficient
@@ -49,6 +58,13 @@ uint32_t compile_shader(const char* path, GLenum shader_type) {
     }
 
     return shader;
+}
+
+void fill_normal(Face& face) {
+    hmm_vec3 normal = HMM_Cross(face.vs[1].pos - face.vs[0].pos, face.vs[2].pos - face.vs[0].pos);
+    face.vs[0].norm = normal;
+    face.vs[1].norm = normal;
+    face.vs[2].norm = normal;
 }
 } // namespace
 
@@ -84,12 +100,38 @@ int main() {
     }
 
     glViewport(0, 0, window_width, window_height);
+    glEnable(GL_DEPTH_TEST);
 
-    float vertices[] = {
-            -1.0f, -1.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-    };
+    Vertex v1, v2, v3, v4;
+    // clang-format off
+    v1.pos = {-1.0f, -1.0f,  1.0f};
+    v2.pos = { 1.0f, -1.0f,  1.0f};
+    v3.pos = { 0.0f, -1.0f, -1.0f};
+    v4.pos = { 0.0f,  1.0f,  0.0f};
+    // clang-format on
 
-    uint32_t indices[] = {0, 1, 2};
+    Face faces[4];
+    memset(faces, 0, sizeof(faces));
+
+    faces[0].vs[0] = v1;
+    faces[0].vs[1] = v3;
+    faces[0].vs[2] = v2;
+
+    faces[1].vs[0] = v1;
+    faces[1].vs[1] = v2;
+    faces[1].vs[2] = v4;
+
+    faces[2].vs[0] = v3;
+    faces[2].vs[1] = v1;
+    faces[2].vs[2] = v4;
+
+    faces[3].vs[0] = v2;
+    faces[3].vs[1] = v3;
+    faces[3].vs[2] = v4;
+
+    for (uint32_t i = 0; i < sizeof(faces) / sizeof(*faces); i++) {
+        fill_normal(faces[i]);
+    }
 
     uint32_t vert_shader = compile_shader("data/vertex.glsl", GL_VERTEX_SHADER);
     if (!vert_shader) {
@@ -131,24 +173,23 @@ int main() {
     uint32_t vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(faces), faces, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(float), nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (void*)0);
     glEnableVertexAttribArray(0);
 
-    uint32_t ebo;
-    glGenBuffers(1, &ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(Vertex), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     glBindVertexArray(vao);
-    glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
+    int model_location = glGetUniformLocation(shader_prog, "model");
     int mvp_location = glGetUniformLocation(shader_prog, "mvp");
+    int camera_pos_location = glGetUniformLocation(shader_prog, "camera_pos");
 
     hmm_mat4 model = HMM_Translate(HMM_Vec3(0.0f, 0.0f, 0.0f));
 
@@ -199,12 +240,16 @@ int main() {
             steps++;
         }
 
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glUniformMatrix4fv(model_location, 1, false, (float*)&model);
 
         hmm_mat4 mvp = projection * view * model;
         glUniformMatrix4fv(mvp_location, 1, false, (float*)&mvp);
 
-        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
+        glUniform3fv(camera_pos_location, 1, (float*)&camera_pos);
+
+        glDrawArrays(GL_TRIANGLES, 0, 3 * 4);
         SDL_GL_SwapWindow(window);
     }
 main_loop_end:
