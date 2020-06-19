@@ -7,7 +7,6 @@
 #include <glad/glad.h>
 
 #include <initializer_list>
-#include <memory>
 #include <random>
 
 struct SDL_Window;
@@ -113,19 +112,6 @@ struct VertexArrayObject {
     void draw();
 };
 
-struct RenderFuncs {
-private:
-    struct Impl;
-    std::unique_ptr<Impl> impl;
-
-public:
-    RenderFuncs();
-    ~RenderFuncs();
-
-    void triangulate(const std::vector<glm::dvec3>& vertices, const std::vector<Edge>& edges, const Face& face,
-                     std::vector<u32>& out);
-};
-
 struct Renderer {
 public:
     SDL_Window* window;
@@ -158,6 +144,10 @@ private:
     // Temporary storage
     // ------------------------------------------------
 
+    std::unordered_map<u32, u32> face2_vertex_i_mapping_left;
+    std::unordered_map<u32, u32> face2_vertex_i_mapping_right;
+    std::vector<glm::dvec2> face2_vertices;
+
     std::vector<glm::dvec4> projected_vertices;
     std::vector<glm::dvec3> projected_vertices3;
     std::vector<f32> projected_vertices_f32;
@@ -167,8 +157,6 @@ private:
     std::vector<f32> cross_vertices;
     std::vector<f32> cross_colors;
     std::vector<u32> cross_tris;
-
-    RenderFuncs render_funcs;
 
     // ------------------------------------------------
 
@@ -180,6 +168,9 @@ private:
     u32 add_vbo(GLenum usage);
     void do_mesh_changed();
     void do_window_size_changed();
+    void triangulate(const std::vector<glm::dvec3>& vertices, const std::vector<Edge>& edges, const Face& face,
+                     std::vector<u32>& out);
+
     void calculate_cross_section();
 };
 } // namespace four
