@@ -63,7 +63,6 @@ void bind_default_framebuffer() {
 }
 } // namespace
 
-namespace gl_buffer_base {
 GlBuffer::GlBuffer(GLenum type, GLenum usage) : type(type), usage(usage) {
     glGenBuffers(1, &id);
 }
@@ -84,7 +83,6 @@ void GlBuffer::buffer_data_realloc(const void* data, size_t size) {
     glBufferData(type, size, data, usage);
     this->size = size;
 }
-} // namespace gl_buffer_base
 
 ShaderProgram::ShaderProgram(u32 vertex_shader, std::initializer_list<u32> fragment_shaders) {
     id = glCreateProgram();

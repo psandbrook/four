@@ -14,7 +14,6 @@ struct SDL_Window;
 
 namespace four {
 
-namespace gl_buffer_base {
 struct GlBuffer {
 public:
     u32 id;
@@ -30,14 +29,13 @@ public:
     void buffer_data(const void* data, size_t size);
     void buffer_data_realloc(const void* data, size_t size);
 };
-} // namespace gl_buffer_base
 
-struct VertexBufferObject : public gl_buffer_base::GlBuffer {
+struct VertexBufferObject : public GlBuffer {
     VertexBufferObject() = default;
     explicit VertexBufferObject(GLenum usage) : GlBuffer(GL_ARRAY_BUFFER, usage) {}
 };
 
-struct ElementBufferObject : public gl_buffer_base::GlBuffer {
+struct ElementBufferObject : public GlBuffer {
     GLenum primitive;
     s32 primitive_count = 0;
 
@@ -49,7 +47,7 @@ struct ElementBufferObject : public gl_buffer_base::GlBuffer {
     void buffer_elements_realloc(const void* data, s32 n);
 };
 
-struct UniformBufferObject : public gl_buffer_base::GlBuffer {
+struct UniformBufferObject : public GlBuffer {
     const char* name;
     u32 binding;
 
