@@ -1,8 +1,5 @@
-cmake_minimum_required(VERSION 3.13.4 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 project(four LANGUAGES C CXX)
-
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake")
-include(cotire)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Debug or Release." FORCE)
@@ -137,14 +134,6 @@ add_compile_definitions(TETLIBRARY)
 # ============
 
 target_link_libraries(four rt dl m pthread SDL2-static glad triangle loguru tinyxml2 imgui tetgen)
-
-set_property(TARGET four PROPERTY COTIRE_PREFIX_HEADER_INCLUDE_PATH ${CMAKE_SOURCE_DIR}/depends)
-set_property(TARGET four PROPERTY COTIRE_PREFIX_HEADER_IGNORE_PATH
-  ${CMAKE_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/depends/triangle/triangle.h
-  ${CMAKE_SOURCE_DIR}/depends/Handmade-Math/HandmadeMath.h
-)
-cotire(four CONFIGURATIONS Debug)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   add_custom_command(

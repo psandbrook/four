@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <string.h>
+#include <string>
 #include <utility>
 
 namespace txml = tinyxml2;
