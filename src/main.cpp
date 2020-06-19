@@ -2,10 +2,8 @@
 #include <four/math.hpp>
 #include <four/mesh.hpp>
 
-#define HANDMADE_MATH_IMPLEMENTATION
-#include <HandmadeMath.h>
-
 #include <Eigen/Core>
+#include <HandmadeMath.h>
 #include <SDL.h>
 #include <glad/glad.h>
 #include <igl/triangle/triangulate.h>

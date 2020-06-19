@@ -24,6 +24,7 @@ target_compile_options(triangle PRIVATE -w -fno-lto)
 # Prefix: src/
 set(SOURCES
   main.cpp
+  impl.cpp
   four/generate.cpp
   four/mesh.cpp
 )
