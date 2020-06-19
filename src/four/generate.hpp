@@ -4,6 +4,9 @@
 
 namespace four {
 
+Mesh4 generate_5cell();
 Mesh4 generate_tesseract();
+Mesh4 generate_16cell();
+Mesh4 generate_24cell();
 
-}
+} // namespace four

@@ -5,6 +5,7 @@
 #include <HandmadeMath.h>
 
 #include <assert.h>
+#include <math.h>
 #include <stdint.h>
 
 #include <functional>
@@ -16,6 +17,20 @@
 namespace four {
 
 namespace {
+
+// clang-format off
+const hmm_vec4 n5cell_vertices[] = {
+    { 1.0f/sqrtf(10.0f),      1.0f/sqrtf(6.0f),  1.0f/sqrtf(3.0f),  1.0f},
+    { 1.0f/sqrtf(10.0f),      1.0f/sqrtf(6.0f),  1.0f/sqrtf(3.0f), -1.0f},
+    { 1.0f/sqrtf(10.0f),      1.0f/sqrtf(6.0f), -2.0f/sqrtf(3.0f),  0.0f},
+    { 1.0f/sqrtf(10.0f),     -sqrtf(3.0f/2.0f),  0.0f,              0.0f},
+    {-2.0f*sqrtf(2.0f/5.0f),  0.0f,              0.0f,              0.0f},
+};
+// clang-format on
+
+const float n5cell_edge_length = 2.0f;
+const int n5cell_edges_per_face = 3;
+const int n5cell_faces_per_cell = 4;
 
 // clang-format off
 const hmm_vec4 tesseract_vertices[] = {
@@ -41,6 +56,56 @@ const hmm_vec4 tesseract_vertices[] = {
 const float tesseract_edge_length = 2.0f;
 const int tesseract_edges_per_face = 4;
 const int tesseract_faces_per_cell = 6;
+
+// clang-format off
+const hmm_vec4 n16cell_vertices[] = {
+    { 1,  0,  0,  0},
+    {-1,  0,  0,  0},
+    { 0,  1,  0,  0},
+    { 0, -1,  0,  0},
+    { 0,  0,  1,  0},
+    { 0,  0, -1,  0},
+    { 0,  0,  0,  1},
+    { 0,  0,  0, -1},
+};
+// clang-format on
+
+const float n16cell_edge_length = sqrtf(2.0f);
+const int n16cell_edges_per_face = 3;
+const int n16cell_faces_per_cell = 4;
+
+// clang-format off
+const hmm_vec4 n24cell_vertices[] = {
+    { 1,  1,  0,  0},
+    { 1,  0,  1,  0},
+    { 1,  0,  0,  1},
+    { 0,  1,  1,  0},
+    { 0,  1,  0,  1},
+    { 0,  0,  1,  1},
+    {-1,  1,  0,  0},
+    {-1,  0,  1,  0},
+    {-1,  0,  0,  1},
+    { 0, -1,  1,  0},
+    { 0, -1,  0,  1},
+    { 0,  0, -1,  1},
+    { 1, -1,  0,  0},
+    { 1,  0, -1,  0},
+    { 1,  0,  0, -1},
+    { 0,  1, -1,  0},
+    { 0,  1,  0, -1},
+    { 0,  0,  1, -1},
+    {-1, -1,  0,  0},
+    {-1,  0, -1,  0},
+    {-1,  0,  0, -1},
+    { 0, -1, -1,  0},
+    { 0, -1,  0, -1},
+    { 0,  0, -1, -1},
+};
+// clang-format on
+
+const float n24cell_edge_length = sqrtf(2.0f);
+const int n24cell_edges_per_face = 3;
+const int n24cell_faces_per_cell = 8;
 
 std::unordered_set<Face, FaceHash> get_edge_paths(const Mesh4& mesh, uint32_t vertex, int n, bool skip_edge,
                                                   uint32_t skip_edge_i) {
@@ -93,7 +158,7 @@ bool face_is_valid(const Mesh4& mesh, const Face& face) {
             if (vertices_count.find(vert_i) == vertices_count.end()) {
                 vertices_count.insert({vert_i, 1});
             } else {
-                vertices_count[vert_i] = vertices_count[vert_i] + 1;
+                vertices_count[vert_i] += 1;
             }
         }
     }
@@ -115,7 +180,10 @@ bool cell_is_valid(const Mesh4& mesh, const Cell& cell) {
             if (edges_count.find(edge_i) == edges_count.end()) {
                 edges_count.insert({edge_i, 1});
             } else {
-                edges_count[edge_i] = edges_count[edge_i] + 1;
+                edges_count[edge_i] += 1;
+                if (edges_count[edge_i] > 2) {
+                    return false;
+                }
             }
         }
     }
@@ -171,34 +239,73 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
 
     // Calculate cells
 
-    std::unordered_set<Cell, CellHash> cell_set;
-
+    // Calculate the number of adjacent faces per face
+    uint32_t adjacent_faces_n;
     {
-        std::vector<uint32_t> faces;
-        faces.reserve(mesh.faces.size());
-        for (uint32_t i = 0; i < mesh.faces.size(); i++) {
-            faces.push_back(i);
-        }
-
-        std::vector<uint32_t> tmp((size_t)faces_per_cell);
-        assert(tmp.size() == (size_t)faces_per_cell);
-
-        std::function<void(int, int)> fill_cell_set;
-        fill_cell_set = [&](int len, int start_pos) {
-            if (len == 0) {
-                std::unordered_set<uint32_t> cell{tmp.cbegin(), tmp.cend()};
-                if (cell_is_valid(mesh, cell)) {
-                    cell_set.insert(std::move(cell));
-                }
-            } else {
-                for (int i = start_pos; i <= (int)faces.size() - len; i++) {
-                    tmp[tmp.size() - len] = faces[i];
-                    fill_cell_set(len - 1, i + 1);
+        std::vector<uint32_t> init_adjacent_faces;
+        const Face& init_face = mesh.faces[0];
+        for (uint32_t i = 1; i < mesh.faces.size(); i++) {
+            const Face& other_face = mesh.faces[i];
+            for (uint32_t edge_i : init_face) {
+                if (other_face.find(edge_i) != other_face.end()) {
+                    init_adjacent_faces.push_back(i);
+                    break;
                 }
             }
-        };
+        }
+        adjacent_faces_n = (uint32_t)init_adjacent_faces.size();
+    }
 
-        fill_cell_set(faces_per_cell, 0);
+    // Calculate all adjacent faces
+    std::vector<uint32_t> adjacent_faces;
+    adjacent_faces.reserve(mesh.faces.size() * adjacent_faces_n);
+
+    for (uint32_t i = 0; i < mesh.faces.size(); i++) {
+        const Face& current_face = mesh.faces[i];
+        for (uint32_t other_i = 0; other_i < mesh.faces.size(); other_i++) {
+            if (other_i != i) {
+                const Face& other_face = mesh.faces[other_i];
+                for (uint32_t edge_i : current_face) {
+                    if (other_face.find(edge_i) != other_face.end()) {
+                        adjacent_faces.push_back(other_i);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    assert(adjacent_faces.size() == mesh.faces.size() * adjacent_faces_n);
+
+    std::unordered_set<Cell, CellHash> cell_set;
+    std::unordered_set<uint32_t> face_path;
+
+    // Recursive lambda definition
+    std::function<void(uint32_t)> search_f;
+    search_f = [&](uint32_t face) {
+        assert(face_path.find(face) == face_path.end());
+        face_path.insert(face);
+        assert(face_path.size() <= (size_t)faces_per_cell);
+
+        if (face_path.size() == (size_t)faces_per_cell) {
+            if (cell_is_valid(mesh, face_path)) {
+                cell_set.insert(face_path);
+            }
+        } else {
+            for (uint32_t adj_i = 0; adj_i < adjacent_faces_n; adj_i++) {
+                uint32_t adj_face_i = adjacent_faces[face * adjacent_faces_n + adj_i];
+                if (face_path.find(adj_face_i) == face_path.end()) {
+                    search_f(adj_face_i);
+                }
+            }
+        }
+
+        face_path.erase(face);
+    };
+
+    for (uint32_t i = 0; i < mesh.faces.size(); i++) {
+        assert(face_path.size() == 0);
+        search_f(i);
     }
 
     mesh.cells = std::vector<Cell>(cell_set.cbegin(), cell_set.cend());
@@ -207,8 +314,23 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
 }
 } // namespace
 
+Mesh4 generate_5cell() {
+    return generate_mesh4(n5cell_vertices, ARRAY_SIZE(n5cell_vertices), n5cell_edge_length, n5cell_edges_per_face,
+                          n5cell_faces_per_cell);
+}
+
 Mesh4 generate_tesseract() {
     return generate_mesh4(tesseract_vertices, ARRAY_SIZE(tesseract_vertices), tesseract_edge_length,
                           tesseract_edges_per_face, tesseract_faces_per_cell);
+}
+
+Mesh4 generate_16cell() {
+    return generate_mesh4(n16cell_vertices, ARRAY_SIZE(n16cell_vertices), n16cell_edge_length, n16cell_edges_per_face,
+                          n16cell_faces_per_cell);
+}
+
+Mesh4 generate_24cell() {
+    return generate_mesh4(n24cell_vertices, ARRAY_SIZE(n24cell_vertices), n24cell_edge_length, n24cell_edges_per_face,
+                          n24cell_faces_per_cell);
 }
 } // namespace four
