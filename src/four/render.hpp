@@ -15,9 +15,11 @@ struct ShaderProgram {
     std::unordered_map<const char*, s32, CStrHash, CStrEquals> uniform_locations;
 
     ShaderProgram() {}
-    ShaderProgram(const char* vert_path, const char* frag_path);
+    ShaderProgram(u32 vertex_shader, u32 fragment_shader);
 
     void set_uniform_mat4(const char* name, const f32* data);
+    void set_uniform_f32(const char* name, f32 value);
+    s32 get_location(const char* name);
 };
 
 struct VertexSpec {
@@ -81,7 +83,9 @@ private:
     // Variables initialized in the constructor
     // ----------------------------------------
 
-    ShaderProgram shader_program;
+    ShaderProgram wireframe_shader_prog;
+    ShaderProgram selected_cell_shader_prog;
+    ShaderProgram xz_grid_shader_prog;
 
     std::vector<VertexBufferObject> vbos;
 
@@ -96,8 +100,8 @@ private:
     // Variables used for temporary storage in render()
     // ------------------------------------------------
 
-    std::vector<f32> mesh_colors;
-    std::vector<hmm_vec3> projected_vertices;
+    std::vector<hmm_vec4> projected_vertices;
+    std::vector<hmm_vec3> projected_vertices3;
     std::vector<f32> projected_vertices_f32;
     std::vector<u32> selected_cell_tri_faces;
 
