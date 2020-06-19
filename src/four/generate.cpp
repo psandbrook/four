@@ -401,7 +401,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 e
             }
         }
 
-        CHECK_EQ_F(face_vertex_indices.size(), mesh.faces.size() * (size_t)vertices_per_face);
+        DCHECK_EQ_F(face_vertex_indices.size(), mesh.faces.size() * (size_t)vertices_per_face);
 
         // Returns true if the given faces share a vertex.
         const auto share_vertex = [&](u32 face_i1, u32 face_i2) -> bool {

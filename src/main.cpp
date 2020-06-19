@@ -34,12 +34,6 @@ struct WindowGuard {
             ABORT_F("%s", SDL_GetError());
         }
 
-#if 0
-        // Enable multisampling
-        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 8);
-#endif
-
         window = SDL_CreateWindow("Four", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480,
                                   SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
 

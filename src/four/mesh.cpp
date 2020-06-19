@@ -115,55 +115,55 @@ Mesh4 load_mesh_from_file(const char* path) {
     Mesh4 result;
 
     txml::XMLElement* root = doc.RootElement();
-    CHECK_EQ_F(strcmp(root->Name(), "mesh4"), 0);
+    DCHECK_EQ_F(strcmp(root->Name(), "mesh4"), 0);
 
     txml::XMLElement* vertices_xmle = root->FirstChildElement();
-    CHECK_EQ_F(strcmp(vertices_xmle->Name(), "vertices"), 0);
+    DCHECK_EQ_F(strcmp(vertices_xmle->Name(), "vertices"), 0);
 
     for (txml::XMLElement* v_xmle = vertices_xmle->FirstChildElement(); v_xmle != NULL;
          v_xmle = v_xmle->NextSiblingElement()) {
 
-        CHECK_EQ_F(strcmp(v_xmle->Name(), "vec4"), 0);
+        DCHECK_EQ_F(strcmp(v_xmle->Name(), "vec4"), 0);
 
-        hmm_vec4 v;
-        CHECK_EQ_F(v_xmle->QueryDoubleAttribute("x", &v.X), txml::XML_SUCCESS);
-        CHECK_EQ_F(v_xmle->QueryDoubleAttribute("y", &v.Y), txml::XML_SUCCESS);
-        CHECK_EQ_F(v_xmle->QueryDoubleAttribute("z", &v.Z), txml::XML_SUCCESS);
-        CHECK_EQ_F(v_xmle->QueryDoubleAttribute("w", &v.W), txml::XML_SUCCESS);
+        hmm_vec4 v = {};
+        v_xmle->QueryDoubleAttribute("x", &v.X);
+        v_xmle->QueryDoubleAttribute("y", &v.Y);
+        v_xmle->QueryDoubleAttribute("z", &v.Z);
+        v_xmle->QueryDoubleAttribute("w", &v.W);
         result.vertices.push_back(v);
     }
 
     txml::XMLElement* edges_xmle = vertices_xmle->NextSiblingElement();
-    CHECK_EQ_F(strcmp(edges_xmle->Name(), "edges"), 0);
+    DCHECK_EQ_F(strcmp(edges_xmle->Name(), "edges"), 0);
 
     for (txml::XMLElement* e_xmle = edges_xmle->FirstChildElement(); e_xmle != NULL;
          e_xmle = e_xmle->NextSiblingElement()) {
 
-        CHECK_EQ_F(strcmp(e_xmle->Name(), "edge"), 0);
+        DCHECK_EQ_F(strcmp(e_xmle->Name(), "edge"), 0);
 
-        Edge e;
-        CHECK_EQ_F(e_xmle->QueryUnsignedAttribute("v0", &e.v0), txml::XML_SUCCESS);
-        CHECK_EQ_F(e_xmle->QueryUnsignedAttribute("v1", &e.v1), txml::XML_SUCCESS);
+        Edge e = {};
+        e_xmle->QueryUnsignedAttribute("v0", &e.v0);
+        e_xmle->QueryUnsignedAttribute("v1", &e.v1);
         result.edges.push_back(e);
     }
 
     txml::XMLElement* faces_xmle = edges_xmle->NextSiblingElement();
-    CHECK_EQ_F(strcmp(faces_xmle->Name(), "faces"), 0);
+    DCHECK_EQ_F(strcmp(faces_xmle->Name(), "faces"), 0);
 
     for (txml::XMLElement* f_xmle = faces_xmle->FirstChildElement(); f_xmle != NULL;
          f_xmle = f_xmle->NextSiblingElement()) {
 
-        CHECK_EQ_F(strcmp(f_xmle->Name(), "indices"), 0);
+        DCHECK_EQ_F(strcmp(f_xmle->Name(), "indices"), 0);
 
         std::vector<u32> face;
 
         for (txml::XMLElement* index_xmle = f_xmle->FirstChildElement(); index_xmle != NULL;
              index_xmle = index_xmle->NextSiblingElement()) {
 
-            CHECK_EQ_F(strcmp(index_xmle->Name(), "index"), 0);
+            DCHECK_EQ_F(strcmp(index_xmle->Name(), "index"), 0);
 
-            u32 value;
-            CHECK_EQ_F(index_xmle->QueryUnsignedText(&value), txml::XML_SUCCESS);
+            u32 value = 0;
+            index_xmle->QueryUnsignedText(&value);
             face.push_back(value);
         }
 
@@ -171,22 +171,22 @@ Mesh4 load_mesh_from_file(const char* path) {
     }
 
     txml::XMLElement* cells_xmle = faces_xmle->NextSiblingElement();
-    CHECK_EQ_F(strcmp(cells_xmle->Name(), "cells"), 0);
+    DCHECK_EQ_F(strcmp(cells_xmle->Name(), "cells"), 0);
 
     for (txml::XMLElement* c_xmle = cells_xmle->FirstChildElement(); c_xmle != NULL;
          c_xmle = c_xmle->NextSiblingElement()) {
 
-        CHECK_EQ_F(strcmp(c_xmle->Name(), "indices"), 0);
+        DCHECK_EQ_F(strcmp(c_xmle->Name(), "indices"), 0);
 
         std::vector<u32> cell;
 
         for (txml::XMLElement* index_xmle = c_xmle->FirstChildElement(); index_xmle != NULL;
              index_xmle = index_xmle->NextSiblingElement()) {
 
-            CHECK_EQ_F(strcmp(index_xmle->Name(), "index"), 0);
+            DCHECK_EQ_F(strcmp(index_xmle->Name(), "index"), 0);
 
-            u32 value;
-            CHECK_EQ_F(index_xmle->QueryUnsignedText(&value), txml::XML_SUCCESS);
+            u32 value = 0;
+            index_xmle->QueryUnsignedText(&value);
             cell.push_back(value);
         }
 
