@@ -2,8 +2,6 @@
 
 #include <four/math.hpp>
 
-#include <boost/bimap.hpp>
-#include <boost/bimap/unordered_set_of.hpp>
 #include <earcut.hpp>
 #include <loguru.hpp>
 
@@ -33,8 +31,8 @@ struct ConstFaceRef final : public std::reference_wrapper<const std::vector<glm:
 } // namespace
 
 struct RenderFuncs::Impl {
-    using VertexIMapping = boost::bimap<boost::bimaps::unordered_set_of<u32>, boost::bimaps::unordered_set_of<u32>>;
-    VertexIMapping face2_vertex_i_mapping;
+    std::unordered_map<u32, u32> face2_vertex_i_mapping_left;
+    std::unordered_map<u32, u32> face2_vertex_i_mapping_right;
     std::vector<glm::dvec2> face2_vertices;
 };
 
@@ -46,8 +44,6 @@ void RenderFuncs::triangulate(const std::vector<glm::dvec3>& vertices, const std
                               std::vector<u32>& out) {
 
     auto& st = *this->impl;
-
-    using VertexIMapping = Impl::VertexIMapping;
 
     // Calculate normal vector
 
@@ -92,12 +88,13 @@ void RenderFuncs::triangulate(const std::vector<glm::dvec3>& vertices, const std
 
     glm::dmat4 to_2d_trans = glm::lookAt(v0, v0 + normal, up);
 
-    st.face2_vertex_i_mapping.clear();
+    st.face2_vertex_i_mapping_left.clear();
+    st.face2_vertex_i_mapping_right.clear();
     st.face2_vertices.clear();
 
     const auto add_face2_vertex = [&](u32 v_i) -> bool {
         glm::dvec3 v = vertices[v_i];
-        for (const auto& entry : st.face2_vertex_i_mapping.left) {
+        for (const auto& entry : st.face2_vertex_i_mapping_left) {
             glm::dvec3 u = vertices[entry.first];
             if (float_eq(v.x, u.x) && float_eq(v.y, u.y) && float_eq(v.z, u.z)) {
                 // Don't triangulate if there are duplicate vertices.
@@ -105,7 +102,8 @@ void RenderFuncs::triangulate(const std::vector<glm::dvec3>& vertices, const std
             }
         }
 
-        st.face2_vertex_i_mapping.left.insert(VertexIMapping::left_value_type(v_i, (u32)st.face2_vertices.size()));
+        st.face2_vertex_i_mapping_left.emplace(v_i, (u32)st.face2_vertices.size());
+        st.face2_vertex_i_mapping_right.emplace((u32)st.face2_vertices.size(), v_i);
 
         glm::dvec3 v_ = transform(to_2d_trans, v);
         DCHECK_F(float_eq(v_.z, 0.0));
@@ -148,9 +146,11 @@ void RenderFuncs::triangulate(const std::vector<glm::dvec3>& vertices, const std
     }
 end_face2_loop:
 
+    DCHECK_EQ_F(st.face2_vertex_i_mapping_left.size(), st.face2_vertex_i_mapping_right.size());
+
 #ifdef FOUR_DEBUG
     // All vertices should be coplanar
-    for (const auto& entry : st.face2_vertex_i_mapping.left) {
+    for (const auto& entry : st.face2_vertex_i_mapping_left) {
         if (entry.first != edge0.v0) {
             glm::dvec3 v = vertices[entry.first];
             f64 x = glm::dot(v - v0, normal);
@@ -166,7 +166,7 @@ end_face2_loop:
     const std::vector<u32> result_indices = mapbox::earcut(polygon);
 
     for (u32 v_i : result_indices) {
-        out.push_back(st.face2_vertex_i_mapping.right.at(v_i));
+        out.push_back(st.face2_vertex_i_mapping_right.at(v_i));
     }
 }
 } // namespace four
