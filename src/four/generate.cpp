@@ -83,47 +83,6 @@ std::unordered_set<Face, FaceHash> get_edge_paths(const Mesh4& mesh, uint32_t ve
     }
 }
 
-std::unordered_set<Cell, CellHash> get_face_sets(const Mesh4& mesh, uint32_t face_i, int n, bool skip_face,
-                                                 uint32_t skip_face_i) {
-    assert(n >= 1);
-    if (n == 1) {
-        std::unordered_set<Cell, CellHash> output;
-
-        std::unordered_set<uint32_t> set;
-        set.insert(face_i);
-        output.insert(std::move(set));
-
-        return output;
-
-    } else {
-        std::unordered_set<Cell, CellHash> output;
-        const Face& current_face = mesh.faces[face_i];
-
-        // Find faces that share an edge with the current face
-        for (uint32_t i = 0; i < mesh.faces.size(); i++) {
-            if (i != face_i && (!skip_face || i != skip_face_i)) {
-                const Face& other_face = mesh.faces[i];
-
-                for (uint32_t edge_i : current_face) {
-                    if (other_face.find(edge_i) != other_face.end()) {
-                        // Found a matching face
-                        auto rec_face_sets = get_face_sets(mesh, i, n - 1, true, face_i);
-                        for (const auto& set : rec_face_sets) {
-                            std::unordered_set<uint32_t> set_p(set);
-                            set_p.insert(face_i);
-                            output.insert(std::move(set_p));
-                        }
-
-                        break;
-                    }
-                }
-            }
-        }
-
-        return output;
-    }
-}
-
 bool face_is_valid(const Mesh4& mesh, const Face& face) {
     std::unordered_map<uint32_t, int> vertices_count;
 
@@ -214,7 +173,6 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
 
     std::unordered_set<Cell, CellHash> cell_set;
 
-#if 1
     {
         std::vector<uint32_t> faces;
         faces.reserve(mesh.faces.size());
@@ -242,17 +200,6 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, int n_vertices, float edge_length
 
         fill_cell_set(faces_per_cell, 0);
     }
-
-#else
-    for (uint32_t i = 0; i < mesh.faces.size(); i++) {
-        auto new_face_sets = get_face_sets(mesh, i, faces_per_cell, false, 0);
-        for (const auto& set : new_face_sets) {
-            if (cell_is_valid(mesh, set)) {
-                cell_set.insert(set);
-            }
-        }
-    }
-#endif
 
     mesh.cells = std::vector<Cell>(cell_set.cbegin(), cell_set.cend());
 
