@@ -265,3 +265,8 @@ add_custom_command(
   COMMAND $<IF:$<CONFIG:Release>,strip,:> --strip-unneeded $<TARGET_FILE:four>
   VERBATIM
 )
+
+file(CREATE_LINK "${CMAKE_SOURCE_DIR}/data" "${CMAKE_BINARY_DIR}/data" RESULT DATA_LINK_RESULT SYMBOLIC)
+if(DATA_LINK_RESULT)
+  file(COPY "${CMAKE_SOURCE_DIR}/data" DESTINATION "${CMAKE_BINARY_DIR}")
+endif()
