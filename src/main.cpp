@@ -71,7 +71,6 @@ int main(int argc, char** argv) {
     loguru::g_stderr_verbosity = 1;
     loguru::g_colorlogtostderr = false;
     loguru::init(argc, argv);
-    loguru::add_file("four.log", loguru::Truncate, 1);
 
     bool debug = false;
     for (s32 i = 0; i < argc; i++) {
@@ -84,7 +83,7 @@ int main(int argc, char** argv) {
     auto& window = window_guard.window;
     auto& imgui_io = window_guard.imgui_io;
 
-    AppState state(window, imgui_io, "120cell.mesh4");
+    AppState state(window, imgui_io, "tesseract.mesh4");
     state.debug = debug;
 
     Renderer renderer(window, &state);

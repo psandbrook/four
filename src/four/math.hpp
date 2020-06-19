@@ -390,8 +390,19 @@ inline hmm_mat4 to_mat4(const Rotor3& r) {
 // 4D Rotors
 // =========
 
-struct Bivec4 {
-    f64 xy, xz, xw, yz, yw, zw;
+union Bivec4 {
+    struct {
+        f64 xy, xz, xw, yz, yw, zw;
+    };
+    f64 elements[6];
+
+    f64& operator[](size_t index) {
+        return elements[index];
+    }
+
+    f64 operator[](size_t index) const {
+        return elements[index];
+    }
 };
 
 struct Rotor4 {

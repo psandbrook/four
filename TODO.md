@@ -1,5 +1,4 @@
 * Support OpenGl 3.3
-* Automatic rotation
 * Add application icon
 * 4D camera movement
 * Draw XYZW axes

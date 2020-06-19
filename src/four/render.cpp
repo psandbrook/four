@@ -440,7 +440,7 @@ void Renderer::do_window_size_changed() {
     combined_buffer.destroy();
     projection_buffer.destroy();
 
-    vis_width_screen = (u32)(s.window_width - s.screen_x(1.0 - s.visualization_width));
+    vis_width_screen = (u32)(s.window_width - s.ui_size_screen);
     combined_buffer = Framebuffer(vis_width_screen, (u32)s.window_height);
     projection_buffer = Framebuffer(vis_width_screen, (u32)s.window_height);
 }
@@ -700,6 +700,9 @@ void Renderer::render() {
     const f64 fov = 85.0;
 
     glEnable(GL_DEPTH_TEST);
+
+    bind_default_framebuffer();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     combined_buffer.bind();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

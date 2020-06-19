@@ -33,6 +33,33 @@ inline Rotation4 rotation4() {
     return result;
 }
 
+enum Plane { Plane_xy = 0, Plane_xz, Plane_xw, Plane_yz, Plane_yw, Plane_zw, Plane_count };
+
+inline const char* plane_str(Plane value) {
+    switch (value) {
+    case Plane_xy:
+        return "xy";
+
+    case Plane_xz:
+        return "xz";
+
+    case Plane_xw:
+        return "xw";
+
+    case Plane_yz:
+        return "yz";
+
+    case Plane_yw:
+        return "yw";
+
+    case Plane_zw:
+        return "zw";
+
+    default:
+        ABORT_F("Invalid value");
+    }
+}
+
 struct AppState {
 public:
     SDL_Window* window;
@@ -47,7 +74,8 @@ public:
     s32 window_width;
     s32 window_height;
 
-    f64 visualization_width = 0.85;
+    f64 visualization_width = 0.83;
+    f64 ui_size_screen;
     bool split = true;
     f64 divider = 0.5;
 
@@ -57,8 +85,11 @@ public:
     Rotation4 mesh_rotation;
 
     s32 selected_cell;
-    bool selected_cell_cycle = false;
-    f64 selected_cell_cycle_acc = 0.0;
+    bool selected_cell_cycle;
+    f64 selected_cell_cycle_acc;
+
+    bool auto_rotate[Plane_count];
+    f64 auto_rotate_mag[Plane_count];
 
     Camera4 camera4;
 
@@ -98,6 +129,8 @@ public:
 private:
     void change_mesh(const char* path);
     bool is_mouse_around_x(f64 x);
+    bool is_new_transformation_valid();
+    void calc_ui_size_screen();
 };
 
 Mat5 mk_model_mat(const hmm_vec4& pos, const hmm_vec4& scale, const Rotation4& rotation);
