@@ -161,12 +161,34 @@ void Renderer::update_window_size() {
     projection = HMM_Perspective(90, (f64)window_width / (f64)window_height, 0.1, 100.0);
 }
 
-void Renderer::update_mesh_buffers() {
+void Renderer::do_mesh_changed() {
     auto& s = *state;
     wireframe.ebo.buffer_data_realloc(s.mesh.edges.data(), 2 * (s32)s.mesh.edges.size());
+
+    tet_mesh_vertices.clear();
+    tet_mesh_tets.clear();
+
+    for (const Cell& cell : s.mesh.cells) {
+        out_tets.clear();
+        render_funcs.tetrahedralize(s.mesh.vertices, s.mesh.edges, s.mesh.faces, cell, tet_mesh_vertices, out_tets);
+        CHECK_EQ_F((s64)out_tets.size() % 4, 0);
+
+        f32 color[3] = {color_dist(s.random_eng_32), color_dist(s.random_eng_32), color_dist(s.random_eng_32)};
+        for (size_t tet_i = 0; tet_i < out_tets.size() / 4; tet_i++) {
+            Tet tet;
+            tet.color[0] = color[0];
+            tet.color[1] = color[1];
+            tet.color[2] = color[2];
+            for (size_t j = 0; j < 4; j++) {
+                tet.vertices[j] = out_tets[tet_i * 4 + j];
+            }
+            tet_mesh_tets.push_back(tet);
+        }
+    }
 }
 
-Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(state) {
+Renderer::Renderer(SDL_Window* window, AppState* state)
+        : window(window), state(state), color_dist(0.0f, std::nextafter(1.0f, std::numeric_limits<f32>::max())) {
     auto& s = *state;
 
     SDL_GL_SetSwapInterval(1);
@@ -209,13 +231,16 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
 
     // -------------
 
-    // XZ grid
-    // -------
+    // Cross-section
+    // -------------
 
-    u32 xz_grid_vert_shader = compile_shader("data/xz-grid-vert.glsl", GL_VERTEX_SHADER);
-    u32 xz_grid_frag_shader = compile_shader("data/xz-grid-frag.glsl", GL_FRAGMENT_SHADER);
-    xz_grid_shader_prog = ShaderProgram(xz_grid_vert_shader, xz_grid_frag_shader);
-    VertexSpec xz_grid_spec = {
+    u32 cross_vert_shader = compile_shader("data/cross-vert.glsl", GL_VERTEX_SHADER);
+    u32 cross_frag_shader = compile_shader("data/cross-frag.glsl", GL_FRAGMENT_SHADER);
+    cross_section_shader_prog = ShaderProgram(cross_vert_shader, cross_frag_shader);
+    size_t cross_vertices = add_vbo(GL_STREAM_DRAW);
+    size_t cross_colors = add_vbo(GL_STREAM_DRAW);
+
+    VertexSpec cross_spec = {
             .index = 0,
             .size = 3,
             .type = GL_FLOAT,
@@ -223,6 +248,22 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
             .offset = 0,
     };
 
+    VertexSpec cross_color_spec = {
+            .index = 1,
+            .size = 3,
+            .type = GL_FLOAT,
+            .stride = 3 * sizeof(f32),
+            .offset = 0,
+    };
+
+    // -------------
+
+    // XZ grid
+    // -------
+
+    u32 xz_grid_vert_shader = compile_shader("data/xz-grid-vert.glsl", GL_VERTEX_SHADER);
+    u32 xz_grid_frag_shader = compile_shader("data/xz-grid-frag.glsl", GL_FRAGMENT_SHADER);
+    xz_grid_shader_prog = ShaderProgram(xz_grid_vert_shader, xz_grid_frag_shader);
     size_t xz_grid_vertices = add_vbo(GL_STATIC_DRAW);
     std::vector<f32> xz_grid_vertices_vec;
     const s32 n_grid_lines = 20;
@@ -270,6 +311,18 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
 
     // -----------------
 
+    // Cross-section VAO
+    // -----------------
+
+    ElementBufferObject cross_ebo(GL_STREAM_DRAW, GL_TRIANGLES);
+
+    VertexBufferObject* cross_vbos[] = {&vbos[cross_vertices], &vbos[cross_colors]};
+    VertexSpec cross_vertex_specs[] = {cross_spec, cross_color_spec};
+    cross_section = VertexArrayObject(&cross_section_shader_prog, AS_SLICE(cross_vbos), AS_SLICE(cross_vertex_specs),
+                                      cross_ebo);
+
+    // -----------------
+
     // XZ grid VAO
     // -----------
 
@@ -281,13 +334,13 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
     xz_grid_ebo.buffer_data(xz_grid_indices_vec.data(), (s32)xz_grid_indices_vec.size());
 
     VertexBufferObject* xz_grid_vbos[] = {&vbos[xz_grid_vertices]};
-    VertexSpec xz_grid_vertex_specs[] = {xz_grid_spec};
+    VertexSpec xz_grid_vertex_specs[] = {cross_spec};
     xz_grid = VertexArrayObject(&xz_grid_shader_prog, AS_SLICE(xz_grid_vbos), AS_SLICE(xz_grid_vertex_specs),
                                 xz_grid_ebo);
 
     // -----------
 
-    update_mesh_buffers();
+    do_mesh_changed();
 }
 
 void Renderer::render() {
@@ -300,14 +353,207 @@ void Renderer::render() {
 
     if (s.mesh_changed) {
         s.mesh_changed = false;
-        update_mesh_buffers();
+        do_mesh_changed();
     }
 
-    std::vector<hmm_vec4> tet_out_vertices;
-    std::vector<u32> tet_out_tets;
-    render_funcs.tetrahedralize(s.mesh.vertices, s.mesh.edges, s.mesh.faces, s.mesh.cells[0], tet_out_vertices,
-                                tet_out_tets);
+    // Cross-section
+    // Hyperplane is p_0 = (0, 0, 0, 0), n = (0, 0, 0, 1)
+    cross_vertices.clear();
+    cross_colors.clear();
+    cross_tris.clear();
+    {
+        struct Intersect {
+            enum Type { none = 0, point, line } type;
+            union {
+                hmm_vec3 point_value;
+                u32 edge_index;
+            };
+        };
 
+        const f64 epsilon = 0.00000000000001;
+        const hmm_vec4 p_0 = HMM_Vec4(0, 0, 0, 0);
+        const hmm_vec4 n = HMM_Vec4(0, 0, 0, 1);
+
+        tet_mesh_vertices_world.clear();
+        Mat5 model = mk_model_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation);
+        for (const auto& v : tet_mesh_vertices) {
+            tet_mesh_vertices_world.push_back(vec4(model * vec5(v, 1)));
+        }
+
+        for (const Tet& tet : tet_mesh_tets) {
+            // clang-format off
+            Edge edges[6] = {
+                {tet.vertices[0], tet.vertices[1]},
+                {tet.vertices[0], tet.vertices[2]},
+                {tet.vertices[0], tet.vertices[3]},
+                {tet.vertices[1], tet.vertices[2]},
+                {tet.vertices[1], tet.vertices[3]},
+                {tet.vertices[2], tet.vertices[3]},
+            };
+            // clang-format on
+
+            s32 intersect_len = 0;
+            bool intersect_points = false;
+            Intersect intersect[6];
+            memset(intersect, 0, sizeof(intersect));
+
+            for (u32 i = 0; i < 6; i++) {
+                const Edge& e = edges[i];
+                hmm_vec4 l_0 = tet_mesh_vertices_world[e.v0];
+                hmm_vec4 l = tet_mesh_vertices_world[e.v1] - l_0;
+                if (float_eq(HMM_Dot(l, n), 0.0)) {
+                    if (float_eq(HMM_Dot(p_0 - l_0, n), 0.0)) {
+                        // Edge is within plane
+                        DCHECK_F(!intersect_points);
+                        intersect[intersect_len].type = Intersect::line;
+                        intersect[intersect_len].edge_index = i;
+                        intersect_len++;
+                    }
+                } else {
+                    f64 d = HMM_Dot(p_0 - l_0, n) / HMM_Dot(l, n);
+                    if (d > 0.0 && d < 1.0 && !float_eq(d, 0.0) && !float_eq(d, 1.0)) {
+                        // Edge intersects with plane at a point
+                        intersect_points = true;
+                        intersect[intersect_len].type = Intersect::point;
+                        hmm_vec4 point = d * l + l_0;
+                        DCHECK_F(float_eq(point.W, 0.0, epsilon));
+                        intersect[intersect_len].point_value = vec3(point);
+                        intersect_len++;
+                    }
+                }
+            }
+
+            if (intersect_len > 0) {
+                if (intersect_points) {
+                    if (intersect_len == 3) {
+                        for (s32 i = 0; i < 3; i++) {
+                            DCHECK_EQ_F(intersect[i].type, Intersect::point);
+                            DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
+                            cross_tris.push_back((u32)(cross_vertices.size() / 3));
+                            for (f64 e : intersect[i].point_value.Elements) {
+                                cross_vertices.push_back((f32)e);
+                            }
+                            for (f32 e : tet.color) {
+                                cross_colors.push_back(e);
+                            }
+                        }
+
+                    } else if (intersect_len == 4) {
+                        hmm_vec3 p0 = intersect[0].point_value;
+                        hmm_vec3 p1 = intersect[1].point_value;
+                        hmm_vec3 p2 = intersect[2].point_value;
+                        hmm_vec3 p3 = intersect[3].point_value;
+                        u32 p_mapping[4];
+
+                        for (s32 i = 0; i < 4; i++) {
+                            DCHECK_EQ_F(intersect[i].type, Intersect::point);
+                            DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
+                            p_mapping[i] = (u32)(cross_vertices.size() / 3);
+                            for (f64 e : intersect[i].point_value.Elements) {
+                                cross_vertices.push_back((f32)e);
+                            }
+                            for (f32 e : tet.color) {
+                                cross_colors.push_back(e);
+                            }
+                        }
+
+                        hmm_vec3 l0 = p1 - p0;
+                        hmm_vec3 l1 = p2 - p0;
+                        hmm_vec3 l2 = p3 - p0;
+                        DCHECK_F(float_eq(HMM_Dot(HMM_Cross(l0, l1), l2), 0.0, epsilon));
+
+                        f64 sum0 = HMM_LengthSquared(p1 - p0) + HMM_LengthSquared(p3 - p2);
+                        f64 sum1 = HMM_LengthSquared(p2 - p0) + HMM_LengthSquared(p3 - p1);
+                        f64 sum2 = HMM_LengthSquared(p3 - p0) + HMM_LengthSquared(p2 - p1);
+                        if (sum0 > sum1 && sum0 > sum2) {
+                            // p0 p1 is a diagonal
+                            cross_tris.push_back(p_mapping[0]);
+                            cross_tris.push_back(p_mapping[1]);
+                            cross_tris.push_back(p_mapping[2]);
+
+                            cross_tris.push_back(p_mapping[0]);
+                            cross_tris.push_back(p_mapping[1]);
+                            cross_tris.push_back(p_mapping[3]);
+                        } else if (sum1 > sum0 && sum1 > sum2) {
+                            // p0 p2 is a diagonal
+                            cross_tris.push_back(p_mapping[0]);
+                            cross_tris.push_back(p_mapping[2]);
+                            cross_tris.push_back(p_mapping[1]);
+
+                            cross_tris.push_back(p_mapping[0]);
+                            cross_tris.push_back(p_mapping[2]);
+                            cross_tris.push_back(p_mapping[3]);
+                        } else {
+                            // p0 p3 is a diagonal
+                            cross_tris.push_back(p_mapping[0]);
+                            cross_tris.push_back(p_mapping[3]);
+                            cross_tris.push_back(p_mapping[1]);
+
+                            cross_tris.push_back(p_mapping[0]);
+                            cross_tris.push_back(p_mapping[3]);
+                            cross_tris.push_back(p_mapping[2]);
+                        }
+
+                    } else {
+                        ABORT_F("Invalid intersections");
+                    }
+
+                } else {
+                    LOG_F(INFO, "lines of intersection");
+                    DCHECK_F(intersect_len == 3 || intersect_len == 6);
+                    for (s32 i = 0; i < intersect_len; i++) {
+                        DCHECK_EQ_F(intersect[i].type, Intersect::line);
+                    }
+
+                    if (intersect_len == 3) {
+                        const Edge& e0 = edges[intersect[0].edge_index];
+                        const Edge& e1 = edges[intersect[1].edge_index];
+                        const Edge& e2 = edges[intersect[2].edge_index];
+                        u32 v_indices[3];
+                        v_indices[0] = e0.v0;
+                        v_indices[1] = e1.v0 == v_indices[0] ? e1.v1 : e1.v0;
+                        v_indices[2] = e2.v0 == v_indices[0] || e2.v0 == v_indices[1] ? e2.v1 : e2.v0;
+                        for (u32 i : v_indices) {
+                            cross_tris.push_back((u32)(cross_vertices.size() / 3));
+                            hmm_vec3 v = vec3(tet_mesh_vertices_world[i]);
+                            for (f64 e : v.Elements) {
+                                cross_vertices.push_back((f32)e);
+                            }
+                            for (f32 e : tet.color) {
+                                cross_colors.push_back(e);
+                            }
+                        }
+                    } else if (intersect_len == 6) {
+                        u32 v_mapping[4];
+                        for (s32 i = 0; i < 4; i++) {
+                            v_mapping[i] = (u32)(cross_vertices.size() / 3);
+                            hmm_vec3 v = vec3(tet_mesh_vertices_world[tet.vertices[i]]);
+                            for (f64 e : v.Elements) {
+                                cross_vertices.push_back((f32)e);
+                            }
+                            for (f32 e : tet.color) {
+                                cross_colors.push_back(e);
+                            }
+                        }
+
+                        // clang-format off
+                        u32 v_indices[12] = {
+                            0, 1, 2,
+                            0, 1, 3,
+                            0, 2, 3,
+                            1, 2, 3,
+                        };
+                        // clang-format on
+                        for (u32 e : v_indices) {
+                            cross_tris.push_back(v_mapping[e]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+#if 0
     // Perform 4D to 3D projection
     {
         projected_vertices.clear();
@@ -329,9 +575,16 @@ void Renderer::render() {
         const auto& face = s.mesh.faces[face_i];
         render_funcs.triangulate(projected_vertices3, s.mesh.edges, face, selected_cell_tri_faces);
     }
+#endif
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    CHECK_EQ_F(cross_vertices.size(), cross_colors.size());
+    cross_section.vbos[0]->buffer_data(cross_vertices.data(), cross_vertices.size() * sizeof(f32));
+    cross_section.vbos[1]->buffer_data(cross_colors.data(), cross_colors.size() * sizeof(f32));
+    cross_section.ebo.buffer_data(cross_tris.data(), (s32)cross_tris.size());
+
+#if 0
     f32 max_depth = 0.0f;
     projected_vertices_f32.clear();
     for (const hmm_vec4& v : projected_vertices) {
@@ -343,8 +596,10 @@ void Renderer::render() {
         }
     }
 
-    wireframe.vbos[0]->buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * 3 * sizeof(f32));
+    //wireframe.vbos[0]->buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * 3 * sizeof(f32));
+    wireframe.vbos[0]->buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * sizeof(f32));
     selected_cell.ebo.buffer_data(selected_cell_tri_faces.data(), (s32)selected_cell_tri_faces.size());
+#endif
 
     hmm_mat4 view = HMM_LookAt(s.camera_pos, s.camera_target, s.camera_up);
     hmm_mat4 vp = projection * view;
@@ -356,21 +611,28 @@ void Renderer::render() {
         }
     }
 
+#if 0
     wireframe_shader_prog.set_uniform_mat4("vp", vp_f32);
     wireframe_shader_prog.set_uniform_f32("max_depth", max_depth);
 
     selected_cell_shader_prog.set_uniform_mat4("vp", vp_f32);
     selected_cell_shader_prog.set_uniform_f32("max_depth", max_depth);
+#endif
 
+    cross_section_shader_prog.set_uniform_mat4("vp", vp_f32);
     xz_grid_shader_prog.set_uniform_mat4("vp", vp_f32);
 
     glLineWidth(0.5f);
     xz_grid.draw();
 
+    cross_section.draw();
+
+#if 0
     selected_cell.draw();
 
     glLineWidth(2.0f);
     wireframe.draw();
+#endif
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

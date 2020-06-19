@@ -3,6 +3,8 @@
 #include <four/math.hpp>
 #include <four/mesh.hpp>
 
+#include <random>
+
 struct SDL_Window;
 struct ImGuiIO;
 
@@ -35,6 +37,8 @@ struct AppState {
 public:
     SDL_Window* window;
     ImGuiIO* imgui_io;
+    std::random_device random_dev;
+    std::mt19937 random_eng_32;
 
     bool debug = false;
     bool window_size_changed = false;
@@ -74,6 +78,7 @@ private:
     void change_mesh(const char* path);
 };
 
-Mat5 mk_model_view_mat(const hmm_vec4& pos, const hmm_vec4& scale, const Rotation4& rotation, const Camera4& camera);
+Mat5 mk_model_mat(const hmm_vec4& pos, const hmm_vec4& scale, const Rotation4& rotation);
+Mat5 mk_model_view_mat(const Mat5& model, const Camera4& camera);
 
 } // namespace four

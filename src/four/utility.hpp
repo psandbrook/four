@@ -7,6 +7,8 @@
 #include <string.h>
 #include <unordered_set>
 
+#include <loguru.hpp>
+
 #define ARRAY_SIZE(arr) (sizeof((arr)) / sizeof(*(arr)))
 
 namespace four {
@@ -35,10 +37,12 @@ struct Slice {
     Slice(size_t len, T* data) : len(len), data(data) {}
 
     T& operator[](size_t index) {
+        CHECK_LT_F(index, len);
         return data[index];
     }
 
     const T& operator[](size_t index) const {
+        CHECK_LT_F(index, len);
         return data[index];
     }
 };

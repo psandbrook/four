@@ -33,8 +33,8 @@ void AppState::change_mesh(const char* path) {
     mesh_changed = true;
 }
 
-AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path) : window(window), imgui_io(imgui_io) {
-    mesh_rotation = rotation4();
+AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path)
+        : window(window), imgui_io(imgui_io), random_dev(), random_eng_32(random_dev()), mesh_rotation(rotation4()) {
     change_mesh(mesh_path);
     CHECK_NOTNULL_F(imgui_io->Fonts->AddFontFromFileTTF("data/DejaVuSans.ttf", 18.0f, NULL, glyph_ranges));
 }
@@ -289,13 +289,16 @@ bool AppState::process_events_and_imgui() {
     ImGui::EndFrame();
 
     bool transform_is_valid = true;
+#if 0
     Mat5 mv = mk_model_view_mat(new_mesh_pos, new_mesh_scale, new_mesh_rotation, camera4);
     for (const auto& v : mesh.vertices) {
         Vec5 view_v = mv * vec5(v, 1);
         if (view_v.W > -camera4.near) {
             transform_is_valid = false;
+            break;
         }
     }
+#endif
 
     if (transform_is_valid) {
         mesh_pos = new_mesh_pos;
@@ -324,8 +327,7 @@ void AppState::step(const f64 ms) {
     }
 }
 
-Mat5 mk_model_view_mat(const hmm_vec4& pos, const hmm_vec4& v_scale, const Rotation4& rotation, const Camera4& camera) {
-
+Mat5 mk_model_mat(const hmm_vec4& pos, const hmm_vec4& v_scale, const Rotation4& rotation) {
     Mat5 m_r;
     if (rotation.is_rotor) {
         m_r = to_mat5(rotation.rotor);
@@ -333,7 +335,10 @@ Mat5 mk_model_view_mat(const hmm_vec4& pos, const hmm_vec4& v_scale, const Rotat
         m_r = rotate_euler(rotation.euler);
     }
 
-    Mat5 model = translate(pos) * m_r * scale(v_scale);
+    return translate(pos) * m_r * scale(v_scale);
+}
+
+Mat5 mk_model_view_mat(const Mat5& model, const Camera4& camera) {
     Mat5 view = look_at(camera.pos, camera.target, camera.up, camera.over);
     return view * model;
 }

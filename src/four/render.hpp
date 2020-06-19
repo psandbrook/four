@@ -6,6 +6,7 @@
 #include <glad/glad.h>
 
 #include <memory>
+#include <random>
 
 struct SDL_Window;
 
@@ -93,35 +94,49 @@ public:
                         std::vector<u32>& out_tets);
 };
 
+// TODO: Add SRGB support
 struct Renderer {
 private:
     SDL_Window* window;
     AppState* state;
 
-    // Variables initialized in the constructor
-    // ----------------------------------------
-
     ShaderProgram wireframe_shader_prog;
     ShaderProgram selected_cell_shader_prog;
+    ShaderProgram cross_section_shader_prog;
     ShaderProgram xz_grid_shader_prog;
 
     std::vector<VertexBufferObject> vbos;
 
     VertexArrayObject wireframe;
     VertexArrayObject selected_cell;
+    VertexArrayObject cross_section;
     VertexArrayObject xz_grid;
 
     hmm_mat4 projection;
 
-    // ----------------------------------------
+    std::vector<hmm_vec4> tet_mesh_vertices;
+    std::uniform_real_distribution<f32> color_dist;
 
-    // Variables used for temporary storage in render()
+    struct Tet {
+        f32 color[3];
+        u32 vertices[4];
+    };
+    std::vector<Tet> tet_mesh_tets;
+
+    std::vector<f32> cross_vertices;
+    std::vector<f32> cross_colors;
+    std::vector<u32> cross_tris;
+
+    // Temporary storage
     // ------------------------------------------------
 
     std::vector<hmm_vec4> projected_vertices;
     std::vector<hmm_vec3> projected_vertices3;
     std::vector<f32> projected_vertices_f32;
     std::vector<u32> selected_cell_tri_faces;
+
+    std::vector<hmm_vec4> tet_mesh_vertices_world;
+    std::vector<u32> out_tets;
 
     RenderFuncs render_funcs;
 
@@ -134,6 +149,6 @@ public:
 private:
     size_t add_vbo(GLenum usage);
     void update_window_size();
-    void update_mesh_buffers();
+    void do_mesh_changed();
 };
 } // namespace four

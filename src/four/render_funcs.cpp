@@ -209,16 +209,18 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
     // Calculate transformation to 3D
 
     hmm_vec4 up;
+    hmm_vec4 over;
     if (float_eq(std::abs(normal.Y), 1.0, 0.001)) {
         up = {1, 0, 0, 0};
+        over = {0, 0, 1, 0};
+    } else if (float_eq(std::abs(normal.Z), 1.0, 0.001)) {
+        up = {0, 1, 0, 0};
+        over = {1, 0, 0, 0};
+    } else if (float_eq(sq(normal.Y) + sq(normal.Z), 1.0, 0.001)) {
+        up = {1, 0, 0, 0};
+        over = {0, 0, 0, 1};
     } else {
         up = {0, 1, 0, 0};
-    }
-
-    hmm_vec4 over;
-    if (float_eq(std::abs(normal.Z), 1.0, 0.001)) {
-        over = {1, 0, 0, 0};
-    } else {
         over = {0, 0, 1, 0};
     }
 
@@ -247,7 +249,6 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
                 if (!has_key(s.cell3_vertex_i_mapping, v_i)) {
                     s.cell3_vertex_i_mapping.emplace(v_i, s.tet_mesh_v.size());
                     hmm_vec4 v_ = vec4(to_3d_trans * vec5(v, 1.0));
-                    // LOG_F(INFO, "Cell has vertex %f, %f, %f, %f", v.X, v.Y, v.Z, v.W);
                     DCHECK_F(float_eq(v_.W, 0.0, epsilon));
                     hmm_vec3 v_3 = vec3(v_);
                     s.tet_mesh_v.push_back({v_3.X, v_3.Y, v_3.Z});
@@ -298,11 +299,9 @@ void RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const st
     s.tet_out_v.clear();
     s.tet_out_t.clear();
     s.tet_out_f.clear();
-    int result = igl::copyleft::tetgen::tetrahedralize(s.tet_mesh_v, s.tet_mesh_f, "pY", s.tet_out_v, s.tet_out_t,
+    int result = igl::copyleft::tetgen::tetrahedralize(s.tet_mesh_v, s.tet_mesh_f, "pYQ", s.tet_out_v, s.tet_out_t,
                                                        s.tet_out_f);
     CHECK_EQ_F(result, 0, "TetGen failed");
-    LOG_F(INFO, "TT size: %lu", s.tet_out_t.size());
-    LOG_F(INFO, "TF size: %lu", s.tet_out_f.size());
 
     s.tet_out_vertex_i_mapping.clear();
     for (size_t i = 0; i < s.tet_out_v.size(); i++) {
