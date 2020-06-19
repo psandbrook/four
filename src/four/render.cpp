@@ -130,6 +130,10 @@ void VertexArrayObject::draw() {
     glBindVertexArray(0);
 }
 
+size_t Renderer::add_vbo(GLenum usage) {
+    return insert_back(vbos, new_vertex_buffer_object(usage));
+}
+
 Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), state(state) {
     const auto& s = *state;
 
@@ -148,7 +152,7 @@ Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), 
 
     shader_program = ShaderProgram("data/vertex.glsl", "data/fragment.glsl");
 
-    size_t wireframe_vertices = insert_back(vbos, new_vertex_buffer_object(GL_STREAM_DRAW));
+    size_t wireframe_vertices = add_vbo(GL_STREAM_DRAW);
     VertexSpec wireframe_vertices_spec = {
             .index = 0,
             .size = 3,
@@ -157,7 +161,7 @@ Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), 
             .offset = 0,
     };
 
-    size_t wireframe_colors = insert_back(vbos, new_vertex_buffer_object(GL_STATIC_DRAW));
+    size_t wireframe_colors = add_vbo(GL_STATIC_DRAW);
     VertexSpec wireframe_colors_spec = {
             .index = 1,
             .size = 3,
@@ -175,7 +179,7 @@ Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), 
     }
     vbos[wireframe_colors].buffer_data(wireframe_colors_vec.data(), wireframe_colors_vec.size() * sizeof(f32));
 
-    size_t selected_cell_colors = insert_back(vbos, new_vertex_buffer_object(GL_STATIC_DRAW));
+    size_t selected_cell_colors = add_vbo(GL_STATIC_DRAW);
     std::vector<f32> selected_cell_colors_vec;
     for (size_t i = 0; i < s.mesh.vertices.size(); i++) {
         f32 color[3] = {1, 1, 0};
@@ -186,7 +190,7 @@ Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), 
     vbos[selected_cell_colors].buffer_data(selected_cell_colors_vec.data(),
                                            selected_cell_colors_vec.size() * sizeof(f32));
 
-    size_t xz_grid_vertices = insert_back(vbos, new_vertex_buffer_object(GL_STATIC_DRAW));
+    size_t xz_grid_vertices = add_vbo(GL_STATIC_DRAW);
     std::vector<f32> xz_grid_vertices_vec;
     const s32 n_grid_lines = 20;
     const f64 grid_lines_spacing = 0.2;
@@ -209,7 +213,7 @@ Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), 
     }
     vbos[xz_grid_vertices].buffer_data(xz_grid_vertices_vec.data(), xz_grid_vertices_vec.size() * sizeof(f32));
 
-    size_t xz_grid_colors = insert_back(vbos, new_vertex_buffer_object(GL_STATIC_DRAW));
+    size_t xz_grid_colors = add_vbo(GL_STATIC_DRAW);
     std::vector<f32> xz_grid_colors_vec;
     for (size_t i = 0; i < xz_grid_vertices_vec.size(); i++) {
         f32 color[3] = {0.5f, 0.5f, 0.5f};
@@ -218,6 +222,12 @@ Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), 
         }
     }
     vbos[xz_grid_colors].buffer_data(xz_grid_colors_vec.data(), xz_grid_colors_vec.size() * sizeof(f32));
+
+    size_t camera_target_vertex = add_vbo(GL_STREAM_DRAW);
+
+    size_t camera_target_color = add_vbo(GL_STATIC_DRAW);
+    f32 camera_target_color_value[] = {1.0f, 1.0f, 1.0f};
+    vbos[camera_target_color].buffer_data(camera_target_color_value, sizeof(camera_target_color_value));
 
     ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
     wireframe_ebo.buffer_data(s.mesh.edges.data(), 2 * (s32)s.mesh.edges.size());
@@ -242,6 +252,14 @@ Renderer::Renderer(SDL_Window* window, const AppState* state) : window(window), 
 
     VertexBufferObject* xz_grid_vbos[] = {&vbos[xz_grid_vertices], &vbos[xz_grid_colors]};
     xz_grid = VertexArrayObject(&shader_program, AS_SLICE(xz_grid_vbos), AS_SLICE(wireframe_vertex_specs), xz_grid_ebo);
+
+    ElementBufferObject camera_target_ebo(GL_STATIC_DRAW, GL_POINTS);
+    u32 camera_target_index = 0;
+    camera_target_ebo.buffer_data(&camera_target_index, 1);
+
+    VertexBufferObject* camera_target_vbos[] = {&vbos[camera_target_vertex], &vbos[camera_target_color]};
+    camera_target = VertexArrayObject(&shader_program, AS_SLICE(camera_target_vbos), AS_SLICE(wireframe_vertex_specs),
+                                      camera_target_ebo);
 
     projection = HMM_Perspective(90, (f64)window_width / (f64)window_height, 0.1, 100.0);
 }
@@ -278,6 +296,12 @@ void Renderer::render() {
         }
     }
 
+    f32 camera_target_v[3];
+    for (s32 i = 0; i < 3; i++) {
+        camera_target_v[i] = (f32)s.camera_target.Elements[i];
+    }
+    camera_target.vbos[0]->buffer_data(camera_target_v, sizeof(camera_target_v));
+
     wireframe.vbos[0]->buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * 3 * sizeof(f32));
     selected_cell.ebo.buffer_data(selected_cell_tri_faces.data(), (s32)selected_cell_tri_faces.size());
 
@@ -295,6 +319,9 @@ void Renderer::render() {
 
     glLineWidth(0.5f);
     xz_grid.draw();
+
+    glPointSize(5.0f);
+    camera_target.draw();
 
     selected_cell.draw();
 

@@ -92,6 +92,7 @@ private:
     VertexArrayObject wireframe;
     VertexArrayObject selected_cell;
     VertexArrayObject xz_grid;
+    VertexArrayObject camera_target;
 
     hmm_mat4 projection;
 
@@ -121,6 +122,8 @@ public:
     void render();
 
 private:
+    size_t add_vbo(GLenum usage);
+
     void triangulate(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
                      std::vector<u32>& out);
 };
