@@ -31,6 +31,10 @@ void AppState::change_mesh(const char* path) {
     }
     selected_cell = 0;
     mesh_changed = true;
+
+    new_mesh_pos = mesh_pos;
+    new_mesh_scale = mesh_scale;
+    new_mesh_rotation = mesh_rotation;
 }
 
 AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path)
@@ -207,9 +211,9 @@ bool AppState::process_events_and_imgui() {
         ImGui::End();
     }
 
-    hmm_vec4 new_mesh_pos = mesh_pos;
-    hmm_vec4 new_mesh_scale = mesh_scale;
-    Rotation4 new_mesh_rotation = mesh_rotation;
+    hmm_vec4 prev_new_mesh_pos = new_mesh_pos;
+    hmm_vec4 prev_new_mesh_scale = new_mesh_scale;
+    Rotation4 prev_new_mesh_rotation = new_mesh_rotation;
 
     // 4D Transform window
     {
@@ -300,25 +304,24 @@ bool AppState::process_events_and_imgui() {
 
     ImGui::EndFrame();
 
-    bool transform_is_valid = true;
     if (!cross_section) {
         Mat5 model = mk_model_mat(new_mesh_pos, new_mesh_scale, new_mesh_rotation);
         Mat5 mv = mk_model_view_mat(model, camera4);
         for (const auto& v : mesh.vertices) {
             Vec5 view_v = mv * vec5(v, 1);
             if (view_v.W > -camera4.near) {
-                transform_is_valid = false;
+                new_mesh_pos = prev_new_mesh_pos;
+                new_mesh_scale = prev_new_mesh_scale;
+                new_mesh_rotation = prev_new_mesh_rotation;
                 break;
             }
         }
     }
 
-    if (transform_is_valid) {
+    if (!imgui_io->WantTextInput) {
         mesh_pos = new_mesh_pos;
         mesh_scale = new_mesh_scale;
         mesh_rotation = new_mesh_rotation;
-    } else {
-        // show_camera_near_note = true;
     }
 
     return false;
@@ -342,9 +345,25 @@ void AppState::step(const f64 ms) {
 
 void AppState::bump_mesh_pos_w() {
     const f64 mag = 0.000000000001;
-    mesh_pos.W += std::copysign(mag, -mesh_pos.W);
+
     if (float_eq(mesh_pos.W, 0.0)) {
         mesh_pos.W += mag;
+    } else {
+        // We bump towards zero because we assume that the hyperplane used for
+        // cross-section visualization is at w = 0.
+        mesh_pos.W += std::copysign(mag, -mesh_pos.W);
+        if (float_eq(mesh_pos.W, 0.0)) {
+            mesh_pos.W += mag;
+        }
+    }
+
+    if (float_eq(new_mesh_pos.W, 0.0)) {
+        new_mesh_pos.W += mag;
+    } else {
+        new_mesh_pos.W += std::copysign(mag, -new_mesh_pos.W);
+        if (float_eq(new_mesh_pos.W, 0.0)) {
+            new_mesh_pos.W += mag;
+        }
     }
 }
 

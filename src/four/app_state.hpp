@@ -61,6 +61,10 @@ public:
     hmm_vec3 camera_target = {0, 0, 0};
     hmm_vec3 camera_up = {0, 1, 0};
 
+    hmm_vec4 new_mesh_pos;
+    hmm_vec4 new_mesh_scale;
+    Rotation4 new_mesh_rotation;
+
     // Temporary storage
     // -----------------
 

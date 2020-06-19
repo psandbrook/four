@@ -197,11 +197,15 @@ void Renderer::calculate_cross_section() {
     const hmm_vec4 p_0 = HMM_Vec4(0, 0, 0, 0);
     const hmm_vec4 n = HMM_Vec4(0, 0, 0, 1);
 
-    tet_mesh_vertices_world.clear();
-    Mat5 model = mk_model_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation);
-    for (const auto& v : tet_mesh_vertices) {
-        tet_mesh_vertices_world.push_back(transform(model, v));
-    }
+    auto calc_tet_mesh_vertices_world = [&]() {
+        tet_mesh_vertices_world.clear();
+        Mat5 model = mk_model_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation);
+        for (const auto& v : tet_mesh_vertices) {
+            tet_mesh_vertices_world.push_back(transform(model, v));
+        }
+    };
+
+    calc_tet_mesh_vertices_world();
 
     for (const Tet& tet : tet_mesh_tets) {
         // clang-format off
@@ -218,7 +222,7 @@ void Renderer::calculate_cross_section() {
         s32 intersect_len = 0;
         hmm_vec3 intersect[6];
 
-        for (u32 i = 0; i < 6; i++) {
+        for (s32 i = 0; i < 6; i++) {
             const Edge& e = edges[i];
             hmm_vec4 l_0 = tet_mesh_vertices_world[e.v0];
             hmm_vec4 l = tet_mesh_vertices_world[e.v1] - l_0;
@@ -230,6 +234,8 @@ void Renderer::calculate_cross_section() {
                     // this case. Instead, we bump the mesh's w position and
                     // hope for points of intersection instead.
                     s.bump_mesh_pos_w();
+                    calc_tet_mesh_vertices_world();
+                    i--;
                 }
             } else {
                 f64 d = HMM_Dot(p_0 - l_0, n) / HMM_Dot(l, n);
