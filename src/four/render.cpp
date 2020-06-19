@@ -778,6 +778,7 @@ void Renderer::render() {
 
         bind_default_framebuffer();
         glDisable(GL_DEPTH_TEST);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glViewport(0, 0, s.window_width, s.window_height);
 
         f64 divider_x_pos = (s.visualization_width * s.divider) * 2.0 - 1.0 - divider_width / 2.0;
