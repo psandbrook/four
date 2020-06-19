@@ -172,10 +172,10 @@ int main(int argc, char** argv) {
         }
     }
 
-    const char* mesh_path = "120cell.mesh4";
+    const char* mesh_path = "600cell.mesh4";
 
     {
-        Mesh4 mesh = generate_120cell();
+        Mesh4 mesh = generate_600cell();
         CHECK_F(save_mesh_to_file(mesh, mesh_path));
     }
 

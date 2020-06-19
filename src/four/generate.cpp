@@ -197,6 +197,45 @@ const s32 n120cell_edges_per_face = 5;
 const s32 n120cell_faces_per_cell = 12;
 const s32 n120cell_n_cells = 120;
 
+const hmm_vec4 n600cell_base_vertex0 = {0.5, 0.5, 0.5, 0.5};
+const hmm_vec4 n600cell_base_vertex1 = {0, 0, 0, 1};
+const hmm_vec4 n600cell_base_vertex2 = {golden_ratio / 2.0, 0.5, 1.0 / (2 * golden_ratio), 0};
+
+std::vector<hmm_vec4> generate_600cell_vertices() {
+    std::unordered_set<hmm_vec4> permutations;
+
+    permutations.insert(n600cell_base_vertex0);
+    generate_permutations(n600cell_base_vertex1, permutations);
+    generate_permutations(n600cell_base_vertex2, permutations, true);
+
+    std::vector<hmm_vec4> vertices;
+    std::unordered_set<hmm_vec4> seen;
+    for (hmm_vec4 v : permutations) {
+        for (s32 a = 0; a < 2; a++) {
+            for (s32 b = 0; b < 2; b++) {
+                for (s32 c = 0; c < 2; c++) {
+                    for (s32 d = 0; d < 2; d++) {
+                        if (seen.insert(v).second) {
+                            vertices.push_back(v);
+                        }
+                        v[3] = -v[3];
+                    }
+                    v[2] = -v[2];
+                }
+                v[1] = -v[1];
+            }
+            v[0] = -v[0];
+        }
+    }
+
+    return vertices;
+}
+
+const f64 n600cell_edge_length = 1.0 / golden_ratio;
+const s32 n600cell_edges_per_face = 3;
+const s32 n600cell_faces_per_cell = 4;
+const s32 n600cell_n_cells = 600;
+
 Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 edge_length, const s32 edges_per_face,
                      const s32 faces_per_cell, const s32 n_cells) {
     Mesh4 mesh;
@@ -400,7 +439,7 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 e
         LOG_F(INFO, "Starting %u threads for cell search", n_threads);
         for (u32 i = 0; i < n_threads; i++) {
 
-            const u32 search_start = search_n * i;
+            u32 search_start = search_n * i;
             u32 search_end = i == n_threads - 1 ? (u32)mesh.faces.size() : search_start + search_n;
 
             auto t = std::thread([&, i, search_start, search_end]() {
@@ -436,11 +475,13 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 e
                 std::unordered_set<u32> face_path;
 
                 // Recursive lambda definition
-                std::function<bool(s64, s64, u32)> fill_cell_set;
-                fill_cell_set = [&](s64 parent_face_i, s64 gparent_face_i, u32 face_i) -> bool {
+                std::function<void(s64, s64, u32)> fill_cell_set;
+                fill_cell_set = [&](s64 parent_face_i, s64 gparent_face_i, u32 face_i) {
                     DCHECK_F(!contains(face_path, face_i));
                     face_path.insert(face_i);
                     DCHECK_F(face_path.size() <= (size_t)faces_per_cell);
+
+                    // TODO: Check if current face_path is convex
 
                     if (face_path.size() == (size_t)faces_per_cell) {
                         if (cell_is_valid(face_path)) {
@@ -457,7 +498,6 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 e
 
                             if (success) {
                                 LOG_F(INFO, "found %lu cells", cell_set_size);
-                                return true;
                             }
                         }
                     } else {
@@ -468,17 +508,13 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 e
                                 && (parent_face_i == -1 || share_vertex(adj_face_i, (u32)parent_face_i)
                                     || (gparent_face_i != -1 && share_vertex(adj_face_i, (u32)gparent_face_i)))) {
 
-                                if (fill_cell_set(face_i, parent_face_i, adj_face_i)) {
-                                    return true;
-                                }
+                                fill_cell_set(face_i, parent_face_i, adj_face_i);
                             }
                         }
                     }
 
                     const size_t result = face_path.erase(face_i);
                     DCHECK_EQ_F(result, 1u);
-
-                    return false;
                 };
 
                 for (u32 i = search_start; i < search_end; i++) {
@@ -537,5 +573,11 @@ Mesh4 generate_120cell() {
     const std::vector<hmm_vec4> n120cell_vertices = generate_120cell_vertices();
     return generate_mesh4(n120cell_vertices.data(), (u32)n120cell_vertices.size(), n120cell_edge_length,
                           n120cell_edges_per_face, n120cell_faces_per_cell, n120cell_n_cells);
+}
+
+Mesh4 generate_600cell() {
+    const std::vector<hmm_vec4> n600cell_vertices = generate_600cell_vertices();
+    return generate_mesh4(n600cell_vertices.data(), (u32)n600cell_vertices.size(), n600cell_edge_length,
+                          n600cell_edges_per_face, n600cell_faces_per_cell, n600cell_n_cells);
 }
 } // namespace four
