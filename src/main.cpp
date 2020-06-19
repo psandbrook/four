@@ -54,6 +54,12 @@ struct WindowGuard {
         CHECK_F(ImGui_ImplOpenGL3_Init("#version 330 core"));
     }
 
+    WindowGuard(const WindowGuard&) = delete;
+    WindowGuard(WindowGuard&&) = delete;
+
+    WindowGuard& operator=(const WindowGuard&) = delete;
+    WindowGuard& operator=(WindowGuard&&) = delete;
+
     ~WindowGuard() {
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplSDL2_Shutdown();
