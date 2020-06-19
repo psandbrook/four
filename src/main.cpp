@@ -10,6 +10,7 @@
 #include <stdio.h>
 
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <utility>
 #include <vector>
@@ -22,6 +23,62 @@ public:
         SDL_Quit();
     }
 };
+
+struct Mat5 {
+    float elements[5][5];
+};
+
+struct Vec5 {
+    float elements[5];
+
+    float& operator[](size_t index) {
+        return elements[index];
+    }
+
+    float operator[](size_t index) const {
+        return elements[index];
+    }
+};
+
+hmm_vec4 vec4(const Vec5& v) {
+    return HMM_Vec4(v[0], v[1], v[2], v[3]);
+}
+
+Vec5 vec5(hmm_vec4 vec, float v) {
+    return {vec[0], vec[1], vec[2], vec[3], v};
+}
+
+Vec5 operator*(Mat5 m, const Vec5& v) {
+    Vec5 result;
+
+    for (int r = 0; r < 5; r++) {
+        float sum = 0;
+        for (int c = 0; c < 5; c++) {
+            sum += m.elements[c][r] * v.elements[c];
+        }
+
+        result.elements[r] = sum;
+    }
+
+    return result;
+}
+
+Mat5 operator*(Mat5 m1, const Mat5& m2) {
+    Mat5 result;
+
+    for (int c = 0; c < 5; c++) {
+        for (int r = 0; r < 5; r++) {
+            float sum = 0;
+            for (int current_matrice = 0; current_matrice < 5; current_matrice++) {
+                sum += m1.elements[current_matrice][r] * m2.elements[c][current_matrice];
+            }
+
+            result.elements[c][r] = sum;
+        }
+    }
+
+    return result;
+}
 
 uint32_t compile_shader(const char* path, GLenum shader_type) {
 
@@ -90,29 +147,27 @@ int main() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glEnable(GL_DEPTH_TEST);
 
-    glLineWidth(3.0f);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    struct Edge4 {
-        hmm_vec4 vertices[2];
+    struct Tetrahedron {
+        hmm_vec4 vertices[4];
     };
 
-    constexpr float phi_f = (float)((1.0 + sqrt(5.0)) / 2.0);
-
     // clang-format off
-    Edge4 edges[] = {
-        {{{2.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 2.0f, 0.0f, 0.0f}}},
-        {{{2.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 2.0f, 0.0f}}},
-        {{{2.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 2.0f}}},
-        {{{2.0f, 0.0f, 0.0f, 0.0f}, {phi_f, phi_f, phi_f, phi_f}}},
+    hmm_vec4 vertices[] = {
+        {1, 1, 1, -1/sqrtf(5)},
+        {1, -1, -1, -1/sqrtf(5)},
+        {-1, 1, -1, -1/sqrt(5)},
+        {-1, -1, 1, -1/sqrtf(5)},
+        {0, 0, 0, sqrtf(5) - 1/sqrtf(5)},
+    };
 
-        {{{0.0f, 2.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 2.0f, 0.0f}}},
-        {{{0.0f, 2.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 2.0f}}},
-        {{{0.0f, 2.0f, 0.0f, 0.0f}, {phi_f, phi_f, phi_f, phi_f}}},
-
-        {{{0.0f, 0.0f, 2.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 2.0f}}},
-        {{{0.0f, 0.0f, 2.0f, 0.0f}, {phi_f, phi_f, phi_f, phi_f}}},
-
-        {{{0.0f, 0.0f, 0.0f, 2.0f}, {phi_f, phi_f, phi_f, phi_f}}},
+    Tetrahedron tets[] = {
+        {{vertices[0], vertices[1], vertices[2], vertices[3]}},
+        {{vertices[4], vertices[1], vertices[2], vertices[3]}},
+        {{vertices[0], vertices[4], vertices[2], vertices[3]}},
+        {{vertices[0], vertices[1], vertices[4], vertices[3]}},
+        {{vertices[0], vertices[1], vertices[2], vertices[4]}},
     };
     // clang-format on
 
@@ -122,22 +177,18 @@ int main() {
     hmm_vec4 hplane_p0 = {0.0f, 0.0f, 0.0f, 0.0f};
     hmm_vec4 hplane_n = {0.0f, 0.0f, 0.0f, 1.0f};
 
-    struct Edge3 {
-        hmm_vec3 vertices[2];
+    struct Triangle {
+        hmm_vec3 vertices[3];
     };
 
-    constexpr size_t edges_size = sizeof(edges) / sizeof(*edges);
-    Edge3 edges3[edges_size];
-    for (size_t i = 0; i < edges_size; i++) {
-        edges3[i] = {{edges[i].vertices[0].XYZ, edges[i].vertices[1].XYZ}};
-    }
+    std::vector<Triangle> cross_tris;
 
-    uint32_t vert_shader = compile_shader("data/vertex_line.glsl", GL_VERTEX_SHADER);
+    uint32_t vert_shader = compile_shader("data/vertex.glsl", GL_VERTEX_SHADER);
     if (!vert_shader) {
         return 1;
     }
 
-    uint32_t frag_shader = compile_shader("data/fragment_line.glsl", GL_FRAGMENT_SHADER);
+    uint32_t frag_shader = compile_shader("data/fragment.glsl", GL_FRAGMENT_SHADER);
     if (!frag_shader) {
         return 1;
     }
@@ -172,20 +223,16 @@ int main() {
     uint32_t vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, edges_size * sizeof(edges3[0]), edges3, GL_STATIC_DRAW);
-
     glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(hmm_vec3), (void*)0);
     glEnableVertexAttribArray(0);
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    glBindVertexArray(vao);
-
     int vp_location = glGetUniformLocation(shader_prog, "vp");
 
-    hmm_vec3 camera_pos = {1.0f, 1.0f, 8.0f};
-    hmm_vec3 camera_target = {1.0f, 1.0f, 0.0f};
+    hmm_vec3 camera_pos = {0.0f, 0.0f, 8.0f};
+    hmm_vec3 camera_target = {0.0f, 0.0f, 0.0f};
     hmm_vec3 camera_up = {0.0f, 1.0f, 0.0f};
 
     hmm_mat4 projection = HMM_Perspective(45.0f, (float)window_width / (float)window_height, 0.1f, 100.0f);
@@ -224,18 +271,120 @@ int main() {
 
         int steps = 0;
         while (lag_ms >= step_ms && steps < steps_per_sec) {
-            camera_pos = (HMM_Rotate(1.0f, HMM_Vec3(0.0f, 1.0f, 0.0f)) * HMM_Vec4v(camera_pos, 1.0f)).XYZ;
+            float degrees_per_sec = 45.0f;
+            camera_pos = (HMM_Rotate(degrees_per_sec * (float)(step_ms / 1000.0), HMM_Vec3(0.0f, 1.0f, 0.0f))
+                          * HMM_Vec4v(camera_pos, 1.0f))
+                                 .XYZ;
+
+            float rad = 0.01f;
+            Mat5 rotation_mat = {{
+                    {cosf(rad), 0, 0, -sinf(rad), 0},
+                    {0, 1, 0, 0, 0},
+                    {0, 0, 1, 0, 0},
+                    {sinf(rad), 0, 0, cosf(rad), 0},
+                    {0, 0, 0, 0, 1},
+            }};
+
+            for (auto& tet : tets) {
+                for (int i = 0; i < 4; i++) {
+                    tet.vertices[i] = vec4(rotation_mat * vec5(tet.vertices[i], 1.0f));
+                }
+            }
+
             lag_ms -= step_ms;
             steps++;
         }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        cross_tris.clear();
+
+        for (auto& tet : tets) {
+            // clang-format off
+            std::pair<hmm_vec4, hmm_vec4> edges[6] = {
+                {tet.vertices[0], tet.vertices[1]},
+                {tet.vertices[0], tet.vertices[2]},
+                {tet.vertices[0], tet.vertices[3]},
+                {tet.vertices[1], tet.vertices[2]},
+                {tet.vertices[1], tet.vertices[3]},
+                {tet.vertices[2], tet.vertices[3]},
+            };
+            // clang-format on
+
+            std::vector<hmm_vec3> isect_points;
+
+            for (auto& e : edges) {
+                hmm_vec4& l0 = e.first;
+                hmm_vec4& l1 = e.second;
+                hmm_vec4 l = l1 - l0;
+                float d = -l0.W / l.W;
+                if (d >= 0.0f && d <= 1.0f) {
+                    hmm_vec4 intersect = d * l + l0;
+                    assert(intersect.W <= std::numeric_limits<float>::epsilon());
+                    isect_points.push_back(intersect.XYZ);
+                }
+            }
+
+            if (isect_points.size() == 3) {
+                Triangle tri;
+                tri.vertices[0] = isect_points[0];
+                tri.vertices[1] = isect_points[1];
+                tri.vertices[2] = isect_points[2];
+
+                cross_tris.push_back(tri);
+
+            } else if (isect_points.size() == 4) {
+                Triangle tri1, tri2;
+                float len1 = HMM_LengthSquared(isect_points[0] - isect_points[2]);
+                float len2 = HMM_LengthSquared(isect_points[1] - isect_points[3]);
+
+                if (len1 < len2) {
+                    tri1.vertices[0] = isect_points[0];
+                    tri1.vertices[1] = isect_points[1];
+                    tri1.vertices[2] = isect_points[2];
+
+                    tri2.vertices[0] = isect_points[0];
+                    tri2.vertices[1] = isect_points[2];
+                    tri2.vertices[2] = isect_points[3];
+                } else {
+                    tri1.vertices[0] = isect_points[0];
+                    tri1.vertices[1] = isect_points[1];
+                    tri1.vertices[2] = isect_points[3];
+
+                    tri2.vertices[0] = isect_points[3];
+                    tri2.vertices[1] = isect_points[1];
+                    tri2.vertices[2] = isect_points[2];
+                }
+
+                cross_tris.push_back(tri1);
+                cross_tris.push_back(tri2);
+            }
+        }
+
+        auto print_vec3 = [](hmm_vec3& v) { printf("x: %.2f, y: %.2f, z: %.2f\n", v[0], v[1], v[2]); };
+
+        printf("start\n");
+        for (auto& tri : cross_tris) {
+            printf("start tri\n");
+            print_vec3(tri.vertices[0]);
+            print_vec3(tri.vertices[1]);
+            print_vec3(tri.vertices[2]);
+            printf("end tri\n");
+        }
+        printf("end\n");
+
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, cross_tris.size() * sizeof(cross_tris[0]), cross_tris.data(), GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
         hmm_mat4 view = HMM_LookAt(camera_pos, camera_target, camera_up);
         hmm_mat4 vp = projection * view;
         glUniformMatrix4fv(vp_location, 1, false, (float*)&vp);
 
-        glDrawArrays(GL_LINES, 0, edges_size * 2);
+        glBindVertexArray(vao);
+        glDrawArrays(GL_TRIANGLES, 0, (GLsizei)(cross_tris.size() * 3));
+        glBindVertexArray(0);
+
         SDL_GL_SwapWindow(window);
     }
 main_loop_end:
