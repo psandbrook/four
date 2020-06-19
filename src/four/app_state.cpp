@@ -194,7 +194,7 @@ bool AppState::process_events_and_imgui() {
     if (ImGui::IsMouseClicked(0)) {
         if (is_mouse_around_x(visualization_width)) {
             dragging_ui = true;
-        } else if (is_mouse_around_x(visualization_width * divider)) {
+        } else if (split && is_mouse_around_x(visualization_width * divider)) {
             dragging_divider = true;
         }
     }
@@ -220,7 +220,7 @@ bool AppState::process_events_and_imgui() {
         dragging_ui = false;
         dragging_divider = false;
 
-        if (is_mouse_around_x(visualization_width) || is_mouse_around_x(visualization_width * divider)) {
+        if (is_mouse_around_x(visualization_width) || (split && is_mouse_around_x(visualization_width * divider))) {
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         }
     }

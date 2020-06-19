@@ -21,6 +21,12 @@ void mat4_to_f32(const hmm_mat4& mat, f32* out) {
     }
 }
 
+Renderer* renderer = NULL;
+
+VertexBufferObject& global_get_vbo(u32 index) {
+    return renderer->vbos.at(index);
+}
+
 u32 compile_shader(const char* path, GLenum type) {
     auto full_path = std::string("data/shaders/") + path;
     std::ifstream stream(full_path);
@@ -135,19 +141,19 @@ void GlBuffer::buffer_data_realloc(const void* data, size_t size) {
 }
 
 void ElementBufferObject::buffer_elements(const void* data, s32 n) {
-    buf.buffer_data(data, (u32)n * sizeof(u32));
+    buffer_data(data, (u32)n * sizeof(u32));
     primitive_count = n;
 }
 
 void ElementBufferObject::buffer_elements_realloc(const void* data, s32 n) {
-    buf.buffer_data_realloc(data, (u32)n * sizeof(u32));
+    buffer_data_realloc(data, (u32)n * sizeof(u32));
     primitive_count = n;
 }
 
 UniformBufferObject::UniformBufferObject(const char* name, u32 binding, GLenum usage)
-        : buf(GL_UNIFORM_BUFFER, usage), name(name), binding(binding) {
+        : GlBuffer(GL_UNIFORM_BUFFER, usage), name(name), binding(binding) {
 
-    glBindBufferBase(GL_UNIFORM_BUFFER, binding, buf.id);
+    glBindBufferBase(GL_UNIFORM_BUFFER, binding, id);
 }
 
 Framebuffer::Framebuffer(u32 width, u32 height) : width(width), height(height) {
@@ -215,15 +221,16 @@ void Framebuffer::bind() {
     glBindFramebuffer(GL_FRAMEBUFFER, id);
 }
 
-VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, Slice<VertexBufferObject*> vbos_,
-                                     Slice<VertexSpec> specs, ElementBufferObject ebo)
+VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, Slice<u32> vbos_, Slice<VertexSpec> specs,
+                                     ElementBufferObject ebo)
         : shader_program(shader_program), vbos(vbos_.data, vbos_.data + vbos_.len), ebo(ebo) {
 
-    for (auto vbo : vbos) {
-        CHECK_EQ_F(vbo->type, (u32)GL_ARRAY_BUFFER);
+    for (size_t i = 0; i < vbos.size(); i++) {
+        auto& vbo = get_vbo(i);
+        CHECK_EQ_F(vbo.type, (u32)GL_ARRAY_BUFFER);
     }
 
-    CHECK_EQ_F(ebo.buf.type, (u32)GL_ELEMENT_ARRAY_BUFFER);
+    CHECK_EQ_F(ebo.type, (u32)GL_ELEMENT_ARRAY_BUFFER);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -232,16 +239,20 @@ VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, Slice<Vertex
     glBindVertexArray(id);
 
     for (size_t i = 0; i < vbos.size(); i++) {
-        auto vbo = vbos[i];
+        auto& vbo = get_vbo(i);
         VertexSpec spec = specs[i];
-        glBindBuffer(vbo->type, vbo->id);
+        glBindBuffer(vbo.type, vbo.id);
         glVertexAttribPointer(spec.index, spec.size, spec.type, false, spec.stride, (void*)spec.offset);
         glEnableVertexAttribArray(spec.index);
     }
 
-    glBindBuffer(ebo.buf.type, ebo.buf.id);
+    glBindBuffer(ebo.type, ebo.id);
 
     glBindVertexArray(0);
+}
+
+VertexBufferObject& VertexArrayObject::get_vbo(size_t index) {
+    return global_get_vbo(vbos.at(index));
 }
 
 void VertexArrayObject::draw() {
@@ -251,8 +262,158 @@ void VertexArrayObject::draw() {
     glBindVertexArray(0);
 }
 
-size_t Renderer::add_vbo(GLenum usage) {
-    return insert_back(vbos, new_vertex_buffer_object(usage));
+Renderer::Renderer(SDL_Window* window, AppState* state)
+        : window(window), state(state), color_dist(0.0f, std::nextafter(1.0f, std::numeric_limits<f32>::max())) {
+
+    renderer = this;
+    SDL_GL_SetSwapInterval(1);
+
+    const f32 bg_shade = 0.04f;
+    glClearColor(bg_shade, bg_shade, bg_shade, 1.0f);
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_MULTISAMPLE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_FRAMEBUFFER_SRGB);
+
+    // This is needed to render the wireframe without z-fighting.
+    glEnable(GL_POLYGON_OFFSET_LINE);
+    glPolygonOffset(-1.0, -1.0);
+
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    do_window_size_changed();
+
+    view_projection_ubo = UniformBufferObject("ViewProjection", 0, GL_STREAM_DRAW);
+
+    // Wireframe
+
+    u32 n4d_vert_shader = compile_shader("n4d-vert.glsl", GL_VERTEX_SHADER);
+    u32 n4d_frag_shader = compile_shader("n4d-frag.glsl", GL_FRAGMENT_SHADER);
+    u32 n4d_frag_shaders[] = {n4d_frag_shader};
+    n4d_shader_prog = ShaderProgram(n4d_vert_shader, AS_SLICE(n4d_frag_shaders));
+
+    u32 wireframe_vertices = add_vbo(GL_STREAM_DRAW);
+    VertexSpec n4d_vertex_spec = {
+            .index = 0,
+            .size = 4,
+            .type = GL_FLOAT,
+            .stride = 4 * sizeof(f32),
+            .offset = 0,
+    };
+
+    // Cross-section
+
+    {
+        u32 vert_shader = compile_shader("cross-vert.glsl", GL_VERTEX_SHADER);
+        u32 frag_shader = compile_shader("cross-frag.glsl", GL_FRAGMENT_SHADER);
+        u32 frag_shaders[] = {frag_shader};
+        cross_section_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
+    }
+
+    u32 cross_vertices = add_vbo(GL_STREAM_DRAW);
+    u32 cross_colors = add_vbo(GL_STREAM_DRAW);
+
+    VertexSpec cross_vertex_spec = {
+            .index = 0,
+            .size = 3,
+            .type = GL_FLOAT,
+            .stride = 3 * sizeof(f32),
+            .offset = 0,
+    };
+
+    VertexSpec cross_color_spec = {
+            .index = 1,
+            .size = 3,
+            .type = GL_FLOAT,
+            .stride = 3 * sizeof(f32),
+            .offset = 0,
+    };
+
+    // XZ grid
+
+    {
+        u32 vert_shader = compile_shader("xz-grid-vert.glsl", GL_VERTEX_SHADER);
+        u32 frag_shader = compile_shader("xz-grid-frag.glsl", GL_FRAGMENT_SHADER);
+
+        u32 frag_shaders[] = {frag_shader};
+        xz_grid_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
+    }
+
+    u32 xz_grid_vertices = add_vbo(GL_STATIC_DRAW);
+    std::vector<f32> xz_grid_vertices_vec;
+    {
+        const s32 n_grid_lines = 20;
+        const f64 grid_lines_spacing = 0.2;
+
+        for (s32 i = 0; i <= n_grid_lines; i++) {
+            f64 end_pos = (n_grid_lines / 2.0) * grid_lines_spacing;
+            f64 i_pos = (i * grid_lines_spacing) - end_pos;
+            f64 vertices[][3] = {
+                    {end_pos, 0, i_pos},
+                    {-end_pos, 0, i_pos},
+                    {i_pos, 0, -end_pos},
+                    {i_pos, 0, end_pos},
+            };
+
+            for (auto v : vertices) {
+                for (s32 i = 0; i < 3; i++) {
+                    xz_grid_vertices_vec.push_back((f32)v[i]);
+                }
+            }
+        }
+
+        vbos[xz_grid_vertices].buffer_data(xz_grid_vertices_vec.data(), xz_grid_vertices_vec.size() * sizeof(f32));
+    }
+
+    ShaderProgram* all_shader_progs[] = {&n4d_shader_prog, &cross_section_shader_prog, &xz_grid_shader_prog};
+    for (auto prog : all_shader_progs) {
+        prog->bind_uniform_block(view_projection_ubo);
+    }
+
+    // Wireframe VAO
+
+    VertexSpec n4d_vertex_specs[] = {n4d_vertex_spec};
+    u32 wireframe_vbos[] = {wireframe_vertices};
+
+    {
+        ElementBufferObject ebo(GL_STATIC_DRAW, GL_LINES);
+        wireframe = VertexArrayObject(&n4d_shader_prog, AS_SLICE(wireframe_vbos), AS_SLICE(n4d_vertex_specs), ebo);
+    }
+
+    // Selected cell VAO
+    {
+        ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
+        selected_cell = VertexArrayObject(&n4d_shader_prog, AS_SLICE(wireframe_vbos), AS_SLICE(n4d_vertex_specs), ebo);
+    }
+
+    // Cross-section VAO
+    {
+        ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
+        u32 cross_vbos[] = {cross_vertices, cross_colors};
+        VertexSpec vertex_specs[] = {cross_vertex_spec, cross_color_spec};
+        cross_section =
+                VertexArrayObject(&cross_section_shader_prog, AS_SLICE(cross_vbos), AS_SLICE(vertex_specs), ebo);
+    }
+
+    // XZ grid VAO
+    {
+        ElementBufferObject ebo(GL_STATIC_DRAW, GL_LINES);
+        std::vector<u32> indices_vec;
+        for (u32 i = 0; i < xz_grid_vertices_vec.size(); i++) {
+            indices_vec.push_back(i);
+        }
+        ebo.buffer_elements(indices_vec.data(), (s32)indices_vec.size());
+
+        u32 xz_grid_vbos[] = {xz_grid_vertices};
+        VertexSpec vertex_specs[] = {cross_vertex_spec};
+        xz_grid = VertexArrayObject(&xz_grid_shader_prog, AS_SLICE(xz_grid_vbos), AS_SLICE(vertex_specs), ebo);
+    }
+}
+
+u32 Renderer::add_vbo(GLenum usage) {
+    return (u32)insert_back(vbos, VertexBufferObject(usage));
 }
 
 void Renderer::do_window_size_changed() {
@@ -503,155 +664,6 @@ redo_cross_section:
     }
 }
 
-Renderer::Renderer(SDL_Window* window, AppState* state)
-        : window(window), state(state), color_dist(0.0f, std::nextafter(1.0f, std::numeric_limits<f32>::max())) {
-
-    SDL_GL_SetSwapInterval(1);
-
-    const f32 bg_shade = 0.04f;
-    glClearColor(bg_shade, bg_shade, bg_shade, 1.0f);
-
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_MULTISAMPLE);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_FRAMEBUFFER_SRGB);
-
-    // This is needed to render the wireframe without z-fighting.
-    glEnable(GL_POLYGON_OFFSET_LINE);
-    glPolygonOffset(-1.0, -1.0);
-
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-    do_window_size_changed();
-
-    view_projection_ubo = UniformBufferObject("ViewProjection", 0, GL_STREAM_DRAW);
-
-    // Wireframe
-
-    u32 n4d_vert_shader = compile_shader("n4d-vert.glsl", GL_VERTEX_SHADER);
-    u32 n4d_frag_shader = compile_shader("n4d-frag.glsl", GL_FRAGMENT_SHADER);
-    u32 n4d_frag_shaders[] = {n4d_frag_shader};
-    n4d_shader_prog = ShaderProgram(n4d_vert_shader, AS_SLICE(n4d_frag_shaders));
-
-    size_t wireframe_vertices = add_vbo(GL_STREAM_DRAW);
-    VertexSpec n4d_vertex_spec = {
-            .index = 0,
-            .size = 4,
-            .type = GL_FLOAT,
-            .stride = 4 * sizeof(f32),
-            .offset = 0,
-    };
-
-    // Cross-section
-
-    {
-        u32 vert_shader = compile_shader("cross-vert.glsl", GL_VERTEX_SHADER);
-        u32 frag_shader = compile_shader("cross-frag.glsl", GL_FRAGMENT_SHADER);
-        u32 frag_shaders[] = {frag_shader};
-        cross_section_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
-    }
-
-    size_t cross_vertices = add_vbo(GL_STREAM_DRAW);
-    size_t cross_colors = add_vbo(GL_STREAM_DRAW);
-
-    VertexSpec cross_vertex_spec = {
-            .index = 0,
-            .size = 3,
-            .type = GL_FLOAT,
-            .stride = 3 * sizeof(f32),
-            .offset = 0,
-    };
-
-    VertexSpec cross_color_spec = {
-            .index = 1,
-            .size = 3,
-            .type = GL_FLOAT,
-            .stride = 3 * sizeof(f32),
-            .offset = 0,
-    };
-
-    // XZ grid
-
-    {
-        u32 vert_shader = compile_shader("xz-grid-vert.glsl", GL_VERTEX_SHADER);
-        u32 frag_shader = compile_shader("xz-grid-frag.glsl", GL_FRAGMENT_SHADER);
-
-        u32 frag_shaders[] = {frag_shader};
-        xz_grid_shader_prog = ShaderProgram(vert_shader, AS_SLICE(frag_shaders));
-    }
-
-    size_t xz_grid_vertices = add_vbo(GL_STATIC_DRAW);
-    std::vector<f32> xz_grid_vertices_vec;
-    {
-        const s32 n_grid_lines = 20;
-        const f64 grid_lines_spacing = 0.2;
-
-        for (s32 i = 0; i <= n_grid_lines; i++) {
-            f64 end_pos = (n_grid_lines / 2.0) * grid_lines_spacing;
-            f64 i_pos = (i * grid_lines_spacing) - end_pos;
-            f64 vertices[][3] = {
-                    {end_pos, 0, i_pos},
-                    {-end_pos, 0, i_pos},
-                    {i_pos, 0, -end_pos},
-                    {i_pos, 0, end_pos},
-            };
-
-            for (auto v : vertices) {
-                for (s32 i = 0; i < 3; i++) {
-                    xz_grid_vertices_vec.push_back((f32)v[i]);
-                }
-            }
-        }
-
-        vbos[xz_grid_vertices].buffer_data(xz_grid_vertices_vec.data(), xz_grid_vertices_vec.size() * sizeof(f32));
-    }
-
-    ShaderProgram* all_shader_progs[] = {&n4d_shader_prog, &cross_section_shader_prog, &xz_grid_shader_prog};
-    for (auto prog : all_shader_progs) {
-        prog->bind_uniform_block(view_projection_ubo);
-    }
-
-    // Wireframe VAO
-
-    VertexSpec n4d_vertex_specs[] = {n4d_vertex_spec};
-    VertexBufferObject* wireframe_vbos[] = {&vbos[wireframe_vertices]};
-
-    {
-        ElementBufferObject ebo(GL_STATIC_DRAW, GL_LINES);
-        wireframe = VertexArrayObject(&n4d_shader_prog, AS_SLICE(wireframe_vbos), AS_SLICE(n4d_vertex_specs), ebo);
-    }
-
-    // Selected cell VAO
-    {
-        ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-        selected_cell = VertexArrayObject(&n4d_shader_prog, AS_SLICE(wireframe_vbos), AS_SLICE(n4d_vertex_specs), ebo);
-    }
-
-    // Cross-section VAO
-    {
-        ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-        VertexBufferObject* cross_vbos[] = {&vbos[cross_vertices], &vbos[cross_colors]};
-        VertexSpec vertex_specs[] = {cross_vertex_spec, cross_color_spec};
-        cross_section =
-                VertexArrayObject(&cross_section_shader_prog, AS_SLICE(cross_vbos), AS_SLICE(vertex_specs), ebo);
-    }
-
-    // XZ grid VAO
-    {
-        ElementBufferObject ebo(GL_STATIC_DRAW, GL_LINES);
-        std::vector<u32> indices_vec;
-        for (u32 i = 0; i < xz_grid_vertices_vec.size(); i++) {
-            indices_vec.push_back(i);
-        }
-        ebo.buffer_elements(indices_vec.data(), (s32)indices_vec.size());
-
-        VertexBufferObject* xz_grid_vbos[] = {&vbos[xz_grid_vertices]};
-        VertexSpec vertex_specs[] = {cross_vertex_spec};
-        xz_grid = VertexArrayObject(&xz_grid_shader_prog, AS_SLICE(xz_grid_vbos), AS_SLICE(vertex_specs), ebo);
-    }
-}
-
 void Renderer::render() {
     auto& s = *state;
 
@@ -684,8 +696,8 @@ void Renderer::render() {
 
         calculate_cross_section();
         CHECK_EQ_F(cross_vertices.size(), cross_colors.size());
-        cross_section.vbos[0]->buffer_data(cross_vertices.data(), cross_vertices.size() * sizeof(f32));
-        cross_section.vbos[1]->buffer_data(cross_colors.data(), cross_colors.size() * sizeof(f32));
+        cross_section.get_vbo(0).buffer_data(cross_vertices.data(), cross_vertices.size() * sizeof(f32));
+        cross_section.get_vbo(1).buffer_data(cross_colors.data(), cross_colors.size() * sizeof(f32));
         cross_section.ebo.buffer_elements(cross_tris.data(), (s32)cross_tris.size());
 
         cross_section.draw();
@@ -743,7 +755,7 @@ void Renderer::render() {
             }
         }
 
-        wireframe.vbos[0]->buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * sizeof(f32));
+        wireframe.get_vbo(0).buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * sizeof(f32));
         selected_cell.ebo.buffer_elements(selected_cell_tri_faces.data(), (s32)selected_cell_tri_faces.size());
 
         n4d_shader_prog.set_uniform_f32("max_depth", max_depth);

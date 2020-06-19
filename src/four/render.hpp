@@ -13,48 +13,44 @@ struct SDL_Window;
 namespace four {
 
 struct GlBuffer {
+public:
     u32 id;
     GLenum type;
     GLenum usage;
     size_t size = 0;
 
+protected:
     GlBuffer() {}
     GlBuffer(GLenum type, GLenum usage);
 
+public:
     void buffer_data(const void* data, size_t size);
     void buffer_data_realloc(const void* data, size_t size);
 };
 
-using VertexBufferObject = GlBuffer;
+struct VertexBufferObject : public GlBuffer {
+    VertexBufferObject() {}
+    VertexBufferObject(GLenum usage) : GlBuffer(GL_ARRAY_BUFFER, usage) {}
+};
 
-inline VertexBufferObject new_vertex_buffer_object(GLenum usage) {
-    GlBuffer buf(GL_ARRAY_BUFFER, usage);
-    return buf;
-}
-
-struct ElementBufferObject {
-    GlBuffer buf;
+struct ElementBufferObject : public GlBuffer {
     GLenum primitive;
     s32 primitive_count = 0;
 
     ElementBufferObject() {}
-    ElementBufferObject(GLenum usage, GLenum primitive) : buf(GL_ELEMENT_ARRAY_BUFFER, usage), primitive(primitive) {}
+    ElementBufferObject(GLenum usage, GLenum primitive)
+            : GlBuffer(GL_ELEMENT_ARRAY_BUFFER, usage), primitive(primitive) {}
 
     void buffer_elements(const void* data, s32 n);
     void buffer_elements_realloc(const void* data, s32 n);
 };
 
-struct UniformBufferObject {
-    GlBuffer buf;
+struct UniformBufferObject : public GlBuffer {
     const char* name;
     u32 binding;
 
     UniformBufferObject() {}
     UniformBufferObject(const char* name, u32 binding, GLenum usage);
-
-    void buffer_data(const void* data, size_t size) {
-        buf.buffer_data(data, size);
-    }
 };
 
 struct Framebuffer {
@@ -99,16 +95,13 @@ struct VertexSpec {
 struct VertexArrayObject {
     u32 id;
     ShaderProgram* shader_program;
-
-    // TODO: Change this to a vector of indices
-    std::vector<VertexBufferObject*> vbos; // Vertex buffer objects can be shared among many VAOs
-
+    std::vector<u32> vbos; // Vertex buffer objects can be shared among many VAOs
     ElementBufferObject ebo;
 
     VertexArrayObject() {}
-    VertexArrayObject(ShaderProgram* shader_program, Slice<VertexBufferObject*> vbos, Slice<VertexSpec> specs,
-                      ElementBufferObject ebo);
+    VertexArrayObject(ShaderProgram* shader_program, Slice<u32> vbos, Slice<VertexSpec> specs, ElementBufferObject ebo);
 
+    VertexBufferObject& get_vbo(size_t index);
     void draw();
 };
 
@@ -130,7 +123,7 @@ public:
 };
 
 struct Renderer {
-private:
+public:
     SDL_Window* window;
     AppState* state;
 
@@ -161,6 +154,7 @@ private:
     };
     std::vector<Tet> tet_mesh_tets;
 
+private:
     // Temporary storage
     // ------------------------------------------------
 
@@ -184,7 +178,7 @@ public:
     void render();
 
 private:
-    size_t add_vbo(GLenum usage);
+    u32 add_vbo(GLenum usage);
     void do_mesh_changed();
     void do_window_size_changed();
     void calculate_cross_section();
