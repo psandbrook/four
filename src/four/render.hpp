@@ -104,15 +104,18 @@ private:
     std::vector<f32> projected_vertices_f32;
     std::vector<u32> selected_cell_tri_faces;
 
-    using VertexIMapping = boost::bimap<boost::bimaps::unordered_set_of<u32>, boost::bimaps::unordered_set_of<u32>>;
-    VertexIMapping face2_vertex_i_mapping;
+    // Variables used in triangulate()
+    struct TriangulateState {
+        using VertexIMapping = boost::bimap<boost::bimaps::unordered_set_of<u32>, boost::bimaps::unordered_set_of<u32>>;
+        VertexIMapping face2_vertex_i_mapping;
 
-    std::vector<hmm_vec2> face2_vertices;
-    std::vector<Edge> face2_edges;
-    Eigen::MatrixX2d mesh_v;
-    Eigen::MatrixX2i mesh_e;
-    Eigen::MatrixX2d triangulate_out_v;
-    Eigen::MatrixX3i triangulate_out_f;
+        std::vector<hmm_vec2> face2_vertices;
+        std::vector<Edge> face2_edges;
+        Eigen::MatrixX2d mesh_v;
+        Eigen::MatrixX2i mesh_e;
+        Eigen::MatrixX2d triangulate_out_v;
+        Eigen::MatrixX3i triangulate_out_f;
+    } triangulate_s;
 
     // ------------------------------------------------
 

@@ -158,6 +158,9 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
 
     shader_program = ShaderProgram("data/vertex.glsl", "data/fragment.glsl");
 
+    // Wireframe
+    // ---------
+
     size_t wireframe_vertices = add_vbo(GL_STREAM_DRAW);
     VertexSpec wireframe_vertices_spec = {
             .index = 0,
@@ -185,6 +188,11 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
     }
     vbos[wireframe_colors].buffer_data(wireframe_colors_vec.data(), wireframe_colors_vec.size() * sizeof(f32));
 
+    // ---------
+
+    // Selected cell
+    // -------------
+
     size_t selected_cell_colors = add_vbo(GL_STATIC_DRAW);
     std::vector<f32> selected_cell_colors_vec;
     for (size_t i = 0; i < s.mesh.vertices.size(); i++) {
@@ -195,6 +203,11 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
     }
     vbos[selected_cell_colors].buffer_data(selected_cell_colors_vec.data(),
                                            selected_cell_colors_vec.size() * sizeof(f32));
+
+    // -------------
+
+    // XZ grid
+    // -------
 
     size_t xz_grid_vertices = add_vbo(GL_STATIC_DRAW);
     std::vector<f32> xz_grid_vertices_vec;
@@ -229,6 +242,11 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
     }
     vbos[xz_grid_colors].buffer_data(xz_grid_colors_vec.data(), xz_grid_colors_vec.size() * sizeof(f32));
 
+    // -------
+
+    // Wireframe VAO
+    // -------------
+
     ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
     wireframe_ebo.buffer_data(s.mesh.edges.data(), 2 * (s32)s.mesh.edges.size());
 
@@ -236,12 +254,21 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
     VertexSpec wireframe_vertex_specs[] = {wireframe_vertices_spec, wireframe_colors_spec};
     wireframe = VertexArrayObject(&shader_program, AS_SLICE(wireframe_vbos), AS_SLICE(wireframe_vertex_specs),
                                   wireframe_ebo);
+    // -------------
+
+    // Selected cell VAO
+    // -----------------
 
     ElementBufferObject cell_ebo(GL_STREAM_DRAW, GL_TRIANGLES);
 
     VertexBufferObject* selected_cell_vbos[] = {&vbos[wireframe_vertices], &vbos[selected_cell_colors]};
     selected_cell = VertexArrayObject(&shader_program, AS_SLICE(selected_cell_vbos), AS_SLICE(wireframe_vertex_specs),
                                       cell_ebo);
+
+    // -----------------
+
+    // XZ grid VAO
+    // -----------
 
     ElementBufferObject xz_grid_ebo(GL_STATIC_DRAW, GL_LINES);
     std::vector<u32> xz_grid_indices_vec;
@@ -252,6 +279,8 @@ Renderer::Renderer(SDL_Window* window, AppState* state) : window(window), state(
 
     VertexBufferObject* xz_grid_vbos[] = {&vbos[xz_grid_vertices], &vbos[xz_grid_colors]};
     xz_grid = VertexArrayObject(&shader_program, AS_SLICE(xz_grid_vbos), AS_SLICE(wireframe_vertex_specs), xz_grid_ebo);
+
+    // -----------
 }
 
 void Renderer::render() {
@@ -323,6 +352,9 @@ void Renderer::render() {
 void Renderer::triangulate(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
                            std::vector<u32>& out) {
 
+    using VertexIMapping = TriangulateState::VertexIMapping;
+    auto& s = triangulate_s;
+
     // Calculate normal vector
 
     const auto& edge0 = edges[face[0]];
@@ -358,26 +390,27 @@ void Renderer::triangulate(const std::vector<hmm_vec3>& vertices, const std::vec
 
     hmm_mat4 to_2d_trans = HMM_LookAt(v0, v0 + normal, up);
 
-    face2_vertex_i_mapping.clear();
-    face2_vertices.clear();
-    face2_edges.clear();
+    s.face2_vertex_i_mapping.clear();
+    s.face2_vertices.clear();
+    s.face2_edges.clear();
 
     for (u32 edge_i : face) {
         const auto& e = edges[edge_i];
         for (u32 v_i : e.vertices) {
-            if (face2_vertex_i_mapping.left.find(v_i) == face2_vertex_i_mapping.left.end()) {
-                face2_vertex_i_mapping.left.insert(VertexIMapping::left_value_type(v_i, (u32)face2_vertices.size()));
+            if (s.face2_vertex_i_mapping.left.find(v_i) == s.face2_vertex_i_mapping.left.end()) {
+                s.face2_vertex_i_mapping.left.insert(
+                        VertexIMapping::left_value_type(v_i, (u32)s.face2_vertices.size()));
                 hmm_vec3 v_ = transform(to_2d_trans, vertices[v_i]);
                 DCHECK_F(float_eq(v_.Z, 0.0, 0.00000000000001));
-                face2_vertices.push_back(vec2(v_));
+                s.face2_vertices.push_back(vec2(v_));
             }
         }
-        face2_edges.push_back(edge(face2_vertex_i_mapping.left.at(e.v0), face2_vertex_i_mapping.left.at(e.v1)));
+        s.face2_edges.push_back(edge(s.face2_vertex_i_mapping.left.at(e.v0), s.face2_vertex_i_mapping.left.at(e.v1)));
     }
 
 #ifdef FOUR_DEBUG
     // All vertices should be coplanar
-    for (const auto& entry : face2_vertex_i_mapping.left) {
+    for (const auto& entry : s.face2_vertex_i_mapping.left) {
         if (entry.first != edge0.v0) {
             hmm_vec3 v = vertices[entry.first];
             f64 x = HMM_Dot(v - v0, normal);
@@ -391,39 +424,39 @@ void Renderer::triangulate(const std::vector<hmm_vec3>& vertices, const std::vec
 
     // `igl::triangle::triangulate()` only accepts double precision
     // floating point values.
-    mesh_v.resize((s64)face2_vertices.size(), Eigen::NoChange);
-    for (size_t i = 0; i < face2_vertices.size(); i++) {
-        hmm_vec2 v = face2_vertices[i];
-        mesh_v((s64)i, 0) = v.X;
-        mesh_v((s64)i, 1) = v.Y;
+    s.mesh_v.resize((s64)s.face2_vertices.size(), Eigen::NoChange);
+    for (size_t i = 0; i < s.face2_vertices.size(); i++) {
+        hmm_vec2 v = s.face2_vertices[i];
+        s.mesh_v((s64)i, 0) = v.X;
+        s.mesh_v((s64)i, 1) = v.Y;
     }
 
-    mesh_e.resize((s64)face2_edges.size(), Eigen::NoChange);
-    for (size_t i = 0; i < face2_edges.size(); i++) {
-        Edge e = face2_edges[i];
-        mesh_e((s64)i, 0) = (s32)e.v0;
-        mesh_e((s64)i, 1) = (s32)e.v1;
+    s.mesh_e.resize((s64)s.face2_edges.size(), Eigen::NoChange);
+    for (size_t i = 0; i < s.face2_edges.size(); i++) {
+        Edge e = s.face2_edges[i];
+        s.mesh_e((s64)i, 0) = (s32)e.v0;
+        s.mesh_e((s64)i, 1) = (s32)e.v1;
     }
 
     // TODO: Support triangulating faces with holes
     const Eigen::MatrixX2d h;
 
-    triangulate_out_v.resize(0, Eigen::NoChange);
-    triangulate_out_f.resize(0, Eigen::NoChange);
-    igl::triangle::triangulate(mesh_v, mesh_e, h, "Q", triangulate_out_v, triangulate_out_f);
+    s.triangulate_out_v.resize(0, Eigen::NoChange);
+    s.triangulate_out_f.resize(0, Eigen::NoChange);
+    igl::triangle::triangulate(s.mesh_v, s.mesh_e, h, "Q", s.triangulate_out_v, s.triangulate_out_f);
 
-    CHECK_EQ_F((size_t)triangulate_out_v.rows(), face2_vertices.size());
+    CHECK_EQ_F((size_t)s.triangulate_out_v.rows(), s.face2_vertices.size());
 
 #ifdef FOUR_DEBUG
-    for (s32 i = 0; i < triangulate_out_v.rows(); i++) {
-        CHECK_F(float_eq(triangulate_out_v(i, 0), face2_vertices[(size_t)i].X));
-        CHECK_F(float_eq(triangulate_out_v(i, 1), face2_vertices[(size_t)i].Y));
+    for (s32 i = 0; i < s.triangulate_out_v.rows(); i++) {
+        CHECK_F(float_eq(s.triangulate_out_v(i, 0), s.face2_vertices[(size_t)i].X));
+        CHECK_F(float_eq(s.triangulate_out_v(i, 1), s.face2_vertices[(size_t)i].Y));
     }
 #endif
 
-    for (s32 i = 0; i < triangulate_out_f.rows(); i++) {
+    for (s32 i = 0; i < s.triangulate_out_f.rows(); i++) {
         for (s32 j = 0; j < 3; j++) {
-            out.push_back(face2_vertex_i_mapping.right.at(triangulate_out_f(i, j)));
+            out.push_back(s.face2_vertex_i_mapping.right.at(s.triangulate_out_f(i, j)));
         }
     }
 }
