@@ -173,15 +173,12 @@ int main(int argc, char** argv) {
     }
 
     {
-        Mesh4 mesh = generate_tesseract();
-        CHECK_F(save_mesh_to_file(mesh, "tesseract.mesh4"));
+        Mesh4 mesh = generate_120cell();
+        CHECK_F(save_mesh_to_file(mesh, "120cell.mesh4"));
     }
 
-    Mesh4 mesh = load_mesh_from_file("tesseract.mesh4");
-
+    Mesh4 mesh = load_mesh_from_file("120cell.mesh4");
     hmm_vec4 mesh_pos = {0, 0, 0, 2.5};
-    printf("%lu %lu %lu %lu\n", mesh.vertices.size(), mesh.edges.size(), mesh.faces.size(), mesh.cells.size());
-
     s32 selected_cell = 0;
 
     // Vertex array object for edges
@@ -451,7 +448,7 @@ int main(int argc, char** argv) {
                 const auto& edge = mesh.edges[face[i]];
                 hmm_vec3 l1 = projected_vertices[edge.v0] - projected_vertices[edge.v1];
                 normal = HMM_Cross(l0, l1);
-                if (float_eq_abs(normal.X, 0.0) && float_eq_abs(normal.Y, 0.0) && float_eq_abs(normal.Z, 0.0)) {
+                if (float_eq(normal.X, 0.0) && float_eq(normal.Y, 0.0) && float_eq(normal.Z, 0.0)) {
                     // `normal` is the zero vector
 
                     // Fail if there are no more edges---this means the face has
@@ -490,7 +487,7 @@ int main(int argc, char** argv) {
                     if (face2_vertex_i_mapping.left.find(v_i) == face2_vertex_i_mapping.left.end()) {
                         face2_vertex_i_mapping.left.insert(MappingT::left_value_type(v_i, (u32)face2_vertices.size()));
                         hmm_vec3 v_ = transform(to_2d_trans, projected_vertices[v_i]);
-                        assert(float_eq_abs(v_.Z, 0.0));
+                        assert(float_eq(v_.Z, 0.0));
                         face2_vertices.push_back(vec2(v_));
                     }
                 }
@@ -507,7 +504,7 @@ int main(int argc, char** argv) {
 
                     // FIXME: Floating-point error!
                     // See https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
-                    assert(float_eq_abs(x, 0.0));
+                    assert(float_eq(x, 0.0));
                 }
             }
 #endif

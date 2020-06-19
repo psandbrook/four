@@ -70,4 +70,15 @@ struct hash<four::Edge> {
         return std::min(hash0, hash1);
     }
 };
+
+template <>
+struct hash<hmm_vec4> {
+    size_t operator()(const hmm_vec4& v) const {
+        size_t hash = 0;
+        for (four::f64 x : v.Elements) {
+            four::hash_combine(hash, x);
+        }
+        return hash;
+    }
+};
 } // namespace std

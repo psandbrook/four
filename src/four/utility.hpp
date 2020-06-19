@@ -51,10 +51,10 @@ bool has_key(const std::unordered_map<K, V>& map, const K& value) {
 }
 
 inline bool float_eq(f64 a, f64 b, f64 epsilon = DBL_EPSILON) {
-    return std::abs(a - b) <= std::max(std::abs(a), std::abs(b)) * epsilon;
-}
-
-inline bool float_eq_abs(f64 a, f64 b, f64 epsilon = DBL_EPSILON) {
-    return std::abs(a - b) <= epsilon;
+    if (a < 1.0 && b < 1.0) {
+        return std::abs(a - b) <= epsilon;
+    } else {
+        return std::abs(a - b) <= std::max(std::abs(a), std::abs(b)) * epsilon;
+    }
 }
 } // namespace four
