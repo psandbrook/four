@@ -149,55 +149,6 @@ void RenderFuncs::triangulate(const std::vector<hmm_vec3>& vertices, const std::
     }
 }
 
-void RenderFuncs::triangulate_vertices(Slice<const hmm_vec3> vertices, std::vector<u32>& out) {
-    auto& s = *this->impl;
-
-    hmm_vec3 v0 = vertices[0];
-    hmm_vec3 l0 = vertices[1] - v0;
-    hmm_vec3 l1 = vertices[2] - v0;
-    hmm_vec3 normal = HMM_Normalize(HMM_Cross(l0, l1));
-
-    CHECK_F(!(float_eq(normal.X, 0.0) && float_eq(normal.Y, 0.0) && float_eq(normal.Z, 0.0)));
-
-    hmm_vec3 up;
-    if (float_eq(std::abs(normal.Y), 1.0, 0.001)) {
-        up = {1, 0, 0};
-    } else {
-        up = {0, 1, 0};
-    }
-
-    hmm_mat4 to_2d_trans = HMM_LookAt(v0, v0 + normal, up);
-
-    s.face2_vertices.clear();
-    for (size_t i = 0; i < vertices.len; i++) {
-        const auto& v = vertices[i];
-        hmm_vec3 v_ = transform(to_2d_trans, v);
-        s.face2_vertices.push_back(vec2(v_));
-    }
-
-    s.mesh_v.resize((s64)s.face2_vertices.size(), Eigen::NoChange);
-    for (size_t i = 0; i < s.face2_vertices.size(); i++) {
-        hmm_vec2 v = s.face2_vertices[i];
-        s.mesh_v((s64)i, 0) = v.X;
-        s.mesh_v((s64)i, 1) = v.Y;
-    }
-
-    s.mesh_e.resize(0, Eigen::NoChange);
-    const Eigen::MatrixX2d h;
-
-    s.triangulate_out_v.resize(0, Eigen::NoChange);
-    s.triangulate_out_f.resize(0, Eigen::NoChange);
-    igl::triangle::triangulate(s.mesh_v, s.mesh_e, h, "Q", s.triangulate_out_v, s.triangulate_out_f);
-
-    DCHECK_EQ_F((size_t)s.triangulate_out_v.rows(), s.face2_vertices.size());
-
-    for (s32 i = 0; i < s.triangulate_out_f.rows(); i++) {
-        for (s32 j = 0; j < 3; j++) {
-            out.push_back((u32)s.triangulate_out_f(i, j));
-        }
-    }
-}
-
 bool RenderFuncs::tetrahedralize(const std::vector<hmm_vec4>& vertices, const std::vector<Edge>& edges,
                                  const std::vector<Face>& faces, const Cell& cell, std::vector<hmm_vec4>& out_vertices,
                                  std::vector<u32>& out_tets) {

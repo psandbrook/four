@@ -89,8 +89,6 @@ public:
     void triangulate(const std::vector<hmm_vec3>& vertices, const std::vector<Edge>& edges, const Face& face,
                      std::vector<u32>& out);
 
-    void triangulate_vertices(Slice<const hmm_vec3> vertices, std::vector<u32>& out);
-
     bool tetrahedralize(const std::vector<hmm_vec4>& vertices, const std::vector<Edge>& edges,
                         const std::vector<Face>& faces, const Cell& cell, std::vector<hmm_vec4>& out_vertices,
                         std::vector<u32>& out_tets);
@@ -125,10 +123,6 @@ private:
     };
     std::vector<Tet> tet_mesh_tets;
 
-    std::vector<f32> cross_vertices;
-    std::vector<f32> cross_colors;
-    std::vector<u32> cross_tris;
-
     // Temporary storage
     // ------------------------------------------------
 
@@ -139,7 +133,9 @@ private:
 
     std::vector<u32> out_tets;
     std::vector<hmm_vec4> tet_mesh_vertices_world;
-    std::vector<u32> intersect_tris;
+    std::vector<f32> cross_vertices;
+    std::vector<f32> cross_colors;
+    std::vector<u32> cross_tris;
 
     RenderFuncs render_funcs;
 

@@ -300,6 +300,8 @@ redo_cross_section:
             }
         }
 
+        CHECK_LE_F(merged_intersect_len, 4);
+
         if (merged_intersect_len == 3) {
             // Intersection is a triangle
 
@@ -376,43 +378,12 @@ redo_cross_section:
                 cross_tris.push_back(v_mapping[e]);
             }
 
-        } else if (merged_intersect_len > 4) {
-            LOG_F(WARNING, "merged_intersect_len: %i", merged_intersect_len);
-            RAW_LOG_F(1, "******************************");
-            RAW_LOG_F(1, " ");
-            for (s32 i = 0; i < merged_intersect_len; i++) {
-                hmm_vec3 v = merged_intersect[i];
-                RAW_LOG_F(1, "%+.16f, %+.16f, %+.16f", v.X, v.Y, v.Z);
-            }
-
-#if 0
-            intersect_tris.clear();
-            render_funcs.triangulate_vertices(c_slice((size_t)merged_intersect_len, merged_intersect), intersect_tris);
-
-            u32 v_mapping[6];
-            for (s32 i = 0; i < merged_intersect_len; i++) {
-                DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
-                v_mapping[i] = (u32)(cross_vertices.size() / 3);
-                for (f64 e : merged_intersect[i].Elements) {
-                    cross_vertices.push_back((f32)e);
-                }
-                for (f32 e : tet.color) {
-                    cross_colors.push_back(e);
-                }
-            }
-
-            for (u32 e : intersect_tris) {
-                cross_tris.push_back(v_mapping[e]);
-            }
-#endif
-
         } else {
-            // No intersections
+            // Less than 3 intersections
             for (s32 i = 0; i < 6; i++) {
                 const Edge& e = edges[i];
                 hmm_vec4 l_0 = tet_mesh_vertices_world[e.v0];
                 hmm_vec4 l = tet_mesh_vertices_world[e.v1] - l_0;
-                const f64 epsilon = 0.00001;
                 if (float_eq(HMM_Dot(l, n), 0.0, epsilon) && float_eq(HMM_Dot(p_0 - l_0, n), 0.0, epsilon)) {
                     // Edge is within hyperplane
 
