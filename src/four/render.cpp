@@ -495,7 +495,7 @@ redo_cross_section:
                     glm::dvec3 point3 = glm::dvec3(point);
                     bool unique = true;
                     for (const auto& v : intersect) {
-                        if (float_eq(point3.x, v.x) && float_eq(point3.y, v.y) && float_eq(point3.z, v.z)) {
+                        if (float_eq(point3, v)) {
                             unique = false;
                             break;
                         }

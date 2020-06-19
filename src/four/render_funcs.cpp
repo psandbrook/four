@@ -51,10 +51,11 @@ void RenderFuncs::triangulate(const std::vector<glm::dvec3>& vertices, const std
     const Edge& edge0 = edges[edge0_i];
     u32 v0_i = edge0.v0;
     glm::dvec3 v0 = vertices[v0_i];
+    glm::dvec3 edge0_vec = vertices[edge0.v1] - v0;
 
     glm::dvec3 normal;
     {
-        glm::dvec3 other_edge;
+        glm::dvec3 other_edge_vec;
         for (u32 e_i : face) {
             if (e_i == edge0_i) {
                 continue;
@@ -63,18 +64,21 @@ void RenderFuncs::triangulate(const std::vector<glm::dvec3>& vertices, const std
             const Edge& e = edges[e_i];
             if (e.v0 == v0_i || e.v1 == v0_i) {
                 u32 other_vi = e.v0 == v0_i ? e.v1 : e.v0;
-                other_edge = vertices[other_vi] - v0;
+                other_edge_vec = vertices[other_vi] - v0;
                 goto find_v0_edges_end;
             }
         }
         ABORT_F("Could not find normal vector");
-    find_v0_edges_end:
-        normal = glm::normalize(glm::cross(vertices[edge0.v1] - v0, other_edge));
-    }
 
-    if (float_eq(normal.x, 0.0) && float_eq(normal.y, 0.0) && float_eq(normal.z, 0.0)) {
-        // Don't triangulate if the normal vector is the zero vector.
-        return;
+    find_v0_edges_end:
+        if (float_eq(edge0_vec, other_edge_vec) || float_eq(edge0_vec, glm::dvec3(0.0))
+            || float_eq(other_edge_vec, glm::dvec3(0.0))) {
+
+            // Don't triangulate if the face is degenerate.
+            return;
+        }
+
+        normal = glm::normalize(glm::cross(edge0_vec, other_edge_vec));
     }
 
     // Calculate transformation to 2D
@@ -96,7 +100,7 @@ void RenderFuncs::triangulate(const std::vector<glm::dvec3>& vertices, const std
         glm::dvec3 v = vertices[v_i];
         for (const auto& entry : st.face2_vertex_i_mapping_left) {
             glm::dvec3 u = vertices[entry.first];
-            if (float_eq(v.x, u.x) && float_eq(v.y, u.y) && float_eq(v.z, u.z)) {
+            if (float_eq(v, u)) {
                 // Don't triangulate if there are duplicate vertices.
                 return false;
             }

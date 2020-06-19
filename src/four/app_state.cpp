@@ -111,6 +111,10 @@ void AppState::change_mesh(const char* path) {
 }
 
 bool AppState::is_new_transformation_valid() {
+    if (float_eq(new_camera4.pos, new_camera4.target)) {
+        return false;
+    }
+
     Mat5 model = mk_model_mat(new_mesh_pos, new_mesh_scale, new_mesh_rotation);
     Mat5 mv = mk_model_view_mat(model, new_camera4);
 
@@ -239,7 +243,10 @@ bool AppState::process_events_and_imgui() {
             f64 distance_fac = 0.1 * glm::length(front);
             glm::dvec3 f = glm::normalize(front);
             glm::dmat4 translation = translate(y * distance_fac * f);
-            camera_pos = transform(translation, camera_pos);
+            glm::dvec3 new_camera_pos = transform(translation, camera_pos);
+            if (!float_eq(new_camera_pos, camera_target)) {
+                camera_pos = new_camera_pos;
+            }
 
         } break;
         }

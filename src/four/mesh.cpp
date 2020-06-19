@@ -139,7 +139,7 @@ void tetrahedralize_cell(const Mesh4& mesh, const s64 cell_i, std::vector<glm::d
 #ifdef FOUR_DEBUG
     {
         glm::dvec4 v0_ = transform(to_3d_trans_inverse * to_3d_trans, v0);
-        DCHECK_F(float_eq(v0.x, v0_.x) && float_eq(v0.y, v0_.y) && float_eq(v0.z, v0_.z) && float_eq(v0.w, v0_.w));
+        DCHECK_F(float_eq(v0, v0_));
     }
 #endif
 

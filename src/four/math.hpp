@@ -69,6 +69,14 @@ inline glm::dvec4 to_vec4(const Vec5& v) {
     return glm::dvec4(v.x, v.y, v.z, v.w);
 }
 
+inline bool float_eq(const glm::dvec3& a, const glm::dvec3& b) {
+    return float_eq(a.x, b.x) && float_eq(a.y, b.y) && float_eq(a.z, b.z);
+}
+
+inline bool float_eq(const glm::dvec4& a, const glm::dvec4& b) {
+    return float_eq(a.x, b.x) && float_eq(a.y, b.y) && float_eq(a.z, b.z) && float_eq(a.w, b.w);
+}
+
 inline Vec5 operator*(const Vec5& v, f64 s) {
     return Vec5(v.x * s, v.y * s, v.z * s, v.w * s, v.v * s);
 }
@@ -120,6 +128,7 @@ inline glm::dvec4 transform(const Mat5& m, const glm::dvec4& v) {
 }
 
 inline glm::dvec4 cross(const glm::dvec4& u, const glm::dvec4& v, const glm::dvec4& w) {
+    DCHECK_F(!float_eq(u, v) && !float_eq(u, w) && !float_eq(v, w));
     glm::dmat3 m1 = glm::dmat3(glm::dvec3(u.y, v.y, w.y), glm::dvec3(u.z, v.z, w.z), glm::dvec3(u.w, v.w, w.w));
     glm::dmat3 m2 = glm::dmat3(glm::dvec3(u.x, v.x, w.x), glm::dvec3(u.z, v.z, w.z), glm::dvec3(u.w, v.w, w.w));
     glm::dmat3 m3 = glm::dmat3(glm::dvec3(u.x, v.x, w.x), glm::dvec3(u.y, v.y, w.y), glm::dvec3(u.w, v.w, w.w));
@@ -138,6 +147,9 @@ inline Mat5 scale(const glm::dvec4& v) {
 }
 
 inline Mat5 look_at(const glm::dvec4& eye, const glm::dvec4& target, const glm::dvec4& up, const glm::dvec4& over) {
+    DCHECK_F(!float_eq(eye, target) && !float_eq(eye, up) && !float_eq(eye, over) && !float_eq(target, up)
+             && !float_eq(target, over) && !float_eq(up, over));
+
     Mat5 m_t = translate(-1.0 * eye);
     glm::dvec4 f = glm::normalize(eye - target);
     glm::dvec4 l = glm::normalize(cross(up, over, f));
@@ -150,6 +162,9 @@ inline Mat5 look_at(const glm::dvec4& eye, const glm::dvec4& target, const glm::
 
 inline Mat5 look_at_inverse(const glm::dvec4& eye, const glm::dvec4& target, const glm::dvec4& up,
                             const glm::dvec4& over) {
+    DCHECK_F(!float_eq(eye, target) && !float_eq(eye, up) && !float_eq(eye, over) && !float_eq(target, up)
+             && !float_eq(target, over) && !float_eq(up, over));
+
     Mat5 m_t = translate(eye);
     glm::dvec4 f = glm::normalize(eye - target);
     glm::dvec4 l = glm::normalize(cross(up, over, f));
