@@ -1,11 +1,27 @@
 cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 project(four LANGUAGES C CXX)
 
+include(FetchContent)
+
+function(make_available_no_add)
+  foreach(CONTENT_NAME ${ARGV})
+    FetchContent_GetProperties(${CONTENT_NAME})
+    if(NOT ${CONTENT_NAME}_POPULATED)
+      FetchContent_Populate(${CONTENT_NAME})
+    endif()
+    set(${CONTENT_NAME}_SOURCE_DIR ${${CONTENT_NAME}_SOURCE_DIR} PARENT_SCOPE)
+  endforeach()
+endfunction()
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Debug or Release." FORCE)
 elseif(NOT (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "Release"))
   message(FATAL_ERROR "Build type can only be \"Debug\" or \"Release\"")
 endif()
+
+set(CMAKE_TLS_VERIFY ON)
+set(FETCHCONTENT_QUIET OFF)
+set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
 
 # Prefix: src/
 set(SOURCES
@@ -33,18 +49,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 include_directories(src)
-
-include_directories(SYSTEM
-  depends/glad/include
-  depends/Handmade-Math
-  depends/libigl/include
-  depends/eigen
-  depends/triangle
-  depends/loguru
-  depends/tinyxml2
-  depends/imgui
-  depends/tetgen
-)
 
 set(CXX_FLAGS_COMMON
   -Wall -Wextra -Wcast-align=strict -Wcast-qual -Wunused -Wdisabled-optimization -Wformat=2 -Winit-self
@@ -98,8 +102,46 @@ add_executable(four ${SOURCES})
 # Dependencies
 # ============
 
+FetchContent_Declare(
+  sdl2
+  URL "https://www.libsdl.org/release/SDL2-2.0.12.tar.gz"
+  URL_HASH SHA256=349268f695c02efbc9b9148a70b85e58cefbbf704abd3e91be654db7f1e2c863
+)
+
+FetchContent_Declare(
+  loguru
+  URL "https://github.com/emilk/loguru/archive/v2.1.0.tar.gz"
+  URL_HASH SHA256=1a3be62ebec5609af60b1e094109a93b7412198b896bb88f31dcfe4d95b79ce7
+)
+
+FetchContent_Declare(
+  eigen
+  URL "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.tar.bz2"
+  URL_HASH SHA256=685adf14bd8e9c015b78097c1dc22f2f01343756f196acdc76a678e1ae352e11
+)
+
+FetchContent_Declare(
+  libigl
+  URL "https://github.com/libigl/libigl/archive/v2.1.0.tar.gz"
+  URL_HASH SHA256=816ec64b6b2fbabcb1c6353c7df8a2fc1ad5bf4c607b332871a6ab8b29c89dbc
+)
+
+FetchContent_Declare(
+  tinyxml2
+  URL "https://github.com/leethomason/tinyxml2/archive/7.1.0.tar.gz"
+  URL_HASH SHA256=68ebd396a4220d5a9b5a621c6e9c66349c5cfdf5efaea3f16e3bb92e45f4e2a3
+)
+
+FetchContent_Declare(
+  imgui
+  URL "https://github.com/ocornut/imgui/archive/v1.74.tar.gz"
+  URL_HASH SHA256=2f5f2b789edb00260aa71f03189da5f21cf4b5617c4fbba709e9fbcfc76a2f1e
+)
+
+make_available_no_add(sdl2 loguru eigen libigl tinyxml2 imgui)
+
 set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
-add_subdirectory(depends/SDL2)
+add_subdirectory("${sdl2_SOURCE_DIR}")
 target_compile_options(SDL2-static PRIVATE -w -fno-lto)
 
 add_library(glad STATIC depends/glad/src/glad.c)
@@ -109,19 +151,19 @@ add_library(triangle STATIC depends/triangle/triangle.c)
 target_compile_definitions(triangle PRIVATE LINUX TRILIBRARY)
 target_compile_options(triangle PRIVATE -w -fno-lto)
 
-add_library(loguru STATIC depends/loguru/loguru.cpp)
+add_library(loguru STATIC "${loguru_SOURCE_DIR}/loguru.cpp")
 target_compile_options(loguru PRIVATE -w)
 
-add_library(tinyxml2 STATIC depends/tinyxml2/tinyxml2.cpp)
+add_library(tinyxml2 STATIC "${tinyxml2_SOURCE_DIR}/tinyxml2.cpp")
 target_compile_options(tinyxml2 PRIVATE -w)
 
 add_library(imgui STATIC
-  depends/imgui/imgui.cpp
-  depends/imgui/imgui_demo.cpp
-  depends/imgui/imgui_draw.cpp
-  depends/imgui/imgui_widgets.cpp
-  depends/imgui/imgui_impl_sdl.cpp
-  depends/imgui/imgui_impl_opengl3.cpp
+  "${imgui_SOURCE_DIR}/imgui.cpp"
+  "${imgui_SOURCE_DIR}/imgui_demo.cpp"
+  "${imgui_SOURCE_DIR}/imgui_draw.cpp"
+  "${imgui_SOURCE_DIR}/imgui_widgets.cpp"
+  "${imgui_SOURCE_DIR}/examples/imgui_impl_sdl.cpp"
+  "${imgui_SOURCE_DIR}/examples/imgui_impl_opengl3.cpp"
 )
 target_compile_options(imgui PRIVATE -w -fno-lto)
 add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
@@ -130,6 +172,19 @@ target_link_libraries(imgui SDL2-static)
 add_library(tetgen STATIC depends/tetgen/predicates.cxx depends/tetgen/tetgen.cxx)
 target_compile_options(tetgen PRIVATE -w)
 add_compile_definitions(TETLIBRARY)
+
+include_directories(SYSTEM
+  depends/glad/include
+  depends/Handmade-Math
+  depends/triangle
+  depends/tetgen
+  "${libigl_SOURCE_DIR}/include"
+  "${eigen_SOURCE_DIR}"
+  "${loguru_SOURCE_DIR}"
+  "${tinyxml2_SOURCE_DIR}"
+  "${imgui_SOURCE_DIR}"
+  "${imgui_SOURCE_DIR}/examples"
+)
 
 # ============
 
