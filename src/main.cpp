@@ -77,7 +77,30 @@ int main(int argc, char** argv) {
         } else if (strcmp(arg, "--generate") == 0) {
             CHECK_LT_F(i + 1, argc);
             const char* arg1 = argv[i + 1];
-            Mesh4 mesh = generate_regular_convex_mesh4(rc_mesh4_type(arg1));
+
+            Mesh4 mesh;
+            if (strcmp(arg1, "5-cell") == 0) {
+                mesh = generate_5cell();
+
+            } else if (strcmp(arg1, "tesseract") == 0) {
+                mesh = generate_tesseract();
+
+            } else if (strcmp(arg1, "16-cell") == 0) {
+                mesh = generate_16cell();
+
+            } else if (strcmp(arg1, "24-cell") == 0) {
+                mesh = generate_24cell();
+
+            } else if (strcmp(arg1, "120-cell") == 0) {
+                mesh = generate_120cell();
+
+            } else if (strcmp(arg1, "600-cell") == 0) {
+                mesh = generate_600cell();
+
+            } else {
+                ABORT_F("Unknown regular convex mesh4 %s", arg1);
+            }
+
             tetrahedralize(mesh);
 
             auto path = std::string(arg1) + ".mesh4";
