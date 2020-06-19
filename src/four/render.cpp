@@ -307,8 +307,8 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 
     // Wireframe & selected cell
     {
-        u32 vert_shader = compile_shader("n4d-vert.glsl", GL_VERTEX_SHADER);
-        u32 frag_shader = compile_shader("n4d-frag.glsl", GL_FRAGMENT_SHADER);
+        u32 vert_shader = compile_shader("n4d.vert", GL_VERTEX_SHADER);
+        u32 frag_shader = compile_shader("n4d.frag", GL_FRAGMENT_SHADER);
         n4d_shader_prog = ShaderProgram(vert_shader, {frag_shader});
 
         u32 wireframe_vertices = add_vbo(GL_STREAM_DRAW);
@@ -336,8 +336,8 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
     cross_vertex_spec.offset = 0;
 
     {
-        u32 vert_shader = compile_shader("cross-vert.glsl", GL_VERTEX_SHADER);
-        u32 frag_shader = compile_shader("cross-frag.glsl", GL_FRAGMENT_SHADER);
+        u32 vert_shader = compile_shader("cross.vert", GL_VERTEX_SHADER);
+        u32 frag_shader = compile_shader("cross.frag", GL_FRAGMENT_SHADER);
         cross_section_shader_prog = ShaderProgram(vert_shader, {frag_shader});
 
         u32 vertices = add_vbo(GL_STREAM_DRAW);
@@ -357,8 +357,8 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 
     // XZ grid
     {
-        u32 vert_shader = compile_shader("xz-grid-vert.glsl", GL_VERTEX_SHADER);
-        u32 frag_shader = compile_shader("xz-grid-frag.glsl", GL_FRAGMENT_SHADER);
+        u32 vert_shader = compile_shader("xz-grid.vert", GL_VERTEX_SHADER);
+        u32 frag_shader = compile_shader("xz-grid.frag", GL_FRAGMENT_SHADER);
         xz_grid_shader_prog = ShaderProgram(vert_shader, {frag_shader});
 
         u32 xz_grid_vertices_vbo = add_vbo(GL_STATIC_DRAW);
@@ -402,8 +402,8 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 
     // Divider bar
     {
-        u32 vert_shader = compile_shader("divider-vert.glsl", GL_VERTEX_SHADER);
-        u32 frag_shader = compile_shader("divider-frag.glsl", GL_FRAGMENT_SHADER);
+        u32 vert_shader = compile_shader("divider.vert", GL_VERTEX_SHADER);
+        u32 frag_shader = compile_shader("divider.frag", GL_FRAGMENT_SHADER);
         divider_bar_shader_prog = ShaderProgram(vert_shader, {frag_shader});
 
         u32 vertices_vbo = add_vbo(GL_STATIC_DRAW);
