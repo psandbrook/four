@@ -33,6 +33,8 @@ set(SOURCES
   impl.cpp
   four/generate.cpp
   four/mesh.cpp
+  four/render.cpp
+  four/app_state.cpp
 )
 
 # Add prefix

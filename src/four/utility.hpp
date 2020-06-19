@@ -30,23 +30,23 @@ static_assert(sizeof(f32) == 4);
 static_assert(sizeof(f64) == 8);
 
 template <class T>
-void hash_combine(size_t& seed, const T& value) {
+inline void hash_combine(size_t& seed, const T& value) {
     std::hash<T> hasher;
     seed ^= hasher(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
 template <class T>
-bool contains(const std::vector<T>& vec, const T& value) {
+inline bool contains(const std::vector<T>& vec, const T& value) {
     return std::find(vec.cbegin(), vec.cend(), value) != vec.cend();
 }
 
 template <class T>
-bool contains(const std::unordered_set<T>& set, const T& value) {
+inline bool contains(const std::unordered_set<T>& set, const T& value) {
     return set.find(value) != set.cend();
 }
 
 template <class K, class V>
-bool has_key(const std::unordered_map<K, V>& map, const K& value) {
+inline bool has_key(const std::unordered_map<K, V>& map, const K& value) {
     return map.find(value) != map.cend();
 }
 

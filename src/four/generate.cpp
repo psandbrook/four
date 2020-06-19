@@ -10,7 +10,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <array>
 #include <functional>
 #include <mutex>
 #include <thread>

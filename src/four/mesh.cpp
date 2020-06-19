@@ -192,7 +192,7 @@ Mesh4 load_mesh_from_file(const char* path) {
         result.cells.push_back(std::move(cell));
     }
 
-    LOG_F(INFO, "Loaded Mesh4 at \"%s\" with %lu vertices, %lu edges, %lu faces, %lu cells", path,
+    LOG_F(INFO, "Loaded Mesh4 from \"%s\" with %lu vertices, %lu edges, %lu faces, %lu cells.", path,
           result.vertices.size(), result.edges.size(), result.faces.size(), result.cells.size());
     return result;
 }
