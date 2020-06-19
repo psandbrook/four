@@ -192,4 +192,60 @@ inline hmm_vec4 project_perspective(Vec5 v, float near) {
     hmm_vec4 v_4 = vec4(v);
     return {d * v.X, d * v.Y, d * v.Z, HMM_Length(v_4 - d * v_4)};
 }
+
+// 4D Rotors
+// =========
+
+struct Bivec4 {
+    float xy, xz, xw, yz, yw, zw;
+};
+
+struct Rotor4 {
+    float s;
+    Bivec4 B; // This stores (b `outer` a) for a rotor (ab)
+};
+
+inline Rotor4 rotor4(hmm_vec4 a, hmm_vec4 b) {
+    a = HMM_Normalize(a);
+    b = HMM_Normalize(b);
+
+    Rotor4 result = {};
+    result.s = HMM_Dot(a, b);
+    result.B.xy = (b.X * a.Y) - (b.Y * a.X);
+    result.B.xz = (b.X * a.Z) - (b.Z * a.X);
+    result.B.xw = (b.X * a.W) - (b.W * a.X);
+    result.B.yz = (b.Y * a.Z) - (b.Z * a.Y);
+    result.B.yw = (b.Y * a.W) - (b.W * a.Y);
+    result.B.zw = (b.Z * a.W) - (b.W * a.Z);
+    return result;
+}
+
+inline hmm_vec4 rotate(Rotor4 r, hmm_vec4 v) {
+    const Bivec4& B = r.B;
+
+    // (ba)v -- vector part
+    hmm_vec4 q = {};
+    q.X = (r.s * v.X) + (B.xy * v.Y) + (B.xz * v.Z) + (B.xw * v.W);
+    q.Y = (r.s * v.Y) - (B.xy * v.X) + (B.yz * v.Z) + (B.yw * v.W);
+    q.Z = (r.s * v.Z) - (B.xz * v.X) - (B.yz * v.Y) + (B.zw * v.W);
+    q.W = (r.s * v.W) - (B.xw * v.X) - (B.yw * v.Y) - (B.zw * v.Z);
+
+    // (ba)v -- trivector part
+    float q_xyz = (B.xy * v.Z) - (B.xz * v.Y) + (B.yz * v.X);
+    float q_xyw = (B.xy * v.W) - (B.xw * v.Y) + (B.yw * v.X);
+    float q_xzw = (B.xz * v.W) - (B.xw * v.Z) + (B.zw * v.X);
+    float q_yzw = (B.yz * v.W) - (B.yw * v.Z) + (B.zw * v.Y);
+
+    hmm_vec4 result = {};
+    result.X =
+            (r.s * q.X) + (q.Y * B.xy) + (q.Z * B.xz) + (q.W * B.xw) + (q_xyz * B.yz) + (q_xyw * B.yw) + (q_xzw * B.zw);
+    result.Y =
+            (r.s * q.Y) - (q.X * B.xy) + (q.Z * B.yz) + (q.W * B.yw) - (q_xyz * B.xz) - (q_xyw * B.xw) + (q_yzw * B.zw);
+    result.Z =
+            (r.s * q.Z) - (q.X * B.xz) - (q.Y * B.yz) + (q.W * B.zw) + (q_xyz * B.xy) - (q_xzw * B.xw) - (q_yzw * B.yw);
+    result.W =
+            (r.s * q.W) - (q.X * B.xw) - (q.Y * B.yw) - (q.Z * B.zw) + (q_xyz * B.xy) + (q_xzw * B.xz) + (q_yzw * B.yz);
+
+    return result;
+}
 } // namespace four

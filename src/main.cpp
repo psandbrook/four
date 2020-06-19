@@ -415,6 +415,12 @@ int main() {
                 selected_cell_counter = 0.0;
             }
 
+            Rotor4 r = rotor4({1, 0, 0, 0}, {1, 0, 0, 0.002f});
+
+            for (size_t i = 0; i < mesh.vertices.size(); i++) {
+                mesh.vertices[i] = rotate(r, mesh.vertices[i]);
+            }
+
             lag_ms -= step_ms;
             steps++;
         }
