@@ -67,11 +67,20 @@ struct WindowGuard {
 int main(int argc, char** argv) {
     loguru::init(argc, argv);
 
+    bool show_imgui_demo = false;
+    for (s32 i = 0; i < argc; i++) {
+        if (strcmp(argv[i], "-d") == 0) {
+            show_imgui_demo = true;
+        }
+    }
+
     WindowGuard window_guard;
     auto& window = window_guard.window;
     auto& imgui_io = window_guard.imgui_io;
 
     AppState state(window, imgui_io, "data/tesseract.mesh4");
+    state.show_imgui_demo = show_imgui_demo;
+
     Renderer renderer(window, &state);
 
     const f64 count_per_ms = (f64)SDL_GetPerformanceFrequency() / 1000.0;

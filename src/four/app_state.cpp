@@ -13,6 +13,7 @@ namespace four {
 namespace {
 
 const f64 mouse_motion_fac = 0.002;
+const ImWchar glyph_ranges[] = {0x20, 0xFFFF, 0};
 
 inline bool imgui_drag_f64(const char* label, f64* value, f32 speed, const char* format = NULL) {
     return ImGui::DragScalar(label, ImGuiDataType_Double, value, speed, NULL, NULL, format, 1.0f);
@@ -30,9 +31,7 @@ void AppState::change_mesh(const char* path) {
 
 AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path) : window(window), imgui_io(imgui_io) {
     change_mesh(mesh_path);
-
-    ImWchar ranges[] = {0x20, 0xFFFF, 0};
-    CHECK_NOTNULL_F(imgui_io->Fonts->AddFontFromFileTTF("data/DejaVuSans.ttf", 18.0f, NULL, ranges));
+    CHECK_NOTNULL_F(imgui_io->Fonts->AddFontFromFileTTF("data/DejaVuSans.ttf", 18.0f, NULL, glyph_ranges));
 }
 
 bool AppState::process_events_and_imgui() {
@@ -69,7 +68,9 @@ bool AppState::process_events_and_imgui() {
 
         case SDL_MOUSEMOTION: {
             if (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_RIGHT)) {
+
                 if (SDL_GetModState() & KMOD_SHIFT) {
+                    // Pan the 3D camera
 
                     hmm_vec3 front = camera_target - camera_pos;
                     f64 distance_fac = 0.25 * HMM_Length(front);
@@ -89,6 +90,8 @@ bool AppState::process_events_and_imgui() {
                     camera_target = transform(translation, camera_target);
 
                 } else {
+                    // Rotate the 3D camera
+
                     f64 x_angle = mouse_motion_fac * event.motion.xrel;
                     Rotor3 x_rotor = rotor3(x_angle, outer(HMM_Vec3(0, 0, -1), HMM_Vec3(1, 0, 0)));
 
@@ -108,6 +111,8 @@ bool AppState::process_events_and_imgui() {
         } break;
 
         case SDL_MOUSEWHEEL: {
+            // Zoom the 3D camera
+
             f64 y = event.wheel.y;
             if (event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) {
                 y *= -1;
@@ -127,31 +132,33 @@ bool AppState::process_events_and_imgui() {
     ImGui_ImplSDL2_NewFrame(window);
     ImGui::NewFrame();
 
-#ifdef FOUR_DEBUG
-    ImGui::ShowDemoWindow();
-#endif
+    if (show_imgui_demo) {
+        ImGui::ShowDemoWindow();
+    }
 
     // Mesh selection window
     {
         ImGui::Begin("Mesh selection");
         const char* new_mesh_path = NULL;
 
-        if (ImGui::Button("5-cell")) {
+        auto button_size = ImVec2(ImGui::GetWindowWidth() - ImGui::GetWindowContentRegionMin().y, 0);
+
+        if (ImGui::Button("5-cell", button_size)) {
             new_mesh_path = "data/5cell.mesh4";
         }
-        if (ImGui::Button("Tesseract")) {
+        if (ImGui::Button("Tesseract", button_size)) {
             new_mesh_path = "data/tesseract.mesh4";
         }
-        if (ImGui::Button("16-cell")) {
+        if (ImGui::Button("16-cell", button_size)) {
             new_mesh_path = "data/16cell.mesh4";
         }
-        if (ImGui::Button("24-cell")) {
+        if (ImGui::Button("24-cell", button_size)) {
             new_mesh_path = "data/24cell.mesh4";
         }
-        if (ImGui::Button("120-cell")) {
+        if (ImGui::Button("120-cell", button_size)) {
             new_mesh_path = "data/120cell.mesh4";
         }
-        if (ImGui::Button("600-cell")) {
+        if (ImGui::Button("600-cell", button_size)) {
             new_mesh_path = "data/600cell.mesh4";
         }
 
@@ -188,66 +195,79 @@ bool AppState::process_events_and_imgui() {
         ImGui::End();
     }
 
+    hmm_vec4 new_mesh_pos = mesh_pos;
+    hmm_vec4 new_mesh_scale = mesh_scale;
+    Bivec4 new_mesh_rotation = mesh_rotation;
+
+    // 4D Transform window
     {
         ImGui::Begin("4D Transform");
         const f32 speed = 0.01f;
         const auto fmt = "%.3f";
 
         ImGui::Text("Translate");
-        imgui_drag_f64("x##t", &mesh_pos.X, speed, fmt);
-        imgui_drag_f64("y##t", &mesh_pos.Y, speed, fmt);
-        imgui_drag_f64("z##t", &mesh_pos.Z, speed, fmt);
-        imgui_drag_f64("w##t", &mesh_pos.W, speed, fmt);
+        imgui_drag_f64("x##t", &new_mesh_pos.X, speed, fmt);
+        imgui_drag_f64("y##t", &new_mesh_pos.Y, speed, fmt);
+        imgui_drag_f64("z##t", &new_mesh_pos.Z, speed, fmt);
+        imgui_drag_f64("w##t", &new_mesh_pos.W, speed, fmt);
 
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Text("Scale");
 
-        {
+        auto button_size = ImVec2(ImGui::GetWindowWidth() - ImGui::GetWindowContentRegionMin().y, 0);
+        ImGui::Button("xyzw", button_size);
+        if (ImGui::IsItemActive()) {
             f64 scale_magnitude =
                     (std::abs(mesh_scale.X) + std::abs(mesh_scale.Y) + std::abs(mesh_scale.Z) + std::abs(mesh_scale.W))
                     / 4.0;
             f64 scale_speed = speed * scale_magnitude;
-            ImGui::PushButtonRepeat(true);
-            if (ImGui::Button("−")) {
-                mesh_scale.X -= scale_speed;
-                mesh_scale.Y -= scale_speed;
-                mesh_scale.Z -= scale_speed;
-                mesh_scale.W -= scale_speed;
-            }
-            ImVec2 minus_size = ImGui::GetItemRectSize();
-            ImGui::SameLine();
-            if (ImGui::Button("+", minus_size)) {
-                mesh_scale.X += scale_speed;
-                mesh_scale.Y += scale_speed;
-                mesh_scale.Z += scale_speed;
-                mesh_scale.W += scale_speed;
-            }
-            ImGui::PopButtonRepeat();
-            ImGui::SameLine();
-            ImGui::Text("xyzw");
+
+            f64 xyzw_scale = scale_speed * imgui_io->MouseDelta.x;
+            new_mesh_scale.X += xyzw_scale;
+            new_mesh_scale.Y += xyzw_scale;
+            new_mesh_scale.Z += xyzw_scale;
+            new_mesh_scale.W += xyzw_scale;
         }
 
-        imgui_drag_f64("x##s", &mesh_scale.X, speed, fmt);
-        imgui_drag_f64("y##s", &mesh_scale.Y, speed, fmt);
-        imgui_drag_f64("z##s", &mesh_scale.Z, speed, fmt);
-        imgui_drag_f64("w##s", &mesh_scale.W, speed, fmt);
+        imgui_drag_f64("x##s", &new_mesh_scale.X, speed, fmt);
+        imgui_drag_f64("y##s", &new_mesh_scale.Y, speed, fmt);
+        imgui_drag_f64("z##s", &new_mesh_scale.Z, speed, fmt);
+        imgui_drag_f64("w##s", &new_mesh_scale.W, speed, fmt);
 
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Text("Rotate");
 
-        imgui_drag_f64("xy", &mesh_rotation.xy, speed, fmt);
-        imgui_drag_f64("xz", &mesh_rotation.xz, speed, fmt);
-        imgui_drag_f64("xw", &mesh_rotation.xw, speed, fmt);
-        imgui_drag_f64("yz", &mesh_rotation.yz, speed, fmt);
-        imgui_drag_f64("yw", &mesh_rotation.yw, speed, fmt);
-        imgui_drag_f64("zw", &mesh_rotation.zw, speed, fmt);
+        imgui_drag_f64("xy", &new_mesh_rotation.xy, speed, fmt);
+        imgui_drag_f64("xz", &new_mesh_rotation.xz, speed, fmt);
+        imgui_drag_f64("xw", &new_mesh_rotation.xw, speed, fmt);
+        imgui_drag_f64("yz", &new_mesh_rotation.yz, speed, fmt);
+        imgui_drag_f64("yw", &new_mesh_rotation.yw, speed, fmt);
+        imgui_drag_f64("zw", &new_mesh_rotation.zw, speed, fmt);
 
         ImGui::End();
     }
 
     ImGui::EndFrame();
+
+    bool transform_is_valid = true;
+    Mat5 mv = mk_model_view_mat(new_mesh_pos, new_mesh_scale, new_mesh_rotation, camera4);
+    for (const auto& v : mesh.vertices) {
+        Vec5 view_v = mv * vec5(v, 1);
+        if (view_v.W > -camera4.near) {
+            transform_is_valid = false;
+        }
+    }
+
+    if (transform_is_valid) {
+        mesh_pos = new_mesh_pos;
+        mesh_scale = new_mesh_scale;
+        mesh_rotation = new_mesh_rotation;
+    } else {
+        // show_camera_near_note = true;
+    }
+
     return false;
 }
 
@@ -265,5 +285,19 @@ void AppState::step(const f64 ms) {
     } else {
         selected_cell_cycle_acc = 0.0;
     }
+}
+
+Mat5 mk_model_view_mat(hmm_vec4 pos, hmm_vec4 v_scale, Bivec4 rotation, Camera4 camera) {
+
+    Rotor4 rotation_r = rotor4(rotation.xy, outer(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0)))
+                        * rotor4(rotation.xz, outer(vec4(1, 0, 0, 0), vec4(0, 0, 1, 0)))
+                        * rotor4(rotation.xw, outer(vec4(1, 0, 0, 0), vec4(0, 0, 0, 1)))
+                        * rotor4(rotation.yz, outer(vec4(0, 1, 0, 0), vec4(0, 0, 1, 0)))
+                        * rotor4(rotation.yw, outer(vec4(0, 1, 0, 0), vec4(0, 0, 0, 1)))
+                        * rotor4(rotation.zw, outer(vec4(0, 0, 1, 0), vec4(0, 0, 0, 1)));
+
+    Mat5 model = translate(pos) * to_mat5(rotation_r) * scale(v_scale);
+    Mat5 view = look_at(camera.pos, camera.target, camera.up, camera.over);
+    return view * model;
 }
 } // namespace four

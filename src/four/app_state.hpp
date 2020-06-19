@@ -8,11 +8,20 @@
 
 namespace four {
 
+struct Camera4 {
+    hmm_vec4 pos = {0, 0, 0, 0};
+    hmm_vec4 target = {0, 0, 0, 1};
+    hmm_vec4 up = {0, 1, 0, 0};
+    hmm_vec4 over = {0, 0, 1, 0};
+    f64 near = 1.0;
+};
+
 struct AppState {
 public:
     SDL_Window* window;
     ImGuiIO* imgui_io;
 
+    bool show_imgui_demo = false;
     bool window_size_changed = false;
     bool mesh_changed = false;
 
@@ -25,10 +34,7 @@ public:
     bool selected_cell_cycle = false;
     f64 selected_cell_cycle_acc = 0.0;
 
-    hmm_vec4 camera4_pos = {0, 0, 0, 0};
-    hmm_vec4 camera4_target = {0, 0, 0, 1};
-    hmm_vec4 camera4_up = {0, 1, 0, 0};
-    hmm_vec4 camera4_over = {0, 0, 1, 0};
+    Camera4 camera4;
 
     hmm_vec3 camera_pos = {0, 0, 4};
     hmm_vec3 camera_target = {0, 0, 0};
@@ -52,4 +58,7 @@ public:
 private:
     void change_mesh(const char* path);
 };
+
+Mat5 mk_model_view_mat(hmm_vec4 pos, hmm_vec4 scale, Bivec4 rotation, Camera4 camera);
+
 } // namespace four

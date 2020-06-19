@@ -321,19 +321,11 @@ void Renderer::render() {
     {
         projected_vertices.clear();
 
-        Rotor4 rotation_r = rotor4(s.mesh_rotation.xy, outer(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0)))
-                            * rotor4(s.mesh_rotation.xz, outer(vec4(1, 0, 0, 0), vec4(0, 0, 1, 0)))
-                            * rotor4(s.mesh_rotation.xw, outer(vec4(1, 0, 0, 0), vec4(0, 0, 0, 1)))
-                            * rotor4(s.mesh_rotation.yz, outer(vec4(0, 1, 0, 0), vec4(0, 0, 1, 0)))
-                            * rotor4(s.mesh_rotation.yw, outer(vec4(0, 1, 0, 0), vec4(0, 0, 0, 1)))
-                            * rotor4(s.mesh_rotation.zw, outer(vec4(0, 0, 1, 0), vec4(0, 0, 0, 1)));
-
-        Mat5 model = translate(s.mesh_pos) * to_mat5(rotation_r) * scale(s.mesh_scale);
-        Mat5 view = look_at(s.camera4_pos, s.camera4_target, s.camera4_up, s.camera4_over);
-        Mat5 mv = view * model;
+        Mat5 mv = mk_model_view_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation, s.camera4);
         for (const hmm_vec4& v : s.mesh.vertices) {
-            hmm_vec3 v_ = vec3(project_perspective(mv * vec5(v, 1), 1.0));
-            projected_vertices.push_back(v_);
+            Vec5 view_v = mv * vec5(v, 1);
+            hmm_vec3 n3d_v = vec3(project_perspective(view_v, s.camera4.near));
+            projected_vertices.push_back(n3d_v);
         }
         DCHECK_EQ_F(s.mesh.vertices.size(), projected_vertices.size());
     }
