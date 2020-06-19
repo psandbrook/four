@@ -1,43 +1,14 @@
 cmake_minimum_required(VERSION 3.13.4 FATAL_ERROR)
 project(four LANGUAGES C CXX)
 
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake")
+include(cotire)
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Debug or Release." FORCE)
 elseif(NOT (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "Release"))
   message(FATAL_ERROR "Build type can only be \"Debug\" or \"Release\"")
 endif()
-
-# Dependencies
-# ============
-
-find_package(SDL2 2.0 REQUIRED)
-
-add_library(glad STATIC depends/glad/src/glad.c)
-target_compile_options(glad PRIVATE -w)
-
-add_library(triangle STATIC depends/triangle/triangle.c)
-add_compile_definitions(LINUX TRILIBRARY ANSI_DECLARATORS)
-target_compile_options(triangle PRIVATE -w -fno-lto)
-
-add_library(loguru STATIC depends/loguru/loguru.cpp)
-target_compile_options(loguru PRIVATE -w)
-
-add_library(tinyxml2 STATIC depends/tinyxml2/tinyxml2.cpp)
-target_compile_options(tinyxml2 PRIVATE -w)
-
-add_library(imgui STATIC
-  depends/imgui/imgui.cpp
-  depends/imgui/imgui_demo.cpp
-  depends/imgui/imgui_draw.cpp
-  depends/imgui/imgui_widgets.cpp
-  depends/imgui/imgui_impl_sdl.cpp
-  depends/imgui/imgui_impl_opengl3.cpp
-)
-target_compile_options(imgui PRIVATE -w -fno-lto)
-add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
-target_link_libraries(imgui SDL2::SDL2)
-
-# ============
 
 # Prefix: src/
 set(SOURCES
@@ -58,7 +29,6 @@ set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -88,7 +58,8 @@ set(CXX_FLAGS_COMMON
 )
 
 set(CXX_FLAGS_DEBUG
-  -DFOUR_DEBUG -Og -ggdb3 -fvar-tracking -fvar-tracking-assignments -fsanitize=undefined
+  #-DFOUR_DEBUG -Og -g -fvar-tracking -fvar-tracking-assignments -fsanitize=undefined
+  -DFOUR_DEBUG -O0 -g -fsanitize=undefined
 )
 
 set(CXX_FLAGS_RELEASE
@@ -123,7 +94,48 @@ set(CMAKE_C_FLAGS_DEBUG ${C_FLAGS_DEBUG_STR})
 set(CMAKE_C_FLAGS_RELEASE ${C_FLAGS_RELEASE_STR})
 
 add_executable(four ${SOURCES})
+
+# Dependencies
+# ============
+
+find_package(SDL2 2.0 REQUIRED)
+
+add_library(glad STATIC depends/glad/src/glad.c)
+target_compile_options(glad PRIVATE -w)
+
+add_library(triangle STATIC depends/triangle/triangle.c)
+target_compile_definitions(triangle PRIVATE LINUX TRILIBRARY)
+target_compile_options(triangle PRIVATE -w -fno-lto)
+
+add_library(loguru STATIC depends/loguru/loguru.cpp)
+target_compile_options(loguru PRIVATE -w)
+
+add_library(tinyxml2 STATIC depends/tinyxml2/tinyxml2.cpp)
+target_compile_options(tinyxml2 PRIVATE -w)
+
+add_library(imgui STATIC
+  depends/imgui/imgui.cpp
+  depends/imgui/imgui_demo.cpp
+  depends/imgui/imgui_draw.cpp
+  depends/imgui/imgui_widgets.cpp
+  depends/imgui/imgui_impl_sdl.cpp
+  depends/imgui/imgui_impl_opengl3.cpp
+)
+target_compile_options(imgui PRIVATE -w -fno-lto)
+add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
+target_link_libraries(imgui SDL2::SDL2)
+
+# ============
+
 target_link_libraries(four rt dl m pthread SDL2::SDL2 glad triangle loguru tinyxml2 imgui)
+
+set_property(TARGET four PROPERTY COTIRE_PREFIX_HEADER_INCLUDE_PATH ${CMAKE_SOURCE_DIR}/depends)
+set_property(TARGET four PROPERTY COTIRE_PREFIX_HEADER_IGNORE_PATH
+  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/depends/triangle/triangle.h
+  ${CMAKE_SOURCE_DIR}/depends/Handmade-Math/HandmadeMath.h
+)
+cotire(four CONFIGURATIONS Debug)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   add_custom_command(
