@@ -412,6 +412,12 @@ inline Rotor4 normalize(const Rotor4& r) {
     return result;
 }
 
+inline Rotor4 rotor4() {
+    Rotor4 result = {};
+    result.s = 1;
+    return result;
+}
+
 inline Rotor4 rotor4(const hmm_vec4& a, const hmm_vec4& b) {
     Rotor4 result = {};
     result.s = HMM_Dot(a, b);
@@ -538,6 +544,25 @@ inline Mat5 to_mat5(const Rotor4& r) {
     hmm_vec4 v_z = rotate(r, vec4(0, 0, 1, 0));
     hmm_vec4 v_w = rotate(r, vec4(0, 0, 0, 1));
     return mat5(vec5(v_x, 0), vec5(v_y, 0), vec5(v_z, 0), vec5(v_w, 0), vec5(0, 0, 0, 0, 1));
+}
+
+inline Rotor4 euler_to_rotor(const Bivec4& B) {
+    Rotor4 result = rotor4(B.xy, outer(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0)))
+                    * rotor4(B.xz, outer(vec4(1, 0, 0, 0), vec4(0, 0, 1, 0)))
+                    * rotor4(B.xw, outer(vec4(1, 0, 0, 0), vec4(0, 0, 0, 1)))
+                    * rotor4(B.yz, outer(vec4(0, 1, 0, 0), vec4(0, 0, 1, 0)))
+                    * rotor4(B.yw, outer(vec4(0, 1, 0, 0), vec4(0, 0, 0, 1)))
+                    * rotor4(B.zw, outer(vec4(0, 0, 1, 0), vec4(0, 0, 0, 1)));
+
+    return result;
+}
+
+inline Bivec4 rotor_to_euler(const Rotor4& r) {
+    Bivec4 result = {};
+    f64 a = acos(r.s);
+    f64 sin_a = sin(a);
+    result = r.B;
+    return result;
 }
 
 // =========

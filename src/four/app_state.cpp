@@ -24,12 +24,17 @@ void AppState::change_mesh(const char* path) {
     mesh = load_mesh_from_file(path);
     mesh_pos = {0, 0, 0, 2.5};
     mesh_scale = {1, 1, 1, 1};
-    mesh_rotation = (Bivec4){.xy = 0, .xz = 0, .xw = 0, .yz = 0, .yw = 0, .zw = 0};
+    if (mesh_rotation.is_rotor) {
+        mesh_rotation.rotor = rotor4();
+    } else {
+        mesh_rotation.euler = (Bivec4){};
+    }
     selected_cell = 0;
     mesh_changed = true;
 }
 
 AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path) : window(window), imgui_io(imgui_io) {
+    mesh_rotation = rotation4();
     change_mesh(mesh_path);
     CHECK_NOTNULL_F(imgui_io->Fonts->AddFontFromFileTTF("data/DejaVuSans.ttf", 18.0f, NULL, glyph_ranges));
 }
@@ -204,7 +209,7 @@ bool AppState::process_events_and_imgui() {
 
     hmm_vec4 new_mesh_pos = mesh_pos;
     hmm_vec4 new_mesh_scale = mesh_scale;
-    Bivec4 new_mesh_rotation = mesh_rotation;
+    Rotation4 new_mesh_rotation = mesh_rotation;
 
     // 4D Transform window
     {
@@ -246,12 +251,37 @@ bool AppState::process_events_and_imgui() {
         ImGui::Separator();
         ImGui::Text("Rotate");
 
-        imgui_drag_f64("xy", &new_mesh_rotation.xy, speed, fmt);
-        imgui_drag_f64("xz", &new_mesh_rotation.xz, speed, fmt);
-        imgui_drag_f64("xw", &new_mesh_rotation.xw, speed, fmt);
-        imgui_drag_f64("yz", &new_mesh_rotation.yz, speed, fmt);
-        imgui_drag_f64("yw", &new_mesh_rotation.yw, speed, fmt);
-        imgui_drag_f64("zw", &new_mesh_rotation.zw, speed, fmt);
+        if (ImGui::BeginTabBar("RotationType")) {
+            if (ImGui::BeginTabItem("Euler")) {
+                if (new_mesh_rotation.is_rotor) {
+                    new_mesh_rotation.is_rotor = false;
+                    new_mesh_rotation.euler = rotor_to_euler(new_mesh_rotation.rotor);
+                }
+                imgui_drag_f64("xy", &new_mesh_rotation.euler.xy, speed, fmt);
+                imgui_drag_f64("xz", &new_mesh_rotation.euler.xz, speed, fmt);
+                imgui_drag_f64("xw", &new_mesh_rotation.euler.xw, speed, fmt);
+                imgui_drag_f64("yz", &new_mesh_rotation.euler.yz, speed, fmt);
+                imgui_drag_f64("yw", &new_mesh_rotation.euler.yw, speed, fmt);
+                imgui_drag_f64("zw", &new_mesh_rotation.euler.zw, speed, fmt);
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Rotor")) {
+                if (!new_mesh_rotation.is_rotor) {
+                    new_mesh_rotation.is_rotor = true;
+                    new_mesh_rotation.rotor = euler_to_rotor(new_mesh_rotation.euler);
+                }
+                imgui_drag_f64("s", &new_mesh_rotation.rotor.s, speed, fmt);
+                imgui_drag_f64("xy", &new_mesh_rotation.rotor.B.xy, speed, fmt);
+                imgui_drag_f64("xz", &new_mesh_rotation.rotor.B.xz, speed, fmt);
+                imgui_drag_f64("xw", &new_mesh_rotation.rotor.B.xw, speed, fmt);
+                imgui_drag_f64("yz", &new_mesh_rotation.rotor.B.yz, speed, fmt);
+                imgui_drag_f64("yw", &new_mesh_rotation.rotor.B.yw, speed, fmt);
+                imgui_drag_f64("zw", &new_mesh_rotation.rotor.B.zw, speed, fmt);
+                imgui_drag_f64("xyzw", &new_mesh_rotation.rotor.xyzw, speed, fmt);
+                ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
+        }
 
         ImGui::End();
     }
@@ -294,20 +324,16 @@ void AppState::step(const f64 ms) {
     }
 }
 
-Mat5 mk_model_view_mat(const hmm_vec4& pos, const hmm_vec4& v_scale, const Bivec4& rotation, const Camera4& camera) {
+Mat5 mk_model_view_mat(const hmm_vec4& pos, const hmm_vec4& v_scale, const Rotation4& rotation, const Camera4& camera) {
 
-#if 1
-    Rotor4 rotation_r = rotor4(rotation.xy, outer(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0)))
-                        * rotor4(rotation.xz, outer(vec4(1, 0, 0, 0), vec4(0, 0, 1, 0)))
-                        * rotor4(rotation.xw, outer(vec4(1, 0, 0, 0), vec4(0, 0, 0, 1)))
-                        * rotor4(rotation.yz, outer(vec4(0, 1, 0, 0), vec4(0, 0, 1, 0)))
-                        * rotor4(rotation.yw, outer(vec4(0, 1, 0, 0), vec4(0, 0, 0, 1)))
-                        * rotor4(rotation.zw, outer(vec4(0, 0, 1, 0), vec4(0, 0, 0, 1)));
+    Mat5 m_r;
+    if (rotation.is_rotor) {
+        m_r = to_mat5(rotation.rotor);
+    } else {
+        m_r = rotate_euler(rotation.euler);
+    }
 
-    Mat5 model = translate(pos) * to_mat5(rotation_r) * scale(v_scale);
-#else
-    Mat5 model = translate(pos) * rotate_euler(rotation) * scale(v_scale);
-#endif
+    Mat5 model = translate(pos) * m_r * scale(v_scale);
     Mat5 view = look_at(camera.pos, camera.target, camera.up, camera.over);
     return view * model;
 }

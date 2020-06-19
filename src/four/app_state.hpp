@@ -16,6 +16,21 @@ struct Camera4 {
     f64 near = 1.0;
 };
 
+struct Rotation4 {
+    bool is_rotor;
+    union {
+        Bivec4 euler;
+        Rotor4 rotor;
+    };
+};
+
+inline Rotation4 rotation4() {
+    Rotation4 result = {};
+    result.is_rotor = false;
+    result.euler = (Bivec4){};
+    return result;
+}
+
 struct AppState {
 public:
     SDL_Window* window;
@@ -28,7 +43,7 @@ public:
     Mesh4 mesh;
     hmm_vec4 mesh_pos;
     hmm_vec4 mesh_scale;
-    Bivec4 mesh_rotation;
+    Rotation4 mesh_rotation;
 
     s32 selected_cell;
     bool selected_cell_cycle = false;
@@ -59,6 +74,6 @@ private:
     void change_mesh(const char* path);
 };
 
-Mat5 mk_model_view_mat(const hmm_vec4& pos, const hmm_vec4& scale, const Bivec4& rotation, const Camera4& camera);
+Mat5 mk_model_view_mat(const hmm_vec4& pos, const hmm_vec4& scale, const Rotation4& rotation, const Camera4& camera);
 
 } // namespace four
