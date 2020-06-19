@@ -583,9 +583,6 @@ end_face2_loop:
         if (entry.first != edge0.v0) {
             glm::dvec3 v = vertices[entry.first];
             f64 x = glm::dot(v - v0, normal);
-
-            // NOTE: Consider floating-point error. See
-            // https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
             DCHECK_F(float_eq(x, 0.0));
         }
     }

@@ -234,6 +234,7 @@ const s32 n600cell_edges_per_face = 3;
 const s32 n600cell_faces_per_cell = 4;
 const s32 n600cell_n_cells = 600;
 
+// Generate a regular convex 4-polytope.
 Mesh4 generate_mesh4(const glm::dvec4* vertices, const u32 n_vertices, const f64 edge_length, const s32 edges_per_face,
                      const s32 faces_per_cell, const s32 n_cells) {
     Mesh4 mesh;
@@ -241,7 +242,8 @@ Mesh4 generate_mesh4(const glm::dvec4* vertices, const u32 n_vertices, const f64
     mesh.vertices = std::vector<glm::dvec4>(vertices, vertices + n_vertices);
     LOG_F(INFO, "%lu vertices", mesh.vertices.size());
 
-    // Calculate edges
+    // Find edges: calculate the distance between each pair of vertices. If the
+    // distance equals the edge length, those vertices make up an edge.
     {
         std::unordered_set<Edge> edge_set;
 
@@ -257,7 +259,10 @@ Mesh4 generate_mesh4(const glm::dvec4* vertices, const u32 n_vertices, const f64
         LOG_F(INFO, "Found %lu edges", mesh.edges.size());
     }
 
-    // Calculate faces
+    // Find faces: for each vertex, perform a depth-first search on vertices
+    // connected by edges, keeping track of the search path as a list of edges.
+    // Add the search path if it is a valid face -- each vertex of the path is
+    // shared by two and only two edges.
     {
         u32 vertex_edge_n = 0;
         for (const auto& edge : mesh.edges) {
@@ -342,7 +347,10 @@ Mesh4 generate_mesh4(const glm::dvec4* vertices, const u32 n_vertices, const f64
         LOG_F(INFO, "Found %lu faces", mesh.faces.size());
     }
 
-    // Calculate cells
+    // Find cells: for each face, perform a depth-first search on faces
+    // connected by edges, keeping track of the search path as a list of faces.
+    // Add the search path if it is a valid cell -- each edge of the path is
+    // shared by two and only two faces.
     {
         // Calculate the number of adjacent faces per face
         u32 adjacent_faces_n = 0;

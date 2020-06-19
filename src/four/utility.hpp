@@ -154,6 +154,7 @@ struct BoundedVector {
 
 constexpr f64 default_epsilon = 0.00000000000001;
 
+// See https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
 inline bool float_eq(f64 a, f64 b, f64 epsilon = default_epsilon) {
     if (a < 1.0 && b < 1.0) {
         return std::abs(a - b) <= epsilon;

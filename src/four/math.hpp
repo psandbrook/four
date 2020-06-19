@@ -196,8 +196,9 @@ inline glm::dvec4 project_perspective(const Vec5& v, f64 near) {
     return glm::dvec4(intersect.x, intersect.y, intersect.z, glm::length(intersect - to_vec4(v)));
 }
 
-// 3D Rotors
-// =========
+// === 3D Rotors ===
+
+// See https://marctenbosch.com/quaternions/
 
 // Code adapted from http://marctenbosch.com/quaternions/code.htm
 
@@ -318,10 +319,9 @@ inline glm::dmat4 to_mat4(const Rotor3& r) {
     return glm::dmat4(glm::dvec4(v_x, 0), glm::dvec4(v_y, 0), glm::dvec4(v_z, 0), glm::dvec4(0, 0, 0, 1));
 }
 
-// =========
+// === 4D Rotors ===
 
-// 4D Rotors
-// =========
+// See https://marctenbosch.com/quaternions/
 
 struct Bivec4 {
     CXX_EXTENSION union {
@@ -530,6 +530,7 @@ inline Rotor4 euler_to_rotor(const Bivec4& B) {
     return result;
 }
 
+// FIXME: This implementation is incomplete.
 inline Bivec4 rotor_to_euler(const Rotor4& r) {
     Bivec4 result = {};
     // f64 a = acos(r.s);
@@ -537,8 +538,6 @@ inline Bivec4 rotor_to_euler(const Rotor4& r) {
     result = r.B;
     return result;
 }
-
-// =========
 
 inline Mat5 rotate_euler(const Bivec4& B) {
     Bivec4 B_ = B;

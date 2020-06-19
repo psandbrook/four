@@ -16,7 +16,9 @@ using namespace four;
 
 namespace {
 
+// This type handles initialization and termination of SDL and ImGui.
 struct WindowGuard {
+
     SDL_Window* window;
     ImGuiIO* imgui_io;
 
