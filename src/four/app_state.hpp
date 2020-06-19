@@ -33,32 +33,15 @@ inline Rotation4 rotation4() {
     return result;
 }
 
-enum Plane { Plane_xy = 0, Plane_xz, Plane_xw, Plane_yz, Plane_yw, Plane_zw, Plane_count };
-
-inline const char* plane_str(Plane value) {
-    switch (value) {
-    case Plane_xy:
-        return "xy";
-
-    case Plane_xz:
-        return "xz";
-
-    case Plane_xw:
-        return "xw";
-
-    case Plane_yz:
-        return "yz";
-
-    case Plane_yw:
-        return "yw";
-
-    case Plane_zw:
-        return "zw";
-
-    default:
-        ABORT_F("Invalid value");
-    }
-}
+enum class Plane {
+    xy,
+    xz,
+    xw,
+    yz,
+    yw,
+    zw,
+    count,
+};
 
 struct AppState {
 public:
@@ -88,8 +71,8 @@ public:
     bool selected_cell_cycle;
     f64 selected_cell_cycle_acc;
 
-    bool auto_rotate[Plane_count];
-    f64 auto_rotate_mag[Plane_count];
+    bool auto_rotate[(size_t)Plane::count];
+    f64 auto_rotate_mag[(size_t)Plane::count];
 
     bool perspective_projection = true;
     Camera4 camera4;

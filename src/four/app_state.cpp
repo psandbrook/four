@@ -15,6 +15,10 @@ namespace {
 const f64 mouse_motion_fac = 0.002;
 const ImWchar glyph_ranges[] = {0x20, 0xFFFF, 0};
 
+const char* plane_str[] = {
+        "xy", "xz", "xw", "yz", "yw", "zw",
+};
+
 inline bool imgui_drag_f64(const char* label, f64* value, f32 speed, const char* format = NULL) {
     return ImGui::DragScalar(label, ImGuiDataType_Double, value, speed, NULL, NULL, format, 1.0f);
 }
@@ -394,12 +398,12 @@ bool AppState::process_events_and_imgui() {
         {
             const f32 speed = 0.0001f;
             const auto fmt = "%.4f";
-            for (s32 i = 0; i < Plane_count; i++) {
+            for (s32 i = 0; i < (s32)Plane::count; i++) {
                 char id_label[5] = "##";
-                strncpy(&id_label[2], plane_str((Plane)i), 3);
+                strncpy(&id_label[2], plane_str[i], 3);
                 ImGui::Checkbox(id_label, &auto_rotate[i]);
                 ImGui::SameLine(0.0f, 2.0f);
-                imgui_drag_f64(plane_str((Plane)i), &auto_rotate_mag[i], speed, fmt);
+                imgui_drag_f64(plane_str[i], &auto_rotate_mag[i], speed, fmt);
             }
         }
     }
@@ -495,7 +499,7 @@ void AppState::step(const f64 ms) {
     Camera4 prev_new_camera4 = new_camera4;
 
     if (!imgui_io->WantTextInput) {
-        for (s32 i = 0; i < Plane_count; i++) {
+        for (s32 i = 0; i < (s32)Plane::count; i++) {
             if (auto_rotate[i]) {
                 new_mesh_rotation.euler[(size_t)i] += auto_rotate_mag[i];
             }
