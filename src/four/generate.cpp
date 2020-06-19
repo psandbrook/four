@@ -12,6 +12,8 @@
 
 #include <array>
 #include <functional>
+#include <mutex>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -382,77 +384,125 @@ Mesh4 generate_mesh4(const hmm_vec4* vertices, const u32 n_vertices, const f64 e
             return false;
         };
 
-        std::unordered_map<u32, s32> edges_count;
-        const auto cell_is_valid = [&](const std::unordered_set<u32>& cell) -> bool {
-            edges_count.clear();
+        std::mutex cell_set_mutex;
+        std::unordered_set<Cell, CellHash, CellEquals> cell_set;
 
-            for (u32 face_i : cell) {
-                const Face& face = mesh.faces[face_i];
-                for (u32 edge_i : face) {
-                    if (!has_key(edges_count, edge_i)) {
-                        edges_count.emplace(edge_i, 1);
-                    } else {
-                        edges_count[edge_i] += 1;
-                        if (edges_count[edge_i] > 2) {
+        u32 n_threads = std::thread::hardware_concurrency();
+        if (n_threads == 0) {
+            n_threads = 1;
+        } else if (n_threads > mesh.faces.size()) {
+            n_threads = (u32)mesh.faces.size();
+        }
+
+        u32 search_n = (u32)mesh.faces.size() / n_threads;
+        std::vector<std::thread> threads;
+
+        LOG_F(INFO, "Starting %u threads for cell search", n_threads);
+        for (u32 i = 0; i < n_threads; i++) {
+
+            const u32 search_start = search_n * i;
+            u32 search_end = i == n_threads - 1 ? (u32)mesh.faces.size() : search_start + search_n;
+
+            auto t = std::thread([&, i, search_start, search_end]() {
+                loguru::set_thread_name(loguru::textprintf("cell_search%u", i).c_str());
+
+                std::unordered_map<u32, s32> edges_count;
+                const auto cell_is_valid = [&](const std::unordered_set<u32>& cell) -> bool {
+                    edges_count.clear();
+
+                    for (u32 face_i : cell) {
+                        const Face& face = mesh.faces[face_i];
+                        for (u32 edge_i : face) {
+                            if (!has_key(edges_count, edge_i)) {
+                                edges_count.emplace(edge_i, 1);
+                            } else {
+                                edges_count[edge_i] += 1;
+                                if (edges_count[edge_i] > 2) {
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+
+                    for (const auto& entry : edges_count) {
+                        if (entry.second != 2) {
                             return false;
                         }
                     }
-                }
-            }
 
-            for (const auto& entry : edges_count) {
-                if (entry.second != 2) {
-                    return false;
-                }
-            }
-
-            return true;
-        };
-
-        std::unordered_set<Cell, CellHash, CellEquals> cell_set;
-        std::unordered_set<u32> face_path;
-
-        // Recursive lambda definition
-        std::function<bool(s64, s64, u32)> fill_cell_set;
-        fill_cell_set = [&](s64 parent_face_i, s64 gparent_face_i, u32 face_i) -> bool {
-            DCHECK_F(!contains(face_path, face_i));
-            face_path.insert(face_i);
-            DCHECK_F(face_path.size() <= (size_t)faces_per_cell);
-
-            if (face_path.size() == (size_t)faces_per_cell) {
-                if (cell_is_valid(face_path) && cell_set.emplace(face_path.cbegin(), face_path.cend()).second) {
-                    LOG_F(INFO, "found %lu cells", cell_set.size());
                     return true;
-                }
-            } else {
-                for (u32 adj_i = 0; adj_i < adjacent_faces_n; adj_i++) {
-                    u32 adj_face_i = adjacent_faces[face_i * adjacent_faces_n + adj_i];
+                };
 
-                    if (!contains(face_path, adj_face_i)
-                        && (parent_face_i == -1 || share_vertex(adj_face_i, (u32)parent_face_i)
-                            || (gparent_face_i != -1 && share_vertex(adj_face_i, (u32)gparent_face_i)))) {
+                std::unordered_set<u32> face_path;
 
-                        if (fill_cell_set(face_i, parent_face_i, adj_face_i)) {
-                            return true;
+                // Recursive lambda definition
+                std::function<bool(s64, s64, u32)> fill_cell_set;
+                fill_cell_set = [&](s64 parent_face_i, s64 gparent_face_i, u32 face_i) -> bool {
+                    DCHECK_F(!contains(face_path, face_i));
+                    face_path.insert(face_i);
+                    DCHECK_F(face_path.size() <= (size_t)faces_per_cell);
+
+                    if (face_path.size() == (size_t)faces_per_cell) {
+                        if (cell_is_valid(face_path)) {
+
+                            bool success;
+                            size_t cell_set_size;
+                            {
+                                auto lock = std::scoped_lock(cell_set_mutex);
+                                success = cell_set.emplace(face_path.cbegin(), face_path.cend()).second;
+                                if (success) {
+                                    cell_set_size = cell_set.size();
+                                }
+                            }
+
+                            if (success) {
+                                LOG_F(INFO, "found %lu cells", cell_set_size);
+                                return true;
+                            }
+                        }
+                    } else {
+                        for (u32 adj_i = 0; adj_i < adjacent_faces_n; adj_i++) {
+                            u32 adj_face_i = adjacent_faces[face_i * adjacent_faces_n + adj_i];
+
+                            if (!contains(face_path, adj_face_i)
+                                && (parent_face_i == -1 || share_vertex(adj_face_i, (u32)parent_face_i)
+                                    || (gparent_face_i != -1 && share_vertex(adj_face_i, (u32)gparent_face_i)))) {
+
+                                if (fill_cell_set(face_i, parent_face_i, adj_face_i)) {
+                                    return true;
+                                }
+                            }
                         }
                     }
+
+                    const size_t result = face_path.erase(face_i);
+                    DCHECK_EQ_F(result, 1u);
+
+                    return false;
+                };
+
+                for (u32 i = search_start; i < search_end; i++) {
+                    LOG_F(INFO, "searching for cells at face %i", i);
+                    face_path.clear();
+                    fill_cell_set(-1, -1, i);
+
+                    size_t cell_set_size;
+                    {
+                        auto lock = std::scoped_lock(cell_set_mutex);
+                        cell_set_size = cell_set.size();
+                    }
+
+                    if (cell_set_size == (size_t)n_cells) {
+                        break;
+                    }
                 }
-            }
+            });
 
-            const size_t result = face_path.erase(face_i);
-            DCHECK_EQ_F(result, 1u);
+            threads.push_back(std::move(t));
+        }
 
-            return false;
-        };
-
-        // TODO: Use multiple threads
-        for (u32 i = 0; i < mesh.faces.size(); i++) {
-            LOG_F(INFO, "searching for cells at face %i", i);
-            face_path.clear();
-            fill_cell_set(-1, -1, i);
-            if (cell_set.size() == (size_t)n_cells) {
-                break;
-            }
+        for (auto& t : threads) {
+            t.join();
         }
 
         mesh.cells = std::vector<Cell>(cell_set.cbegin(), cell_set.cend());
