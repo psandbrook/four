@@ -416,9 +416,8 @@ bool save_mesh_to_file(const Mesh4& mesh, const char* path) {
 
 // FIXME: Don't crash if the file is not valid.
 Mesh4 load_mesh_from_file(const char* path) {
-    auto full_path = std::string("data/meshes/") + path;
     txml::XMLDocument doc;
-    txml::XMLError error = doc.LoadFile(full_path.c_str());
+    txml::XMLError error = doc.LoadFile(path);
     if (error) {
         ABORT_F("%s", txml::XMLDocument::ErrorIDToName(error));
     }
@@ -537,7 +536,7 @@ Mesh4 load_mesh_from_file(const char* path) {
         result.tets.push_back(tet);
     }
 
-    LOG_F(INFO, "Loaded Mesh4 from \"%s\" with %lu vertices, %lu edges, %lu faces, %lu cells.", full_path.c_str(),
+    LOG_F(INFO, "Loaded Mesh4 from \"%s\" with %lu vertices, %lu edges, %lu faces, %lu cells.", path,
           result.vertices.size(), result.edges.size(), result.faces.size(), result.cells.size());
     return result;
 }

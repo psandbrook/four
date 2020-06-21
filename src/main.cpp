@@ -1,6 +1,7 @@
 #include <four/app_state.hpp>
 #include <four/generate.hpp>
 #include <four/render.hpp>
+#include <four/resource.hpp>
 
 #include <SDL.h>
 #include <glad/glad.h>
@@ -75,6 +76,8 @@ int main(int argc, char** argv) {
     loguru::g_stderr_verbosity = 1;
     loguru::init(argc, argv);
 
+    init_resource_path();
+
     bool debug = false;
     for (s32 i = 0; i < argc; i++) {
         auto arg = argv[i];
@@ -121,12 +124,12 @@ int main(int argc, char** argv) {
     auto& window = window_guard.window;
     auto& imgui_io = window_guard.imgui_io;
 
-    SDL_Surface* icon = SDL_LoadBMP("data/icon.bmp");
+    SDL_Surface* icon = SDL_LoadBMP(get_resource_path("icon.bmp").c_str());
     CHECK_NOTNULL_F(icon);
     SDL_SetWindowIcon(window, icon);
     SDL_FreeSurface(icon);
 
-    AppState state(window, imgui_io, "tesseract.mesh4");
+    AppState state(window, imgui_io, get_resource_path("meshes/tesseract.mesh4").c_str());
     state.debug = debug;
 
     Renderer renderer(window, &state);

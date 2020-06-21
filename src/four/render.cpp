@@ -1,5 +1,7 @@
 #include <four/render.hpp>
 
+#include <four/resource.hpp>
+
 #include <SDL.h>
 #include <earcut.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
@@ -50,10 +52,12 @@ VertexBufferObject& global_get_vbo(u32 index) {
     return renderer->vbos.at(index);
 }
 
-u32 compile_shader(const char* path, GLenum type) {
-    auto full_path = std::string("data/shaders/") + path;
-    std::ifstream stream(full_path);
-    CHECK_F(bool(stream), "Could not open file \"%s\"", full_path.c_str());
+u32 compile_shader(const char* relative_shader_path, GLenum type) {
+    auto relative_path = std::string("shaders/") + relative_shader_path;
+    std::string path = get_resource_path(relative_path.c_str());
+
+    std::ifstream stream(path);
+    CHECK_F(bool(stream), "Could not open file \"%s\"", path.c_str());
 
     std::stringstream source_buffer;
     source_buffer << stream.rdbuf();

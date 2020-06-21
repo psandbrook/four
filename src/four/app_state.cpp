@@ -1,6 +1,7 @@
 #include <four/app_state.hpp>
 
 #include <four/math.hpp>
+#include <four/resource.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
@@ -44,7 +45,8 @@ AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path)
     SDL_GL_GetDrawableSize(window, &window_width, &window_height);
     calc_ui_size_screen();
     change_mesh(mesh_path);
-    CHECK_NOTNULL_F(imgui_io->Fonts->AddFontFromFileTTF("data/DejaVuSans.ttf", 18.0f, NULL, glyph_ranges));
+    CHECK_NOTNULL_F(imgui_io->Fonts->AddFontFromFileTTF(get_resource_path("DejaVuSans.ttf").c_str(), 18.0f, NULL,
+                                                        glyph_ranges));
 
     ImGui::GetStyle().WindowRounding = 0;
     ImGui::GetStyle().ChildRounding = 6;
@@ -458,7 +460,8 @@ bool AppState::process_events_and_imgui() {
         }
 
         if (new_mesh_path) {
-            change_mesh(new_mesh_path);
+            auto relative_path = std::string("meshes/") + new_mesh_path;
+            change_mesh(get_resource_path(relative_path.c_str()).c_str());
         }
     }
 

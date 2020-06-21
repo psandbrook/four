@@ -59,6 +59,7 @@ set(SOURCES
   four/mesh.cpp
   four/render.cpp
   four/app_state.cpp
+  four/resource.cpp
 )
 
 # Add prefix
@@ -113,7 +114,7 @@ set(FLAGS_FOUR_COMMON
 )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  list(APPEND FLAGS_FOUR_COMMON -Wcast-align=strict -Wlogical-op -Wstrict-null-sentinel -Wuseless-cast -Wabi-tag)
+  list(APPEND FLAGS_FOUR_COMMON -Wcast-align=strict -Wlogical-op -Wstrict-null-sentinel -Wuseless-cast)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   list(APPEND FLAGS_FOUR_COMMON -Wcast-align -Wno-gnu-zero-variadic-macro-arguments)
 endif()
