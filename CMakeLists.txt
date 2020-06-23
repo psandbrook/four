@@ -191,7 +191,7 @@ make_available_no_add(sdl2 loguru tinyxml2 imgui earcut glm)
 set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
 set(SDL_STATIC_ENABLED_BY_DEFAULT ON)
 set(SDL_STATIC_PIC ON CACHE BOOL "")
-add_subdirectory("${sdl2_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/sdl2" EXCLUDE_FROM_ALL)
+add_subdirectory("${sdl2_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/sdl2")
 set(SDL2_TARGET SDL2-static)
 get_property(SDL2_INCLUDE TARGET ${SDL2_TARGET} PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 set_property(TARGET ${SDL2_TARGET} PROPERTY INTERFACE_SYSTEM_INCLUDE_DIRECTORIES ${SDL2_INCLUDE})
@@ -200,14 +200,14 @@ target_compile_options(${SDL2_TARGET} PRIVATE -fno-lto)
 add_library(glm INTERFACE)
 target_include_directories(glm SYSTEM INTERFACE "${glm_SOURCE_DIR}")
 
-add_library(glad STATIC EXCLUDE_FROM_ALL depends/glad/src/glad.c)
+add_library(glad STATIC depends/glad/src/glad.c)
 target_include_directories(glad SYSTEM PUBLIC depends/glad/include)
 target_link_libraries(glad dl)
 
 add_library(earcut INTERFACE)
 target_include_directories(earcut SYSTEM INTERFACE "${earcut_SOURCE_DIR}/include/mapbox")
 
-add_library(imgui STATIC EXCLUDE_FROM_ALL
+add_library(imgui STATIC
   "${imgui_SOURCE_DIR}/imgui.cpp"
   "${imgui_SOURCE_DIR}/imgui_demo.cpp"
   "${imgui_SOURCE_DIR}/imgui_draw.cpp"
@@ -220,15 +220,15 @@ target_compile_definitions(imgui PUBLIC IMGUI_IMPL_OPENGL_LOADER_GLAD)
 target_link_libraries(imgui ${SDL2_TARGET} glad)
 set_property(SOURCE "${imgui_SOURCE_DIR}/imgui_draw.cpp" PROPERTY COMPILE_OPTIONS -fno-lto)
 
-add_library(loguru STATIC EXCLUDE_FROM_ALL "${loguru_SOURCE_DIR}/loguru.cpp")
+add_library(loguru STATIC "${loguru_SOURCE_DIR}/loguru.cpp")
 target_include_directories(loguru SYSTEM PUBLIC "${loguru_SOURCE_DIR}")
 target_compile_definitions(loguru PUBLIC LOGURU_WITH_STREAMS)
 target_link_libraries(loguru dl)
 
-add_library(tinyxml2 STATIC EXCLUDE_FROM_ALL "${tinyxml2_SOURCE_DIR}/tinyxml2.cpp")
+add_library(tinyxml2 STATIC "${tinyxml2_SOURCE_DIR}/tinyxml2.cpp")
 target_include_directories(tinyxml2 SYSTEM PUBLIC "${tinyxml2_SOURCE_DIR}")
 
-add_library(tetgen STATIC EXCLUDE_FROM_ALL depends/tetgen/tetgen.cxx depends/tetgen/predicates.cxx)
+add_library(tetgen STATIC depends/tetgen/tetgen.cxx depends/tetgen/predicates.cxx)
 target_include_directories(tetgen SYSTEM PUBLIC depends/tetgen)
 target_compile_definitions(tetgen PUBLIC TETLIBRARY)
 target_compile_options(tetgen PRIVATE -Wno-unused-result)
