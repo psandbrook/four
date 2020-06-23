@@ -3,6 +3,7 @@ project(four LANGUAGES C CXX)
 
 include(FetchContent)
 include(ProcessorCount)
+include(CheckPIESupported)
 
 function(make_available_no_add)
   foreach(CONTENT_NAME ${ARGV})
@@ -80,15 +81,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
+set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
+
+check_pie_supported()
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Flags for all targets, including dependencies
 
 set(COMPILE_FLAGS_COMMON
-  -pthread -pipe -fPIE -fvisibility=hidden $<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>
+  -pthread -pipe -fvisibility=hidden $<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>
   -fstack-protector-strong -fno-plt -m64 -march=x86-64 -mtune=generic
 )
 
-set(LINK_FLAGS_COMMON -pie -Wl,--sort-common,--as-needed,-z,relro,-z,now)
+set(LINK_FLAGS_COMMON -Wl,--sort-common,--as-needed,-z,relro,-z,now)
 
 if(CMAKE_GENERATOR STREQUAL "Ninja")
   list(APPEND COMPILE_FLAGS_COMMON -fdiagnostics-color=always)
@@ -188,14 +193,11 @@ FetchContent_Declare(
 
 make_available_no_add(sdl2 loguru tinyxml2 imgui earcut glm)
 
-set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
-set(SDL_STATIC_ENABLED_BY_DEFAULT ON)
-set(SDL_STATIC_PIC ON CACHE BOOL "")
+set(SDL_SHARED ON CACHE BOOL "" FORCE)
+set(SDL_STATIC OFF CACHE BOOL "" FORCE)
 add_subdirectory("${sdl2_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/sdl2")
-set(SDL2_TARGET SDL2-static)
-get_property(SDL2_INCLUDE TARGET ${SDL2_TARGET} PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-set_property(TARGET ${SDL2_TARGET} PROPERTY INTERFACE_SYSTEM_INCLUDE_DIRECTORIES ${SDL2_INCLUDE})
-target_compile_options(${SDL2_TARGET} PRIVATE -fno-lto)
+
+target_compile_options(SDL2 PRIVATE -fno-lto)
 
 add_library(glm INTERFACE)
 target_include_directories(glm SYSTEM INTERFACE "${glm_SOURCE_DIR}")
@@ -217,7 +219,7 @@ add_library(imgui STATIC
 )
 target_include_directories(imgui SYSTEM PUBLIC "${imgui_SOURCE_DIR}" "${imgui_SOURCE_DIR}/examples")
 target_compile_definitions(imgui PUBLIC IMGUI_IMPL_OPENGL_LOADER_GLAD)
-target_link_libraries(imgui ${SDL2_TARGET} glad)
+target_link_libraries(imgui SDL2 glad)
 set_property(SOURCE "${imgui_SOURCE_DIR}/imgui_draw.cpp" PROPERTY COMPILE_OPTIONS -fno-lto)
 
 add_library(loguru STATIC "${loguru_SOURCE_DIR}/loguru.cpp")
@@ -247,7 +249,7 @@ target_link_options(four PRIVATE
   "$<$<CONFIG:Release>:${FLAGS_FOUR_RELEASE}>"
 )
 include_directories(src)
-target_link_libraries(four ${SDL2_TARGET} glad glm loguru imgui tinyxml2 earcut tetgen)
+target_link_libraries(four SDL2 glad glm loguru imgui tinyxml2 earcut tetgen)
 
 add_custom_command(
   TARGET four
