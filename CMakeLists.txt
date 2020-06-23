@@ -40,6 +40,7 @@ set(COMPILER_LAUNCHER "" CACHE STRING "C and CXX compiler launcher.")
 
 # === Set global variables ===
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 set(CMAKE_CONFIGURATION_TYPES "Debug" "Release")
 set(CMAKE_TLS_VERIFY ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -68,6 +69,10 @@ list(TRANSFORM SOURCES PREPEND "src/")
 
 # === Compile and link flags ===
 
+unset(ENV{CPPFLAGS})
+unset(ENV{CFLAGS})
+unset(ENV{CXXFLAGS})
+unset(ENV{LDFLAGS})
 set(CMAKE_CXX_FLAGS "")
 set(CMAKE_CXX_FLAGS_DEBUG "")
 set(CMAKE_CXX_FLAGS_RELEASE "")
@@ -93,10 +98,14 @@ set(COMPILE_FLAGS_COMMON
   -fstack-protector-strong -fno-plt -m64 -march=x86-64 -mtune=generic
 )
 
-set(LINK_FLAGS_COMMON -Wl,--sort-common,--as-needed,-z,relro,-z,now)
+set(LINK_FLAGS_COMMON -Wl,--sort-common,--as-needed)
 
 if(CMAKE_GENERATOR STREQUAL "Ninja")
   list(APPEND COMPILE_FLAGS_COMMON -fdiagnostics-color=always)
+endif()
+
+if(UNIX)
+  list(APPEND LINK_FLAGS_COMMON -Wl,-z,relro,-z,now)
 endif()
 
 set(FLAGS_DEBUG -Og -g)
@@ -204,7 +213,10 @@ target_include_directories(glm SYSTEM INTERFACE "${glm_SOURCE_DIR}")
 
 add_library(glad STATIC depends/glad/src/glad.c)
 target_include_directories(glad SYSTEM PUBLIC depends/glad/include)
-target_link_libraries(glad dl)
+
+if(UNIX)
+  target_link_libraries(glad dl)
+endif()
 
 add_library(earcut INTERFACE)
 target_include_directories(earcut SYSTEM INTERFACE "${earcut_SOURCE_DIR}/include/mapbox")
@@ -225,7 +237,10 @@ set_property(SOURCE "${imgui_SOURCE_DIR}/imgui_draw.cpp" PROPERTY COMPILE_OPTION
 add_library(loguru STATIC "${loguru_SOURCE_DIR}/loguru.cpp")
 target_include_directories(loguru SYSTEM PUBLIC "${loguru_SOURCE_DIR}")
 target_compile_definitions(loguru PUBLIC LOGURU_WITH_STREAMS)
-target_link_libraries(loguru dl)
+
+if(UNIX)
+  target_link_libraries(loguru dl)
+endif()
 
 add_library(tinyxml2 STATIC "${tinyxml2_SOURCE_DIR}/tinyxml2.cpp")
 target_include_directories(tinyxml2 SYSTEM PUBLIC "${tinyxml2_SOURCE_DIR}")
@@ -249,12 +264,17 @@ target_link_options(four PRIVATE
   "$<$<CONFIG:Release>:${FLAGS_FOUR_RELEASE}>"
 )
 include_directories(src)
+
+if(WIN32)
+  target_link_libraries(four mingw32 SDL2main)
+endif()
+
 target_link_libraries(four SDL2 glad glm loguru imgui tinyxml2 earcut tetgen)
 
 add_custom_command(
   TARGET four
   POST_BUILD
-  COMMAND $<IF:$<CONFIG:Release>,strip,:> --strip-unneeded $<TARGET_FILE:four>
+  COMMAND "$<IF:$<CONFIG:Release>,${CMAKE_STRIP},:>" --strip-unneeded "$<TARGET_FILE:four>"
   VERBATIM
 )
 
