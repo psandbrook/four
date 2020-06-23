@@ -133,6 +133,10 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   list(APPEND FLAGS_FOUR_COMMON -Wcast-align -Wno-gnu-zero-variadic-macro-arguments)
 endif()
 
+if(WIN32)
+  list(APPEND FLAGS_FOUR_COMMON -Wno-format -Wno-redundant-decls)
+endif()
+
 set(FLAGS_FOUR_DEBUG -DFOUR_DEBUG)
 
 if(NOT DEBUG_ENABLE_DEBUG_INFO)
@@ -237,6 +241,7 @@ set_property(SOURCE "${imgui_SOURCE_DIR}/imgui_draw.cpp" PROPERTY COMPILE_OPTION
 add_library(loguru STATIC "${loguru_SOURCE_DIR}/loguru.cpp")
 target_include_directories(loguru SYSTEM PUBLIC "${loguru_SOURCE_DIR}")
 target_compile_definitions(loguru PUBLIC LOGURU_WITH_STREAMS)
+target_compile_options(loguru PRIVATE -w)
 
 if(UNIX)
   target_link_libraries(loguru dl)
