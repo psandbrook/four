@@ -45,6 +45,7 @@ AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path)
     SDL_GL_GetDrawableSize(window, &window_width, &window_height);
     calc_ui_size_screen();
     change_mesh(mesh_path);
+    imgui_io->IniFilename = NULL;
     CHECK_NOTNULL_F(imgui_io->Fonts->AddFontFromFileTTF(get_resource_path("DejaVuSans.ttf").c_str(), 18.0f, NULL,
                                                         glyph_ranges));
 

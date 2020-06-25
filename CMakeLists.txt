@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
-project(four LANGUAGES C CXX)
+project(four VERSION 0.1.0 LANGUAGES C CXX)
 
 include(FetchContent)
 include(ProcessorCount)
@@ -40,8 +40,11 @@ set(COMPILER_LAUNCHER "" CACHE STRING "C and CXX compiler launcher.")
 
 # === Set global variables ===
 
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install_prefix" CACHE PATH "" FORCE)
 set(CMAKE_CONFIGURATION_TYPES "Debug" "Release")
+set(CMAKE_DEBUG_POSTFIX "+debug")
 set(CMAKE_TLS_VERIFY ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(FETCHCONTENT_QUIET OFF)
@@ -86,7 +89,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
-set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
 
 check_pie_supported()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -110,7 +113,11 @@ endif()
 
 set(FLAGS_DEBUG -Og -g)
 
-set(COMPILE_FLAGS_RELEASE -O3 -g0 -DNDEBUG -D_FORTIFY_SOURCE=2 -ffunction-sections -fdata-sections)
+set(COMPILE_FLAGS_RELEASE
+  -O3 -g0 -DNDEBUG -D_FORTIFY_SOURCE=2 -ffunction-sections -fdata-sections
+  "-ffile-prefix-map=${FETCHCONTENT_BASE_DIR}=_deps" "-ffile-prefix-map=${CMAKE_SOURCE_DIR}=."
+)
+
 set(LINK_FLAGS_RELEASE -Wl,--gc-sections,-O1)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -208,7 +215,11 @@ make_available_no_add(sdl2 loguru tinyxml2 imgui earcut glm)
 
 set(SDL_SHARED ON CACHE BOOL "" FORCE)
 set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+
+set(CMAKE_SKIP_INSTALL_RULES TRUE)
 add_subdirectory("${sdl2_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/sdl2")
+set(CMAKE_SKIP_INSTALL_RULES FALSE)
+file(TOUCH "${CMAKE_BINARY_DIR}/sdl2/cmake_install.cmake")
 
 target_compile_options(SDL2 PRIVATE -fno-lto)
 
@@ -276,14 +287,73 @@ endif()
 
 target_link_libraries(four SDL2 glad glm loguru imgui tinyxml2 earcut tetgen)
 
-add_custom_command(
-  TARGET four
-  POST_BUILD
-  COMMAND "$<IF:$<CONFIG:Release>,${CMAKE_STRIP},:>" --strip-unneeded "$<TARGET_FILE:four>"
-  VERBATIM
-)
+set_property(TARGET four PROPERTY INSTALL_RPATH "$ORIGIN")
 
 file(CREATE_LINK "${CMAKE_SOURCE_DIR}/data" "${CMAKE_BINARY_DIR}/data" RESULT DATA_LINK_RESULT SYMBOLIC)
 if(DATA_LINK_RESULT)
   file(COPY "${CMAKE_SOURCE_DIR}/data" DESTINATION "${CMAKE_BINARY_DIR}")
 endif()
+
+if(WIN32)
+  set(WIN32_REQUIRED_DLLS_NAMES libgcc_s_seh-1.dll libssp-0.dll libstdc++-6.dll libwinpthread-1.dll)
+  set(WIN32_REQUIRED_DLLS)
+  foreach(DLL_NAME ${WIN32_REQUIRED_DLLS_NAMES})
+    find_file("${DLL_NAME}_LOCATION" "${DLL_NAME}" PATHS /bin)
+    list(APPEND WIN32_REQUIRED_DLLS "${${DLL_NAME}_LOCATION}")
+  endforeach()
+  file(COPY ${WIN32_REQUIRED_DLLS} DESTINATION "${CMAKE_BINARY_DIR}")
+endif()
+
+# === Installation and packaging ===
+
+string(TOLOWER "${CMAKE_SYSTEM_NAME}" SYSTEM_NAME_LOWER)
+set(PACKAGE_NAME "${PROJECT_NAME}-${PROJECT_VERSION}$<$<CONFIG:Debug>:${CMAKE_DEBUG_POSTFIX}>-${SYSTEM_NAME_LOWER}")
+
+if(UNIX)
+  set(PACKAGE_OUTPUT "${CMAKE_BINARY_DIR}/${PACKAGE_NAME}.tar.gz")
+elseif(WIN32)
+  set(PACKAGE_OUTPUT "${CMAKE_BINARY_DIR}/${PACKAGE_NAME}.zip")
+endif()
+
+install(TARGETS four SDL2 LIBRARY DESTINATION four RUNTIME DESTINATION four)
+
+install(CODE
+  "execute_process(COMMAND \
+    \"$<IF:$<CONFIG:Release>,${CMAKE_STRIP},true>\" \
+    --strip-unneeded \
+    \"four/$<TARGET_FILE_NAME:four>\" \
+    \"four/$<TARGET_FILE_NAME:SDL2>\" \
+    WORKING_DIRECTORY \"${CMAKE_INSTALL_PREFIX}\")"
+)
+
+install(DIRECTORY data DESTINATION four)
+
+if(WIN32)
+  install(PROGRAMS ${WIN32_REQUIRED_DLLS} DESTINATION four)
+endif()
+
+add_custom_target(my_install
+  "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}" --target install
+  VERBATIM
+)
+
+add_custom_target(pre_package
+  "${CMAKE_COMMAND}" -E rm -rf "${CMAKE_INSTALL_PREFIX}" "${CMAKE_BINARY_DIR}/install_manifest.txt" "${PACKAGE_OUTPUT}"
+  VERBATIM
+)
+
+if(UNIX)
+  add_custom_target(package
+    tar -v --format=posix -I "gzip -cfn" -cf "${PACKAGE_OUTPUT}" four
+    WORKING_DIRECTORY "${CMAKE_INSTALL_PREFIX}"
+    VERBATIM
+  )
+elseif(WIN32)
+  add_custom_target(package
+    zip -vro "${PACKAGE_OUTPUT}" four
+    WORKING_DIRECTORY "${CMAKE_INSTALL_PREFIX}"
+    VERBATIM
+  )
+endif()
+
+add_dependencies(package pre_package my_install)
