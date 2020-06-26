@@ -331,7 +331,8 @@ add_custom_target(my_install
 )
 
 add_custom_target(pre_package
-  "${CMAKE_COMMAND}" -E rm -rf "${CMAKE_INSTALL_PREFIX}" "${CMAKE_BINARY_DIR}/install_manifest.txt" "${PACKAGE_OUTPUT}"
+  COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}"
+  COMMAND "${CMAKE_COMMAND}" -E remove -f "${CMAKE_BINARY_DIR}/install_manifest.txt" "${PACKAGE_OUTPUT}"
   VERBATIM
 )
 
