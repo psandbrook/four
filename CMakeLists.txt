@@ -325,14 +325,10 @@ if(WIN32)
   install(PROGRAMS ${WIN32_REQUIRED_DLLS} DESTINATION four)
 endif()
 
-add_custom_target(my_install
-  "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}" --target install
-  VERBATIM
-)
-
 add_custom_target(pre_package
   COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}"
   COMMAND "${CMAKE_COMMAND}" -E remove -f "${CMAKE_BINARY_DIR}/install_manifest.txt" "${PACKAGE_OUTPUT}"
+  COMMAND "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}" --target install
   VERBATIM
 )
 
@@ -350,4 +346,4 @@ elseif(WIN32)
   )
 endif()
 
-add_dependencies(package pre_package my_install)
+add_dependencies(package pre_package)
