@@ -113,10 +113,12 @@ set(COMPILE_FLAGS_RELEASE
 
 set(LINK_FLAGS_RELEASE -Wl,--gc-sections,-O1)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  list(APPEND COMPILE_FLAGS_RELEASE -flto=${NPROC} -flto-odr-type-merging -fno-semantic-interposition)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  list(APPEND COMPILE_FLAGS_RELEASE -flto=thin)
+if(UNIX)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    list(APPEND COMPILE_FLAGS_RELEASE -flto=${NPROC} -flto-odr-type-merging -fno-semantic-interposition)
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    list(APPEND COMPILE_FLAGS_RELEASE -flto=thin)
+  endif()
 endif()
 
 # Flags for this project's targets
