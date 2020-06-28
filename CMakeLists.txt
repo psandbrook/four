@@ -310,22 +310,25 @@ elseif(WIN32)
   set(PACKAGE_OUTPUT "${CMAKE_BINARY_DIR}/${PACKAGE_NAME}.zip")
 endif()
 
+set(INSTALLED_BINARIES_NAMES "$<TARGET_FILE_NAME:four>" "$<TARGET_FILE_NAME:SDL2>")
+if(WIN32)
+  list(APPEND INSTALLED_BINARIES_NAMES ${WIN32_REQUIRED_DLLS_NAMES})
+endif()
+
+set(INSTALL_STRIP_CODE "execute_process(COMMAND \"$<IF:$<CONFIG:Release>,${CMAKE_STRIP},true>\" --strip-unneeded ")
+foreach(NAME ${INSTALLED_BINARIES_NAMES})
+  string(APPEND INSTALL_STRIP_CODE "\"four/${NAME}\" ")
+endforeach()
+string(APPEND INSTALL_STRIP_CODE "WORKING_DIRECTORY \"${CMAKE_INSTALL_PREFIX}\")")
+
 install(TARGETS four SDL2 LIBRARY DESTINATION four RUNTIME DESTINATION four)
-
-install(CODE
-  "execute_process(COMMAND \
-    \"$<IF:$<CONFIG:Release>,${CMAKE_STRIP},true>\" \
-    --strip-unneeded \
-    \"four/$<TARGET_FILE_NAME:four>\" \
-    \"four/$<TARGET_FILE_NAME:SDL2>\" \
-    WORKING_DIRECTORY \"${CMAKE_INSTALL_PREFIX}\")"
-)
-
 install(DIRECTORY data DESTINATION four)
 
 if(WIN32)
   install(PROGRAMS ${WIN32_REQUIRED_DLLS} DESTINATION four)
 endif()
+
+install(CODE "${INSTALL_STRIP_CODE}")
 
 add_custom_target(pre_package
   COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}"
