@@ -101,7 +101,7 @@ if(CMAKE_GENERATOR STREQUAL "Ninja")
 endif()
 
 if(UNIX)
-  list(APPEND LINK_FLAGS_COMMON -Wl,-z,relro,-z,now)
+  list(APPEND LINK_FLAGS_COMMON -Wl,-z,relro,-z,now,--enable-new-dtags)
 endif()
 
 set(FLAGS_DEBUG -Og -g)
