@@ -10,9 +10,6 @@
 #include <imgui_impl_sdl.h>
 #include <loguru.hpp>
 
-#include <chrono>
-#include <thread>
-
 using namespace four;
 
 namespace {
@@ -170,16 +167,8 @@ int main(int argc, char** argv) {
         }
 
         // Render
-        if (steps == 0) {
-            f64 sleep_ms = step_ms - lag_ms - 1.0;
-            if (sleep_ms > 0.0) {
-                s64 sleep_ns = (s64)(sleep_ms * 1000000.0);
-                std::this_thread::sleep_for(std::chrono::nanoseconds(sleep_ns));
-            }
-        } else {
-            renderer.render();
-            frames++;
-        }
+        renderer.render();
+        frames++;
     }
 
     return 0;
