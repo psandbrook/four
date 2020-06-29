@@ -322,12 +322,13 @@ endforeach()
 string(APPEND INSTALL_STRIP_CODE "WORKING_DIRECTORY \"${CMAKE_INSTALL_PREFIX}\")")
 
 install(TARGETS four SDL2 LIBRARY DESTINATION four RUNTIME DESTINATION four)
-install(DIRECTORY data DESTINATION four)
+install(DIRECTORY data docs DESTINATION four)
 
 if(WIN32)
   install(PROGRAMS ${WIN32_REQUIRED_DLLS} DESTINATION four)
 endif()
 
+install(FILES LICENSE README.md DESTINATION four)
 install(CODE "${INSTALL_STRIP_CODE}")
 
 add_custom_target(pre_package
