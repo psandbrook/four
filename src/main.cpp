@@ -10,6 +10,12 @@
 #include <imgui_impl_sdl.h>
 #include <loguru.hpp>
 
+#include <stdio.h>
+
+#ifdef __WIN32__
+#    include <windows.h>
+#endif
+
 using namespace four;
 
 namespace {
@@ -67,13 +73,36 @@ struct WindowGuard {
         SDL_Quit();
     }
 };
+
+#ifdef __WIN32__
+bool opened_console = false;
+#endif
+
+void open_console() {
+#ifdef __WIN32__
+    if (!opened_console) {
+        FreeConsole();
+        AllocConsole();
+        freopen("CONIN$", "r", stdin);
+        freopen("CONOUT$", "w", stdout);
+        freopen("CONOUT$", "w", stderr);
+        opened_console = true;
+    }
+#endif
+}
+
+void finish_console() {
+#ifdef __WIN32__
+    if (opened_console) {
+        printf("Program has finished.\n");
+        getchar();
+    }
+#endif
+}
 } // namespace
 
 int main(int argc, char** argv) {
     loguru::g_stderr_verbosity = 1;
-    loguru::init(argc, argv);
-
-    init_resource_path();
 
     bool debug = false;
     for (s32 i = 0; i < argc; i++) {
@@ -81,8 +110,10 @@ int main(int argc, char** argv) {
 
         if (c_str_eq(arg, "-d")) {
             debug = true;
+            open_console();
 
         } else if (c_str_eq(arg, "--generate")) {
+            open_console();
             CHECK_LT_F(i + 1, argc);
             const char* arg1 = argv[i + 1];
 
@@ -113,9 +144,13 @@ int main(int argc, char** argv) {
 
             auto path = std::string(arg1) + ".mesh4";
             CHECK_F(save_mesh_to_file(mesh, path.c_str()));
+            finish_console();
             return 0;
         }
     }
+
+    loguru::init(argc, argv);
+    init_resource_path();
 
     WindowGuard window_guard;
     auto& window = window_guard.window;
@@ -171,5 +206,6 @@ int main(int argc, char** argv) {
         frames++;
     }
 
+    finish_console();
     return 0;
 }
