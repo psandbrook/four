@@ -21,7 +21,6 @@ Prerequisites:
 
 * CMake 3.16
 * Recent GCC or Clang
-* SDL 2
 
 Use CMake to build:
 
