@@ -14,11 +14,24 @@ namespace four {
 
 namespace {
 
-const f64 mouse_motion_fac = 0.002;
+constexpr f64 mouse_motion_fac = 0.002;
 const ImWchar glyph_ranges[] = {0x20, 0xFFFF, 0};
 
 const char* plane_str[] = {
         "xy", "xz", "xw", "yz", "yw", "zw",
+};
+
+const char* mesh_paths[] = {
+        "5-cell.mesh4", "tesseract.mesh4", "16-cell.mesh4", "24-cell.mesh4", "120-cell.mesh4", "600-cell.mesh4",
+};
+
+enum MeshIndex {
+    n5cell_index,
+    tesseract_index,
+    n16cell_index,
+    n24cell_index,
+    n120cell_index,
+    n600cell_index,
 };
 
 inline bool imgui_drag_f64(const char* label, f64* value, f32 speed, const char* format = NULL) {
@@ -34,17 +47,16 @@ f32 srgb_to_linear(f32 value) {
 }
 
 bool is_around(f64 target, f64 pos) {
-    const f64 tolerance = 0.003;
+    constexpr f64 tolerance = 0.003;
     return pos >= target - tolerance && pos <= target + tolerance;
 }
 } // namespace
 
-AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path)
+AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io)
         : window(window), imgui_io(imgui_io), random_dev(), random_eng_32(random_dev()) {
 
     SDL_GL_GetDrawableSize(window, &window_width, &window_height);
     calc_ui_size_screen();
-    change_mesh(mesh_path);
     imgui_io->IniFilename = NULL;
     CHECK_NOTNULL_F(imgui_io->Fonts->AddFontFromFileTTF(get_resource_path("DejaVuSans.ttf").c_str(), 18.0f, NULL,
                                                         glyph_ranges));
@@ -62,6 +74,14 @@ AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path)
         colors[i].y = srgb_to_linear(colors[i].y);
         colors[i].z = srgb_to_linear(colors[i].z);
     }
+
+    for (const char* path : mesh_paths) {
+        auto res_path = std::string("meshes/") + path;
+        Mesh4 mesh = load_mesh_from_file(get_resource_path(res_path.c_str()).c_str());
+        meshes.push_back(std::move(mesh));
+    }
+
+    add_mesh_instance(tesseract_index);
 }
 
 f64 AppState::screen_x(f64 x) {
@@ -80,74 +100,36 @@ bool AppState::is_mouse_around_x(f64 x) {
     return is_around(x, norm_x(ImGui::GetMousePos().x));
 }
 
-void AppState::change_mesh(const char* path) {
-    mesh = load_mesh_from_file(path);
-    mesh_pos = {0.0, 0.0, 0.0, 0.0};
-    mesh_scale = {1, 1, 1, 1};
-    if (mesh_rotation.is_rotor) {
-        mesh_rotation.rotor = rotor4();
-    } else {
-        Bivec4 rot = {};
-        mesh_rotation.euler = rot;
-    }
+void AppState::add_mesh_instance(u32 meshes_i) {
+    mesh_instances.push_back(meshes_i);
+    u32 mesh_instance = (u32)mesh_instances.size() - 1;
 
-    selected_cell_enabled = false;
+    Transform4 mesh_transform = {};
+    mesh_transform.position = {0.0, 0.0, 0.0, 0.0};
+    mesh_transform.scale = {1, 1, 1, 1};
+    mesh_transform.rotation.is_rotor = false;
+    mesh_transform.rotation.euler = Bivec4{};
+    mesh_instances_transforms.push_back(mesh_transform);
+
+    std::array<bool, plane4_n> auto_rotate = {};
+    mesh_instances_auto_rotate.push_back(auto_rotate);
+
+    std::array<f64, plane4_n> auto_rotate_mag = {};
+    auto_rotate_mag.fill(0.01);
+    mesh_instances_auto_rotate_mag.push_back(auto_rotate_mag);
+
+    mesh_instances_events.push_back({MeshInstancesEvent::Type::added, mesh_instance});
+    selected_mesh_instance = mesh_instance;
     selected_cell = 0;
-    selected_cell_cycle = false;
-    selected_cell_cycle_acc = 0.0;
-
-    new_mesh_pos = mesh_pos;
-    new_mesh_scale = mesh_scale;
-    new_mesh_rotation = mesh_rotation;
-
-    camera4 = Camera4();
-    new_camera4 = camera4;
-
-    for (auto& e : auto_rotate) {
-        e = false;
-    }
-
-    for (auto& e : auto_rotate_mag) {
-        e = 0.01;
-    }
-
-    mesh_changed = true;
 }
 
-bool AppState::is_new_transformation_valid() {
-    if (float_eq(new_camera4.pos, new_camera4.target)) {
-        return false;
-    }
+void AppState::remove_mesh_instance(u32 mesh_instance) {
+    remove(mesh_instances, mesh_instance);
+    remove(mesh_instances_transforms, mesh_instance);
+    remove(mesh_instances_auto_rotate, mesh_instance);
+    remove(mesh_instances_auto_rotate_mag, mesh_instance);
 
-    Mat5 model = mk_model_mat(new_mesh_pos, new_mesh_scale, new_mesh_rotation);
-    Mat5 mv = mk_model_view_mat(model, new_camera4);
-
-    for (const auto& v : mesh.vertices) {
-        Vec5 view_v = mv * Vec5(v, 1);
-        if (view_v.w > -camera4.near) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-void AppState::apply_new_transformation(const glm::dvec4& prev_pos, const glm::dvec4& prev_scale,
-                                        const Rotation4& prev_rotation, const Camera4& prev_camera4) {
-
-    if (!is_new_transformation_valid()) {
-        new_mesh_pos = prev_pos;
-        new_mesh_scale = prev_scale;
-        new_mesh_rotation = prev_rotation;
-        new_camera4 = prev_camera4;
-    }
-
-    if (!imgui_io->WantTextInput) {
-        mesh_pos = new_mesh_pos;
-        mesh_scale = new_mesh_scale;
-        mesh_rotation = new_mesh_rotation;
-        camera4 = new_camera4;
-    }
+    mesh_instances_events.push_back({MeshInstancesEvent::Type::removed, mesh_instance});
 }
 
 void AppState::calc_ui_size_screen() {
@@ -308,10 +290,9 @@ bool AppState::process_events_and_imgui() {
     ImGui::SetNextWindowBgAlpha(0xff);
     ImGui::Begin("four", NULL, window_flags);
 
-    glm::dvec4 prev_new_mesh_pos = new_mesh_pos;
-    glm::dvec4 prev_new_mesh_scale = new_mesh_scale;
-    Rotation4 prev_new_mesh_rotation = new_mesh_rotation;
-    Camera4 prev_new_camera4 = new_camera4;
+    Transform4 dummy_mesh_transform = {};
+    auto& mesh_transform =
+            mesh_instances.empty() ? dummy_mesh_transform : mesh_instances_transforms.at(selected_mesh_instance);
 
     ImGui::BeginChild("ui_left", ImVec2(ImGui::GetContentRegionAvailWidth() * 0.57f, 0), true, window_flags);
 
@@ -321,7 +302,7 @@ bool AppState::process_events_and_imgui() {
     ImGui::Separator();
 
     {
-        const f32 speed = 0.01f;
+        constexpr f32 speed = 0.01f;
         const auto fmt = "%.3f";
 
         {
@@ -331,17 +312,22 @@ bool AppState::process_events_and_imgui() {
                 perspective_projection = !perspective_projection;
             }
 
-            imgui_drag_f64("w##camera", &new_camera4.pos.w, speed, fmt);
+            const Camera4 old_camera4 = camera4;
+            imgui_drag_f64("w##camera", &camera4.pos.w, speed, fmt);
+
+            if (float_eq(camera4.pos, camera4.target)) {
+                camera4 = old_camera4;
+            }
         }
 
         ImGui::Spacing();
         ImGui::Separator();
 
         ImGui::Text("Translate");
-        imgui_drag_f64("x##t", &new_mesh_pos.x, speed, fmt);
-        imgui_drag_f64("y##t", &new_mesh_pos.y, speed, fmt);
-        imgui_drag_f64("z##t", &new_mesh_pos.z, speed, fmt);
-        imgui_drag_f64("w##t", &new_mesh_pos.w, speed, fmt);
+        imgui_drag_f64("x##t", &mesh_transform.position.x, speed, fmt);
+        imgui_drag_f64("y##t", &mesh_transform.position.y, speed, fmt);
+        imgui_drag_f64("z##t", &mesh_transform.position.z, speed, fmt);
+        imgui_drag_f64("w##t", &mesh_transform.position.w, speed, fmt);
 
         ImGui::Spacing();
         ImGui::Separator();
@@ -351,22 +337,22 @@ bool AppState::process_events_and_imgui() {
 
             ImGui::Button("xyzw##s", ImVec2(ImGui::GetContentRegionAvailWidth(), 0));
             if (ImGui::IsItemActive()) {
-                f64 scale_magnitude = (std::abs(mesh_scale.x) + std::abs(mesh_scale.y) + std::abs(mesh_scale.z)
-                                       + std::abs(mesh_scale.w))
+                f64 scale_magnitude = (std::abs(mesh_transform.scale.x) + std::abs(mesh_transform.scale.y)
+                                       + std::abs(mesh_transform.scale.z) + std::abs(mesh_transform.scale.w))
                                       / 4.0;
                 f64 scale_speed = speed * scale_magnitude;
 
                 f64 xyzw_scale = scale_speed * imgui_io->MouseDelta.x;
-                new_mesh_scale.x += xyzw_scale;
-                new_mesh_scale.y += xyzw_scale;
-                new_mesh_scale.z += xyzw_scale;
-                new_mesh_scale.w += xyzw_scale;
+                mesh_transform.scale.x += xyzw_scale;
+                mesh_transform.scale.y += xyzw_scale;
+                mesh_transform.scale.z += xyzw_scale;
+                mesh_transform.scale.w += xyzw_scale;
             }
 
-            imgui_drag_f64("x##s", &new_mesh_scale.x, speed, fmt);
-            imgui_drag_f64("y##s", &new_mesh_scale.y, speed, fmt);
-            imgui_drag_f64("z##s", &new_mesh_scale.z, speed, fmt);
-            imgui_drag_f64("w##s", &new_mesh_scale.w, speed, fmt);
+            imgui_drag_f64("x##s", &mesh_transform.scale.x, speed, fmt);
+            imgui_drag_f64("y##s", &mesh_transform.scale.y, speed, fmt);
+            imgui_drag_f64("z##s", &mesh_transform.scale.z, speed, fmt);
+            imgui_drag_f64("w##s", &mesh_transform.scale.w, speed, fmt);
         }
 
         ImGui::Spacing();
@@ -374,26 +360,35 @@ bool AppState::process_events_and_imgui() {
         ImGui::Text("Rotate");
 
         if (ImGui::BeginTabBar("RotationType")) {
+            std::array<bool, plane4_n> dummy_auto_rotate = {};
+            std::array<f64, plane4_n> dummy_auto_rotate_mag = {};
+
+            auto& auto_rotate =
+                    mesh_instances.empty() ? dummy_auto_rotate : mesh_instances_auto_rotate.at(selected_mesh_instance);
+
+            auto& auto_rotate_mag = mesh_instances.empty() ? dummy_auto_rotate_mag
+                                                           : mesh_instances_auto_rotate_mag.at(selected_mesh_instance);
+
             if (ImGui::BeginTabItem("Euler")) {
-                if (new_mesh_rotation.is_rotor) {
-                    new_mesh_rotation.is_rotor = false;
-                    new_mesh_rotation.euler = rotor_to_euler(new_mesh_rotation.rotor);
+                if (mesh_transform.rotation.is_rotor) {
+                    mesh_transform.rotation.is_rotor = false;
+                    mesh_transform.rotation.euler = rotor_to_euler(mesh_transform.rotation.rotor);
                 }
 
-                imgui_drag_f64("xy", &new_mesh_rotation.euler.xy, speed, fmt);
-                imgui_drag_f64("xz", &new_mesh_rotation.euler.xz, speed, fmt);
-                imgui_drag_f64("xw", &new_mesh_rotation.euler.xw, speed, fmt);
-                imgui_drag_f64("yz", &new_mesh_rotation.euler.yz, speed, fmt);
-                imgui_drag_f64("yw", &new_mesh_rotation.euler.yw, speed, fmt);
-                imgui_drag_f64("zw", &new_mesh_rotation.euler.zw, speed, fmt);
+                imgui_drag_f64("xy", &mesh_transform.rotation.euler.xy, speed, fmt);
+                imgui_drag_f64("xz", &mesh_transform.rotation.euler.xz, speed, fmt);
+                imgui_drag_f64("xw", &mesh_transform.rotation.euler.xw, speed, fmt);
+                imgui_drag_f64("yz", &mesh_transform.rotation.euler.yz, speed, fmt);
+                imgui_drag_f64("yw", &mesh_transform.rotation.euler.yw, speed, fmt);
+                imgui_drag_f64("zw", &mesh_transform.rotation.euler.zw, speed, fmt);
 
                 ImGui::Spacing();
                 ImGui::Text("Auto rotate");
 
                 {
-                    const f32 speed = 0.0001f;
+                    constexpr f32 speed = 0.0001f;
                     const auto fmt = "%.4f";
-                    for (s32 i = 0; i < (s32)Plane::count; i++) {
+                    for (size_t i = 0; i < plane4_n; i++) {
                         char id_label[5] = "##";
                         strncpy(&id_label[2], plane_str[i], 3);
                         ImGui::Checkbox(id_label, &auto_rotate[i]);
@@ -409,22 +404,22 @@ bool AppState::process_events_and_imgui() {
             }
 
             if (ImGui::BeginTabItem("Rotor")) {
-                if (!new_mesh_rotation.is_rotor) {
-                    new_mesh_rotation.is_rotor = true;
-                    new_mesh_rotation.rotor = euler_to_rotor(new_mesh_rotation.euler);
+                if (!mesh_transform.rotation.is_rotor) {
+                    mesh_transform.rotation.is_rotor = true;
+                    mesh_transform.rotation.rotor = euler_to_rotor(mesh_transform.rotation.euler);
                     for (auto& e : auto_rotate) {
                         e = false;
                     }
                 }
-                imgui_drag_f64("s", &new_mesh_rotation.rotor.s, speed, fmt);
-                imgui_drag_f64("xy", &new_mesh_rotation.rotor.B.xy, speed, fmt);
-                imgui_drag_f64("xz", &new_mesh_rotation.rotor.B.xz, speed, fmt);
-                imgui_drag_f64("xw", &new_mesh_rotation.rotor.B.xw, speed, fmt);
-                imgui_drag_f64("yz", &new_mesh_rotation.rotor.B.yz, speed, fmt);
-                imgui_drag_f64("yw", &new_mesh_rotation.rotor.B.yw, speed, fmt);
-                imgui_drag_f64("zw", &new_mesh_rotation.rotor.B.zw, speed, fmt);
-                imgui_drag_f64("xyzw", &new_mesh_rotation.rotor.xyzw, speed, fmt);
-                new_mesh_rotation.rotor = normalize(new_mesh_rotation.rotor);
+                imgui_drag_f64("s", &mesh_transform.rotation.rotor.s, speed, fmt);
+                imgui_drag_f64("xy", &mesh_transform.rotation.rotor.B.xy, speed, fmt);
+                imgui_drag_f64("xz", &mesh_transform.rotation.rotor.B.xz, speed, fmt);
+                imgui_drag_f64("xw", &mesh_transform.rotation.rotor.B.xw, speed, fmt);
+                imgui_drag_f64("yz", &mesh_transform.rotation.rotor.B.yz, speed, fmt);
+                imgui_drag_f64("yw", &mesh_transform.rotation.rotor.B.yw, speed, fmt);
+                imgui_drag_f64("zw", &mesh_transform.rotation.rotor.B.zw, speed, fmt);
+                imgui_drag_f64("xyzw", &mesh_transform.rotation.rotor.xyzw, speed, fmt);
+                mesh_transform.rotation.rotor = normalize(mesh_transform.rotation.rotor);
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();
@@ -437,32 +432,87 @@ bool AppState::process_events_and_imgui() {
     ImGui::BeginChild("ui_right", ImVec2(0, 0), true, window_flags);
 
     {
-        const char* new_mesh_path = NULL;
-        ImGui::Text("Load");
-
         auto button_size = ImVec2(ImGui::GetContentRegionAvailWidth(), 0);
+
+        ImGui::Text("Outliner");
+
+        if (ImGui::Button("Delete", button_size)) {
+            if (!mesh_instances.empty()) {
+                remove_mesh_instance(selected_mesh_instance);
+                if (selected_mesh_instance >= mesh_instances.size()) {
+                    selected_mesh_instance = (u32)mesh_instances.size() - 1;
+                    selected_cell = 0;
+                }
+            }
+        }
+
+        ImGui::PushItemWidth(-1);
+        const auto list_box_size = ImVec2(0, ImGui::GetWindowHeight() * 0.25f);
+
+        if (ImGui::ListBoxHeader("##outliner_list_box", list_box_size)) {
+
+            for (u32 mesh_instance = 0; mesh_instance < mesh_instances.size(); mesh_instance++) {
+                const auto fmt_str = "%s (%u)";
+
+                const char* mesh_str = NULL;
+                switch ((MeshIndex)mesh_instances.at(mesh_instance)) {
+                case n5cell_index:
+                    mesh_str = "5-cell";
+                    break;
+
+                case tesseract_index:
+                    mesh_str = "Tesseract";
+                    break;
+
+                case n16cell_index:
+                    mesh_str = "16-cell";
+                    break;
+
+                case n24cell_index:
+                    mesh_str = "24-cell";
+                    break;
+
+                case n120cell_index:
+                    mesh_str = "120-cell";
+                    break;
+
+                case n600cell_index:
+                    mesh_str = "600-cell";
+                    break;
+                }
+
+                s32 str_size = snprintf(NULL, 0, fmt_str, mesh_str, mesh_instance);
+                str_buffer.resize((size_t)str_size + 1);
+                snprintf(str_buffer.data(), str_buffer.size(), fmt_str, mesh_str, mesh_instance);
+
+                if (ImGui::Selectable(str_buffer.data(), selected_mesh_instance == mesh_instance)) {
+                    selected_mesh_instance = mesh_instance;
+                    selected_cell = 0;
+                }
+            }
+            ImGui::ListBoxFooter();
+        }
+        ImGui::PopItemWidth();
+
+        ImGui::Text("Add object");
+
         if (ImGui::Button("5-cell", button_size)) {
-            new_mesh_path = "5-cell.mesh4";
+            add_mesh_instance(n5cell_index);
         }
         if (ImGui::Button("Tesseract", button_size)) {
-            new_mesh_path = "tesseract.mesh4";
+            add_mesh_instance(tesseract_index);
         }
         if (ImGui::Button("16-cell", button_size)) {
-            new_mesh_path = "16-cell.mesh4";
+            add_mesh_instance(n16cell_index);
         }
         if (ImGui::Button("24-cell", button_size)) {
-            new_mesh_path = "24-cell.mesh4";
+            add_mesh_instance(n24cell_index);
         }
         if (ImGui::Button("120-cell", button_size)) {
-            new_mesh_path = "120-cell.mesh4";
+            add_mesh_instance(n120cell_index);
         }
         if (ImGui::Button("600-cell", button_size)) {
-            new_mesh_path = "600-cell.mesh4";
-        }
-
-        if (new_mesh_path) {
-            auto relative_path = std::string("meshes/") + new_mesh_path;
-            change_mesh(get_resource_path(relative_path.c_str()).c_str());
+            add_mesh_instance(n600cell_index);
         }
     }
 
@@ -475,19 +525,24 @@ bool AppState::process_events_and_imgui() {
         ImGui::Checkbox("Cycle", &selected_cell_cycle);
 
         ImGui::PushItemWidth(-1);
-        auto list_box_size = ImVec2(0, ImGui::GetContentRegionAvail().y);
+        const auto list_box_size = ImVec2(0, ImGui::GetWindowHeight() * 0.4f);
+
         if (ImGui::ListBoxHeader("##selected_cell_empty", list_box_size)) {
-            for (s32 i = 0; i < (s32)mesh.cells.size(); i++) {
 
-                const auto fmt_str = "%i";
-                s32 str_size = snprintf(NULL, 0, fmt_str, i);
-                selected_cell_str.resize((size_t)str_size + 1);
-                snprintf(selected_cell_str.data(), selected_cell_str.size(), fmt_str, i);
+            if (!mesh_instances.empty()) {
+                auto& mesh = meshes.at(mesh_instances.at(selected_mesh_instance));
+                for (u32 i = 0; i < mesh.cells.size(); i++) {
+                    const auto fmt_str = "%u";
+                    s32 str_size = snprintf(NULL, 0, fmt_str, i);
+                    str_buffer.resize((size_t)str_size + 1);
+                    snprintf(str_buffer.data(), str_buffer.size(), fmt_str, i);
 
-                if (ImGui::Selectable(selected_cell_str.data(), selected_cell == i)) {
-                    selected_cell = i;
+                    if (ImGui::Selectable(str_buffer.data(), selected_cell == i)) {
+                        selected_cell = i;
+                    }
                 }
             }
+
             ImGui::ListBoxFooter();
         }
         ImGui::PopItemWidth();
@@ -498,58 +553,57 @@ bool AppState::process_events_and_imgui() {
     ImGui::End();
     ImGui::EndFrame();
 
-    apply_new_transformation(prev_new_mesh_pos, prev_new_mesh_scale, prev_new_mesh_rotation, prev_new_camera4);
-
     return false;
 }
 
 void AppState::step(const f64 ms) {
 
-    if (selected_cell_cycle) {
-        selected_cell_cycle_acc += ms;
-        if (selected_cell_cycle_acc >= 2000.0) {
-            selected_cell++;
-            if (selected_cell == (s32)mesh.cells.size()) {
-                selected_cell = 0;
+    if (!mesh_instances.empty()) {
+        auto& mesh = meshes.at(mesh_instances.at(selected_mesh_instance));
+
+        if (selected_cell_cycle) {
+            selected_cell_cycle_acc += ms;
+            if (selected_cell_cycle_acc >= 2000.0) {
+                selected_cell++;
+                if (selected_cell == mesh.cells.size()) {
+                    selected_cell = 0;
+                }
+                selected_cell_cycle_acc = 0.0;
             }
+        } else {
             selected_cell_cycle_acc = 0.0;
         }
-    } else {
-        selected_cell_cycle_acc = 0.0;
     }
 
-    glm::dvec4 prev_new_mesh_pos = new_mesh_pos;
-    glm::dvec4 prev_new_mesh_scale = new_mesh_scale;
-    Rotation4 prev_new_mesh_rotation = new_mesh_rotation;
-    Camera4 prev_new_camera4 = new_camera4;
+    for (u32 mesh_instance = 0; mesh_instance < mesh_instances.size(); mesh_instance++) {
+        auto& mesh_transform = mesh_instances_transforms.at(mesh_instance);
+        auto& auto_rotate = mesh_instances_auto_rotate.at(mesh_instance);
+        auto& auto_rotate_mag = mesh_instances_auto_rotate_mag.at(mesh_instance);
 
-    if (!imgui_io->WantTextInput) {
-        for (s32 i = 0; i < (s32)Plane::count; i++) {
-            if (auto_rotate[i]) {
-                new_mesh_rotation.euler[(size_t)i] += auto_rotate_mag[i];
+        for (size_t plane4_i = 0; plane4_i < plane4_n; plane4_i++) {
+            if (auto_rotate[plane4_i]) {
+                mesh_transform.rotation.euler[plane4_i] += auto_rotate_mag[plane4_i];
             }
         }
     }
-
-    apply_new_transformation(prev_new_mesh_pos, prev_new_mesh_scale, prev_new_mesh_rotation, prev_new_camera4);
 }
 
-void AppState::bump_mesh_pos_w() {
-    const f64 mag = 0.0000001;
-    mesh_pos.w += mag;
-    new_mesh_pos.w += mag;
-    LOG_F(WARNING, "New mesh w: %+.16f", mesh_pos.w);
+void AppState::bump_mesh_pos_w(u32 mesh_instance) {
+    constexpr f64 mag = 0.0000001;
+    auto& mesh_transform = mesh_instances_transforms.at(mesh_instance);
+    mesh_transform.position.w += mag;
+    LOG_F(WARNING, "New mesh instance %u w: %+.16f", mesh_instance, mesh_transform.position.w);
 }
 
-Mat5 mk_model_mat(const glm::dvec4& pos, const glm::dvec4& v_scale, const Rotation4& rotation) {
+Mat5 mk_model_mat(const Transform4& transform4) {
     Mat5 m_r;
-    if (rotation.is_rotor) {
-        m_r = to_mat5(rotation.rotor);
+    if (transform4.rotation.is_rotor) {
+        m_r = to_mat5(transform4.rotation.rotor);
     } else {
-        m_r = rotate_euler(rotation.euler);
+        m_r = rotate_euler(transform4.rotation.euler);
     }
 
-    return translate(pos) * m_r * scale(v_scale);
+    return translate(transform4.position) * m_r * scale(transform4.scale);
 }
 
 Mat5 mk_model_view_mat(const Mat5& model, const Camera4& camera) {

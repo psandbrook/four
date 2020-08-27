@@ -10,6 +10,8 @@ struct ImGuiIO;
 
 namespace four {
 
+inline constexpr s32 plane4_n = 6;
+
 struct Camera4 {
     glm::dvec4 pos = {0, 0, 0, 4};
     glm::dvec4 target = {0, 0, 0, 0};
@@ -26,14 +28,10 @@ struct Rotation4 {
     };
 };
 
-enum class Plane {
-    xy,
-    xz,
-    xw,
-    yz,
-    yw,
-    zw,
-    count,
+struct Transform4 {
+    glm::dvec4 position;
+    glm::dvec4 scale;
+    Rotation4 rotation;
 };
 
 struct AppState {
@@ -44,9 +42,16 @@ public:
     std::mt19937 random_eng_32;
 
     bool debug = false;
-    bool mesh_changed = false;
-    bool window_size_changed = false;
     bool wireframe_render = false;
+
+    bool window_size_changed = false;
+
+    struct MeshInstancesEvent {
+        enum class Type { added, removed };
+        Type type;
+        u32 index;
+    };
+    std::vector<MeshInstancesEvent> mesh_instances_events;
 
     s32 window_width = 0;
     s32 window_height = 0;
@@ -56,18 +61,18 @@ public:
     bool split = true;
     f64 divider = 0.5;
 
-    Mesh4 mesh = {};
-    glm::dvec4 mesh_pos = {};
-    glm::dvec4 mesh_scale = {};
-    Rotation4 mesh_rotation = {};
+    std::vector<Mesh4> meshes;
+    std::vector<u32> mesh_instances;
+    std::vector<Transform4> mesh_instances_transforms;
+    std::vector<std::array<bool, plane4_n>> mesh_instances_auto_rotate;
+    std::vector<std::array<f64, plane4_n>> mesh_instances_auto_rotate_mag;
+
+    u32 selected_mesh_instance = 0;
 
     bool selected_cell_enabled = false;
-    s32 selected_cell = 0;
+    u32 selected_cell = 0;
     bool selected_cell_cycle = false;
     f64 selected_cell_cycle_acc = 0;
-
-    bool auto_rotate[(size_t)Plane::count] = {};
-    f64 auto_rotate_mag[(size_t)Plane::count] = {};
 
     bool perspective_projection = true;
     Camera4 camera4 = {};
@@ -77,23 +82,18 @@ public:
     glm::dvec3 camera_up = {0, 1, 0};
 
 private:
-    glm::dvec4 new_mesh_pos = {};
-    glm::dvec4 new_mesh_scale = {};
-    Rotation4 new_mesh_rotation = {};
-    Camera4 new_camera4 = {};
-
     bool dragging_ui = false;
     bool dragging_divider = false;
 
     // Temporary storage
     // -----------------
 
-    std::vector<char> selected_cell_str;
+    std::vector<char> str_buffer;
 
     // -----------------
 
 public:
-    AppState(SDL_Window* window, ImGuiIO* imgui_io, const char* mesh_path);
+    AppState(SDL_Window* window, ImGuiIO* imgui_io);
 
     // Returns true if the application should exit
     bool process_events_and_imgui();
@@ -103,18 +103,16 @@ public:
     f64 screen_x(f64 x);
     f64 screen_y(f64 y);
     f64 norm_x(f64 x);
-    void bump_mesh_pos_w();
+    void bump_mesh_pos_w(u32 mesh_instance);
 
 private:
-    void change_mesh(const char* path);
+    void add_mesh_instance(u32 meshes_i);
+    void remove_mesh_instance(u32 mesh_instance);
     bool is_mouse_around_x(f64 x);
-    bool is_new_transformation_valid();
-    void apply_new_transformation(const glm::dvec4& prev_pos, const glm::dvec4& prev_scale,
-                                  const Rotation4& prev_rotation, const Camera4& prev_camera4);
     void calc_ui_size_screen();
 };
 
-Mat5 mk_model_mat(const glm::dvec4& pos, const glm::dvec4& scale, const Rotation4& rotation);
+Mat5 mk_model_mat(const Transform4& transform4);
 Mat5 mk_model_view_mat(const Mat5& model, const Camera4& camera);
 
 } // namespace four

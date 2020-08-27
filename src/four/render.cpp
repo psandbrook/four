@@ -18,9 +18,7 @@ namespace four {
 
 namespace {
 
-const f64 divider_width = 0.007;
-
-Renderer* renderer = NULL;
+constexpr f64 divider_width = 0.007;
 
 struct ConstFaceRef final : public std::reference_wrapper<const std::vector<glm::dvec2>> {
     using value_type = type::value_type;
@@ -46,10 +44,6 @@ void mat4_to_f32(const glm::dmat4& mat, f32* out) {
             out[col * 4 + row] = (f32)mat[col][row];
         }
     }
-}
-
-VertexBufferObject& global_get_vbo(u32 index) {
-    return renderer->vbos.at(index);
 }
 
 u32 compile_shader(const char* relative_shader_path, GLenum type) {
@@ -88,10 +82,15 @@ void bind_default_framebuffer() {
 
 GlBuffer::GlBuffer(GLenum type, GLenum usage) : type(type), usage(usage) {
     glGenBuffers(1, &id);
+    bind();
+}
+
+void GlBuffer::bind() {
+    glBindBuffer(type, id);
 }
 
 void GlBuffer::buffer_data(const void* data, size_t size) {
-    glBindBuffer(type, id);
+    bind();
     if (this->size < size) {
         glBufferData(type, size, data, usage);
         this->size = size;
@@ -102,9 +101,14 @@ void GlBuffer::buffer_data(const void* data, size_t size) {
 }
 
 void GlBuffer::buffer_data_realloc(const void* data, size_t size) {
-    glBindBuffer(type, id);
+    bind();
     glBufferData(type, size, data, usage);
     this->size = size;
+}
+
+void GlBuffer::destroy() {
+    glDeleteBuffers(1, &id);
+    *this = GlBuffer();
 }
 
 ShaderProgram::ShaderProgram(u32 vertex_shader, std::initializer_list<u32> fragment_shaders) {
@@ -187,7 +191,7 @@ Framebuffer::Framebuffer(u32 width, u32 height) : width(width), height(height) {
     glGenFramebuffers(1, &id);
     bind();
 
-    const u32 samples = 8;
+    constexpr u32 samples = 8;
 
     glGenRenderbuffers(2, rbos);
     glBindRenderbuffer(GL_RENDERBUFFER, color_rbo);
@@ -246,11 +250,13 @@ void Framebuffer::bind() {
     glBindFramebuffer(GL_FRAMEBUFFER, id);
 }
 
-VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, std::initializer_list<u32> vbos_,
-                                     std::initializer_list<VertexSpec> specs, ElementBufferObject ebo)
-        : shader_program(shader_program), vbos(vbos_.begin(), vbos_.end()), ebo(ebo) {
+VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program,
+                                     std::unordered_map<u32, VertexBufferObject>* vbos_ptr,
+                                     std::initializer_list<u32> vbos_, std::initializer_list<VertexSpec> specs,
+                                     ElementBufferObject ebo)
+        : shader_program(shader_program), vbos_ptr(vbos_ptr), vbos(vbos_.begin(), vbos_.end()), ebo(ebo) {
 
-    for (size_t i = 0; i < vbos.size(); i++) {
+    for (u32 i = 0; i < vbos.size(); i++) {
         auto& vbo = get_vbo(i);
         CHECK_EQ_F(vbo.type, (u32)GL_ARRAY_BUFFER);
     }
@@ -263,21 +269,21 @@ VertexArrayObject::VertexArrayObject(ShaderProgram* shader_program, std::initial
     glGenVertexArrays(1, &id);
     glBindVertexArray(id);
 
-    for (size_t i = 0; i < vbos.size(); i++) {
+    for (u32 i = 0; i < vbos.size(); i++) {
         auto& vbo = get_vbo(i);
         VertexSpec spec = specs.begin()[i];
-        glBindBuffer(vbo.type, vbo.id);
+        vbo.bind();
         glVertexAttribPointer(spec.index, spec.size, spec.type, false, spec.stride, (void*)spec.offset);
         glEnableVertexAttribArray(spec.index);
     }
 
-    glBindBuffer(ebo.type, ebo.id);
+    ebo.bind();
 
     glBindVertexArray(0);
 }
 
-VertexBufferObject& VertexArrayObject::get_vbo(size_t index) {
-    return global_get_vbo(vbos.at(index));
+VertexBufferObject& VertexArrayObject::get_vbo(u32 id) {
+    return vbos_ptr->at(vbos.at(id));
 }
 
 void VertexArrayObject::draw() {
@@ -287,13 +293,18 @@ void VertexArrayObject::draw() {
     glBindVertexArray(0);
 }
 
-Renderer::Renderer(SDL_Window* window, AppState* state)
-        : window(window), state(state), color_dist(0.0f, std::nextafter(1.0f, std::numeric_limits<f32>::max())) {
+void VertexArrayObject::destroy() {
+    glDeleteVertexArrays(1, &id);
+    ebo.destroy();
+    *this = VertexArrayObject();
+}
 
-    renderer = this;
+Renderer::Renderer(AppState* state)
+        : state(state), color_dist(0.0f, std::nextafter(1.0f, std::numeric_limits<f32>::max())) {
+
     SDL_GL_SetSwapInterval(1);
 
-    const f32 bg_shade = 0.04f;
+    constexpr f32 bg_shade = 0.04f;
     glClearColor(bg_shade, bg_shade, bg_shade, 1.0f);
 
     glEnable(GL_MULTISAMPLE);
@@ -314,49 +325,13 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
         u32 vert_shader = compile_shader("n4d.vert", GL_VERTEX_SHADER);
         u32 frag_shader = compile_shader("n4d.frag", GL_FRAGMENT_SHADER);
         n4d_shader_prog = ShaderProgram(vert_shader, {frag_shader});
-
-        u32 wireframe_vertices = add_vbo(GL_STREAM_DRAW);
-        VertexSpec vertex_spec = {};
-        vertex_spec.index = 0;
-        vertex_spec.size = 4;
-        vertex_spec.type = GL_FLOAT;
-        vertex_spec.stride = 4 * sizeof(f32);
-        vertex_spec.offset = 0;
-
-        ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
-        wireframe = VertexArrayObject(&n4d_shader_prog, {wireframe_vertices}, {vertex_spec}, wireframe_ebo);
-
-        ElementBufferObject selected_cell_ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-        selected_cell = VertexArrayObject(&n4d_shader_prog, {wireframe_vertices}, {vertex_spec}, selected_cell_ebo);
     }
 
     // Cross-section
-
-    VertexSpec cross_vertex_spec = {};
-    cross_vertex_spec.index = 0;
-    cross_vertex_spec.size = 3;
-    cross_vertex_spec.type = GL_FLOAT;
-    cross_vertex_spec.stride = 3 * sizeof(f32);
-    cross_vertex_spec.offset = 0;
-
     {
         u32 vert_shader = compile_shader("cross.vert", GL_VERTEX_SHADER);
         u32 frag_shader = compile_shader("cross.frag", GL_FRAGMENT_SHADER);
         cross_section_shader_prog = ShaderProgram(vert_shader, {frag_shader});
-
-        u32 vertices = add_vbo(GL_STREAM_DRAW);
-        u32 colors = add_vbo(GL_STREAM_DRAW);
-
-        VertexSpec color_spec = {};
-        color_spec.index = 1;
-        color_spec.size = 3;
-        color_spec.type = GL_FLOAT;
-        color_spec.stride = 3 * sizeof(f32);
-        color_spec.offset = 0;
-
-        ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-        cross_section =
-                VertexArrayObject(&cross_section_shader_prog, {vertices, colors}, {cross_vertex_spec, color_spec}, ebo);
     }
 
     // XZ grid
@@ -367,8 +342,8 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
 
         u32 xz_grid_vertices_vbo = add_vbo(GL_STATIC_DRAW);
         std::vector<f32> grid_vertices;
-        const s32 n_grid_lines = 20;
-        const f64 grid_lines_spacing = 0.2;
+        constexpr s32 n_grid_lines = 20;
+        constexpr f64 grid_lines_spacing = 0.2;
 
         for (s32 i = 0; i <= n_grid_lines; i++) {
             f64 end_pos = (n_grid_lines / 2.0) * grid_lines_spacing;
@@ -387,7 +362,14 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
             }
         }
 
-        global_get_vbo(xz_grid_vertices_vbo).buffer_data(grid_vertices.data(), grid_vertices.size() * sizeof(f32));
+        VertexSpec vertex_spec = {};
+        vertex_spec.index = 0;
+        vertex_spec.size = 3;
+        vertex_spec.type = GL_FLOAT;
+        vertex_spec.stride = 3 * sizeof(f32);
+        vertex_spec.offset = 0;
+
+        vbos.at(xz_grid_vertices_vbo).buffer_data(grid_vertices.data(), grid_vertices.size() * sizeof(f32));
 
         ElementBufferObject ebo(GL_STATIC_DRAW, GL_LINES);
         std::vector<u32> indices_vec;
@@ -396,7 +378,7 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
         }
         ebo.buffer_elements(indices_vec.data(), (s32)indices_vec.size());
 
-        xz_grid = VertexArrayObject(&xz_grid_shader_prog, {xz_grid_vertices_vbo}, {cross_vertex_spec}, ebo);
+        xz_grid_vao = VertexArrayObject(&xz_grid_shader_prog, &vbos, {xz_grid_vertices_vbo}, {vertex_spec}, ebo);
     }
 
     ShaderProgram* shader_progs[] = {&n4d_shader_prog, &cross_section_shader_prog, &xz_grid_shader_prog};
@@ -426,46 +408,143 @@ Renderer::Renderer(SDL_Window* window, AppState* state)
         };
         // clang-format on
 
-        global_get_vbo(vertices_vbo).buffer_data(vertices, sizeof(vertices));
+        VertexSpec vertex_spec = {};
+        vertex_spec.index = 0;
+        vertex_spec.size = 3;
+        vertex_spec.type = GL_FLOAT;
+        vertex_spec.stride = 3 * sizeof(f32);
+        vertex_spec.offset = 0;
+
+        vbos.at(vertices_vbo).buffer_data(vertices, sizeof(vertices));
 
         ElementBufferObject ebo(GL_STATIC_DRAW, GL_TRIANGLES);
         ebo.buffer_elements(indices, ARRAY_SIZE(indices));
-        divider_bar = VertexArrayObject(&divider_bar_shader_prog, {vertices_vbo}, {cross_vertex_spec}, ebo);
+        divider_bar_vao = VertexArrayObject(&divider_bar_shader_prog, &vbos, {vertices_vbo}, {vertex_spec}, ebo);
     }
+
+    do_mesh_instances_changed();
 }
 
 u32 Renderer::add_vbo(GLenum usage) {
-    return (u32)insert_back(vbos, VertexBufferObject(usage));
+    while (has_key(vbos, next_vbo_id)) {
+        ++next_vbo_id;
+    }
+
+    const u32 id = next_vbo_id;
+    ++next_vbo_id;
+    vbos.emplace(id, VertexBufferObject(usage));
+    return id;
+}
+
+void Renderer::destroy_vbo(u32 id) {
+    vbos.at(id).destroy();
+    vbos.erase(id);
 }
 
 void Renderer::do_window_size_changed() {
-    auto& s = *state;
     combined_buffer.destroy();
     projection_buffer.destroy();
 
-    vis_width_screen = (u32)(s.window_width - s.ui_size_screen);
-    combined_buffer = Framebuffer(vis_width_screen, (u32)s.window_height);
-    projection_buffer = Framebuffer(vis_width_screen, (u32)s.window_height);
+    vis_width_screen = (u32)(state->window_width - state->ui_size_screen);
+    combined_buffer = Framebuffer(vis_width_screen, (u32)state->window_height);
+    projection_buffer = Framebuffer(vis_width_screen, (u32)state->window_height);
 }
 
-void Renderer::do_mesh_changed() {
-    auto& s = *state;
-    const auto rand_color = [&]() -> f32 { return color_dist(s.random_eng_32); };
+void Renderer::do_mesh_instances_changed() {
 
-    wireframe.ebo.buffer_elements_realloc(s.mesh.edges.data(), 2 * (s32)s.mesh.edges.size());
+    for (const auto& event : state->mesh_instances_events) {
+        switch (event.type) {
+        case AppState::MeshInstancesEvent::Type::added: {
 
-    tet_colors.clear();
-    std::unordered_map<u32, glm::vec3> cell_colors;
+            auto& mesh = state->meshes.at(state->mesh_instances.at(event.index));
 
-    for (const Mesh4::Tet& tet : s.mesh.tets) {
-        if (!has_key(cell_colors, tet.cell)) {
-            const auto color = glm::vec3(rand_color(), rand_color(), rand_color());
-            cell_colors.emplace(tet.cell, color);
+            // Wireframe & selected cell
+            {
+                u32 wireframe_vertices = add_vbo(GL_STREAM_DRAW);
+                VertexSpec vertex_spec = {};
+                vertex_spec.index = 0;
+                vertex_spec.size = 4;
+                vertex_spec.type = GL_FLOAT;
+                vertex_spec.stride = 4 * sizeof(f32);
+                vertex_spec.offset = 0;
+
+                ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
+
+                wireframe_vaos.push_back(
+                        VertexArrayObject(&n4d_shader_prog, &vbos, {wireframe_vertices}, {vertex_spec}, wireframe_ebo));
+
+                ElementBufferObject selected_cell_ebo(GL_STREAM_DRAW, GL_TRIANGLES);
+                selected_cell_vaos.push_back(VertexArrayObject(&n4d_shader_prog, &vbos, {wireframe_vertices},
+                                                               {vertex_spec}, selected_cell_ebo));
+
+                auto& wireframe_vao = wireframe_vaos.back();
+                wireframe_vao.ebo.buffer_elements_realloc(mesh.edges.data(), 2 * (s32)mesh.edges.size());
+            }
+
+            // Cross-section
+            {
+                u32 vertices = add_vbo(GL_STREAM_DRAW);
+                u32 colors = add_vbo(GL_STREAM_DRAW);
+
+                VertexSpec vertex_spec = {};
+                vertex_spec.index = 0;
+                vertex_spec.size = 3;
+                vertex_spec.type = GL_FLOAT;
+                vertex_spec.stride = 3 * sizeof(f32);
+                vertex_spec.offset = 0;
+
+                VertexSpec color_spec = {};
+                color_spec.index = 1;
+                color_spec.size = 3;
+                color_spec.type = GL_FLOAT;
+                color_spec.stride = 3 * sizeof(f32);
+                color_spec.offset = 0;
+
+                ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
+                cross_section_vaos.push_back(VertexArrayObject(&cross_section_shader_prog, &vbos, {vertices, colors},
+                                                               {vertex_spec, color_spec}, ebo));
+
+                std::vector<glm::vec3> mesh_instance_tet_colors;
+                cell_colors.clear();
+
+                for (const Mesh4::Tet& tet : mesh.tets) {
+                    if (!has_key(cell_colors, tet.cell)) {
+                        cell_colors.emplace(tet.cell, random_color());
+                    }
+                    mesh_instance_tet_colors.push_back(cell_colors.at(tet.cell));
+                }
+
+                CHECK_EQ_F(cell_colors.size(), mesh.cells.size());
+                tet_colors.push_back(std::move(mesh_instance_tet_colors));
+            }
+        } break;
+
+        case AppState::MeshInstancesEvent::Type::removed: {
+
+            auto& wireframe_vao = wireframe_vaos.at(event.index);
+            for (u32 i = 0; i < wireframe_vao.vbos.size(); i++) {
+                destroy_vbo(wireframe_vao.vbos.at(i));
+            }
+
+            wireframe_vao.destroy();
+            remove(wireframe_vaos, event.index);
+
+            selected_cell_vaos.at(event.index).destroy();
+            remove(selected_cell_vaos, event.index);
+
+            auto& cross_section_vao = cross_section_vaos.at(event.index);
+            for (u32 i = 0; i < cross_section_vao.vbos.size(); i++) {
+                destroy_vbo(cross_section_vao.vbos.at(i));
+            }
+
+            cross_section_vao.destroy();
+            remove(cross_section_vaos, event.index);
+            remove(tet_colors, event.index);
+        } break;
         }
-        tet_colors.push_back(cell_colors.at(tet.cell));
     }
 
-    CHECK_EQ_F(cell_colors.size(), s.mesh.cells.size());
+    state->mesh_instances_events.clear();
 }
 
 void Renderer::triangulate(const std::vector<glm::dvec3>& vertices, const std::vector<Edge>& edges, const Face& face,
@@ -600,26 +679,30 @@ end_face2_loop:
     }
 }
 
-void Renderer::calculate_cross_section() {
-    auto& s = *state;
+void Renderer::calculate_cross_section(const u32 mesh_instance, std::vector<f32>& out_vertices,
+                                       std::vector<f32>& out_colors, std::vector<u32>& out_tris) {
 
     const glm::dvec4 p_0 = glm::dvec4(0, 0, 0, 0);
     const glm::dvec4 n = glm::dvec4(0, 0, 0, 1);
 
 redo_cross_section:
-    cross_vertices.clear();
-    cross_colors.clear();
-    cross_tris.clear();
+    auto& mesh = state->meshes.at(state->mesh_instances.at(mesh_instance));
+    auto& mesh_transform = state->mesh_instances_transforms.at(mesh_instance);
+    auto& mesh_tet_colors = tet_colors.at(mesh_instance);
+
+    out_vertices.clear();
+    out_colors.clear();
+    out_tris.clear();
 
     tet_mesh_vertices_world.clear();
-    Mat5 model = mk_model_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation);
-    for (const auto& v : s.mesh.tet_vertices) {
+    Mat5 model = mk_model_mat(mesh_transform);
+    for (const auto& v : mesh.tet_vertices) {
         tet_mesh_vertices_world.push_back(transform(model, v));
     }
 
-    for (s64 tet_i = 0; tet_i < (s64)s.mesh.tets.size(); tet_i++) {
-        const Mesh4::Tet& tet = s.mesh.tets[(size_t)tet_i];
-        const glm::vec3& color = tet_colors[(size_t)tet_i];
+    for (size_t tet_i = 0; tet_i < mesh.tets.size(); tet_i++) {
+        const Mesh4::Tet& tet = mesh.tets.at(tet_i);
+        const glm::vec3& color = mesh_tet_colors.at(tet_i);
 
         // clang-format off
         Edge edges[6] = {
@@ -667,7 +750,7 @@ redo_cross_section:
                 // Because of floating point error, we don't try to render
                 // this case. Instead, we bump the mesh's w position and
                 // hope for points of intersection instead.
-                s.bump_mesh_pos_w();
+                state->bump_mesh_pos_w(mesh_instance);
                 goto redo_cross_section;
             }
         }
@@ -678,11 +761,11 @@ redo_cross_section:
             // Intersection is a triangle
 
             for (s32 i = 0; i < 3; i++) {
-                DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
-                cross_tris.push_back((u32)(cross_vertices.size() / 3));
+                DCHECK_EQ_F((s64)out_vertices.size() % 3, 0);
+                out_tris.push_back((u32)(out_vertices.size() / 3));
                 for (s32 j = 0; j < 3; j++) {
-                    cross_vertices.push_back((f32)intersect[(size_t)i][j]);
-                    cross_colors.push_back(color[j]);
+                    out_vertices.push_back((f32)intersect[(size_t)i][j]);
+                    out_colors.push_back(color[j]);
                 }
             }
 
@@ -696,11 +779,11 @@ redo_cross_section:
             u32 v_mapping[4];
 
             for (s32 i = 0; i < 4; i++) {
-                DCHECK_EQ_F((s64)cross_vertices.size() % 3, 0);
-                v_mapping[i] = (u32)(cross_vertices.size() / 3);
+                DCHECK_EQ_F((s64)out_vertices.size() % 3, 0);
+                v_mapping[i] = (u32)(out_vertices.size() / 3);
                 for (s32 j = 0; j < 3; j++) {
-                    cross_vertices.push_back((f32)intersect[(size_t)i][j]);
-                    cross_colors.push_back(color[j]);
+                    out_vertices.push_back((f32)intersect[(size_t)i][j]);
+                    out_colors.push_back(color[j]);
                 }
             }
 
@@ -743,32 +826,33 @@ redo_cross_section:
             }
 
             for (u32 e : tris) {
-                cross_tris.push_back(v_mapping[e]);
+                out_tris.push_back(v_mapping[e]);
             }
         }
     }
 }
 
+glm::vec3 Renderer::random_color() {
+    return glm::vec3(color_dist(state->random_eng_32), color_dist(state->random_eng_32),
+                     color_dist(state->random_eng_32));
+}
+
 void Renderer::render() {
-    auto& s = *state;
 
-    if (s.mesh_changed) {
-        s.mesh_changed = false;
-        do_mesh_changed();
-    }
-
-    if (s.window_size_changed) {
-        s.window_size_changed = false;
+    if (state->window_size_changed) {
+        state->window_size_changed = false;
         do_window_size_changed();
     }
 
-    if (s.wireframe_render) {
+    do_mesh_instances_changed();
+
+    if (state->wireframe_render) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     } else {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
 
-    glm::dmat4 view = glm::lookAt(s.camera_pos, s.camera_target, s.camera_up);
+    glm::dmat4 view = glm::lookAt(state->camera_pos, state->camera_target, state->camera_up);
     const f64 fov = glm::radians(60.0);
 
     glEnable(GL_DEPTH_TEST);
@@ -776,117 +860,136 @@ void Renderer::render() {
     bind_default_framebuffer();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    combined_buffer.bind();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0, 0, combined_buffer.width, combined_buffer.height);
+    glm::dmat4 combined_vp =
+            glm::perspective(fov, combined_buffer.width / (f64)combined_buffer.height, 0.01, 1000.0) * view;
+    f32 combined_vp_f32[16];
+    mat4_to_f32(combined_vp, combined_vp_f32);
 
-    glm::dmat4 vp = glm::perspective(fov, combined_buffer.width / (f64)combined_buffer.height, 0.01, 1000.0) * view;
-    f32 vp_f32[16];
-    mat4_to_f32(vp, vp_f32);
-    view_projection_ubo.buffer_data(vp_f32, sizeof(vp_f32));
+    glm::dmat4 projection_vp =
+            glm::perspective(fov, projection_buffer.width / (f64)projection_buffer.height, 0.01, 1000.0) * view;
+    f32 projection_vp_f32[16];
+    mat4_to_f32(projection_vp, projection_vp_f32);
 
-    // Draw cross-section
-    {
-        glLineWidth(0.5f);
-        xz_grid.draw();
+    const auto bind_combined_buffer = [&]() {
+        combined_buffer.bind();
+        glViewport(0, 0, combined_buffer.width, combined_buffer.height);
+        view_projection_ubo.buffer_data(combined_vp_f32, sizeof(combined_vp_f32));
+    };
 
-        calculate_cross_section();
-        DCHECK_EQ_F(cross_vertices.size(), cross_colors.size());
-        cross_section.get_vbo(0).buffer_data(cross_vertices.data(), cross_vertices.size() * sizeof(f32));
-        cross_section.get_vbo(1).buffer_data(cross_colors.data(), cross_colors.size() * sizeof(f32));
-        cross_section.ebo.buffer_elements(cross_tris.data(), (s32)cross_tris.size());
-
-        cross_section.draw();
-    }
-
-    // Draw projection
-    {
-        if (s.split) {
+    const auto bind_projection_buffer = [&]() {
+        if (state->split) {
             projection_buffer.bind();
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             glViewport(0, 0, projection_buffer.width, projection_buffer.height);
+            view_projection_ubo.buffer_data(projection_vp_f32, sizeof(projection_vp_f32));
+        }
+    };
 
-            glm::dmat4 vp =
-                    glm::perspective(fov, projection_buffer.width / (f64)projection_buffer.height, 0.01, 1000.0) * view;
-            f32 vp_f32[16];
-            mat4_to_f32(vp, vp_f32);
-            view_projection_ubo.buffer_data(vp_f32, sizeof(vp_f32));
+    bind_combined_buffer();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glLineWidth(0.5f);
+    xz_grid_vao.draw();
+
+    bind_projection_buffer();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    xz_grid_vao.draw();
+
+    for (u32 mesh_instance = 0; mesh_instance < state->mesh_instances.size(); mesh_instance++) {
+
+        // Draw cross-section
+        {
+            bind_combined_buffer();
+            calculate_cross_section(mesh_instance, cross_vertices, cross_colors, cross_tris);
+            DCHECK_EQ_F(cross_vertices.size(), cross_colors.size());
+
+            auto& cross_section_vao = cross_section_vaos.at(mesh_instance);
+            cross_section_vao.get_vbo(0).buffer_data(cross_vertices.data(), cross_vertices.size() * sizeof(f32));
+            cross_section_vao.get_vbo(1).buffer_data(cross_colors.data(), cross_colors.size() * sizeof(f32));
+            cross_section_vao.ebo.buffer_elements(cross_tris.data(), (s32)cross_tris.size());
+            cross_section_vao.draw();
         }
 
-        glLineWidth(0.5f);
-        xz_grid.draw();
+        // Draw projection
+        {
+            bind_projection_buffer();
 
-        // Perform 4D to 3D projection
+            // Perform 4D to 3D projection
+            auto& mesh = state->meshes.at(state->mesh_instances.at(mesh_instance));
+            auto& mesh_transform = state->mesh_instances_transforms.at(mesh_instance);
 
-        projected_vertices.clear();
-        projected_vertices3.clear();
+            projected_vertices.clear();
+            projected_vertices3.clear();
 
-        Mat5 model = mk_model_mat(s.mesh_pos, s.mesh_scale, s.mesh_rotation);
-        Mat5 mv = mk_model_view_mat(model, s.camera4);
-        for (const glm::dvec4& v : s.mesh.vertices) {
-            Vec5 view_v = mv * Vec5(v, 1);
+            Mat5 model = mk_model_mat(mesh_transform);
+            Mat5 mv = mk_model_view_mat(model, state->camera4);
+            for (const glm::dvec4& v : mesh.vertices) {
+                Vec5 view_v = mv * Vec5(v, 1);
 
-            glm::dvec4 v_;
-            if (s.perspective_projection) {
-                v_ = project_perspective(view_v, s.camera4.near);
-            } else {
-                v_ = project_orthographic(view_v, s.camera4.near);
+                glm::dvec4 v_;
+                if (state->perspective_projection) {
+                    v_ = project_perspective(view_v, state->camera4.near);
+                } else {
+                    v_ = project_orthographic(view_v, state->camera4.near);
+                }
+
+                projected_vertices.push_back(v_);
+                projected_vertices3.push_back(glm::dvec3(v_));
             }
 
-            projected_vertices.push_back(v_);
-            projected_vertices3.push_back(glm::dvec3(v_));
+            DCHECK_EQ_F(mesh.vertices.size(), projected_vertices.size());
+
+            f32 max_depth = 0.0f;
+            projected_vertices_f32.clear();
+            for (const glm::dvec4& v : projected_vertices) {
+                if (v.w > max_depth) {
+                    max_depth = (f32)v.w;
+                }
+                for (s32 i = 0; i < 4; i++) {
+                    f64 element = v[i];
+                    projected_vertices_f32.push_back((f32)element);
+                }
+            }
+
+            auto& wireframe_vao = wireframe_vaos.at(mesh_instance);
+            wireframe_vao.get_vbo(0).buffer_data(projected_vertices_f32.data(),
+                                                 projected_vertices_f32.size() * sizeof(f32));
+            n4d_shader_prog.set_uniform_f32("max_depth", max_depth);
+
+            if (mesh_instance == state->selected_mesh_instance && state->selected_cell_enabled) {
+                selected_cell_tri_faces.clear();
+                for (u32 face_i : mesh.cells[(size_t)state->selected_cell]) {
+                    const auto& face = mesh.faces[face_i];
+                    triangulate(projected_vertices3, mesh.edges, face, selected_cell_tri_faces);
+                }
+
+                auto& selected_cell_vao = selected_cell_vaos.at(mesh_instance);
+                selected_cell_vao.ebo.buffer_elements(selected_cell_tri_faces.data(),
+                                                      (s32)selected_cell_tri_faces.size());
+                f32 selected_cell_color[3] = {1, 0, 1};
+                n4d_shader_prog.set_uniform_vec3("color1", selected_cell_color);
+                selected_cell_vao.draw();
+            }
+
+            f32 wireframe_color[3] = {1, 1, 0};
+            n4d_shader_prog.set_uniform_vec3("color1", wireframe_color);
+            glLineWidth(2.0f);
+            wireframe_vao.draw();
         }
-
-        DCHECK_EQ_F(s.mesh.vertices.size(), projected_vertices.size());
-
-        f32 max_depth = 0.0f;
-        projected_vertices_f32.clear();
-        for (const glm::dvec4& v : projected_vertices) {
-            if (v.w > max_depth) {
-                max_depth = (f32)v.w;
-            }
-            for (s32 i = 0; i < 4; i++) {
-                f64 element = v[i];
-                projected_vertices_f32.push_back((f32)element);
-            }
-        }
-
-        wireframe.get_vbo(0).buffer_data(projected_vertices_f32.data(), projected_vertices_f32.size() * sizeof(f32));
-        n4d_shader_prog.set_uniform_f32("max_depth", max_depth);
-
-        if (s.selected_cell_enabled) {
-            selected_cell_tri_faces.clear();
-            for (u32 face_i : s.mesh.cells[(size_t)s.selected_cell]) {
-                const auto& face = s.mesh.faces[face_i];
-                triangulate(projected_vertices3, s.mesh.edges, face, selected_cell_tri_faces);
-            }
-
-            selected_cell.ebo.buffer_elements(selected_cell_tri_faces.data(), (s32)selected_cell_tri_faces.size());
-            f32 selected_cell_color[3] = {1, 0, 1};
-            n4d_shader_prog.set_uniform_vec3("color1", selected_cell_color);
-            selected_cell.draw();
-        }
-
-        f32 wireframe_color[3] = {1, 1, 0};
-        n4d_shader_prog.set_uniform_vec3("color1", wireframe_color);
-        glLineWidth(2.0f);
-        wireframe.draw();
     }
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, combined_buffer.id);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
-    if (s.split) {
-        f64 cross_width = std::round(vis_width_screen * s.divider);
+    if (state->split) {
+        f64 cross_width = std::round(vis_width_screen * state->divider);
         f64 projection_width = vis_width_screen - cross_width;
         glBlitFramebuffer((s32)(combined_buffer.width / 2.0 - cross_width / 2.0), 0,
-                          (s32)(combined_buffer.width / 2.0 + cross_width / 2.0), s.window_height, 0, 0,
-                          (s32)cross_width, s.window_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+                          (s32)(combined_buffer.width / 2.0 + cross_width / 2.0), state->window_height, 0, 0,
+                          (s32)cross_width, state->window_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, projection_buffer.id);
         glBlitFramebuffer((s32)(projection_buffer.width / 2.0 - projection_width / 2.0), 0,
-                          (s32)(projection_buffer.width / 2.0 + projection_width / 2.0), s.window_height,
-                          (s32)cross_width, 0, (s32)(cross_width + projection_width), s.window_height,
+                          (s32)(projection_buffer.width / 2.0 + projection_width / 2.0), state->window_height,
+                          (s32)cross_width, 0, (s32)(cross_width + projection_width), state->window_height,
                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
         // Draw divider bar
@@ -894,22 +997,22 @@ void Renderer::render() {
         bind_default_framebuffer();
         glDisable(GL_DEPTH_TEST);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        glViewport(0, 0, s.window_width, s.window_height);
+        glViewport(0, 0, state->window_width, state->window_height);
 
-        f64 divider_x_pos = (s.visualization_width * s.divider) * 2.0 - 1.0 - divider_width / 2.0;
+        f64 divider_x_pos = (state->visualization_width * state->divider) * 2.0 - 1.0 - divider_width / 2.0;
         divider_bar_shader_prog.set_uniform_f32("x_pos", (f32)divider_x_pos);
-        divider_bar.draw();
+        divider_bar_vao.draw();
 
     } else {
-        glBlitFramebuffer(0, 0, combined_buffer.width, s.window_height, 0, 0, combined_buffer.width, s.window_height,
-                          GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBlitFramebuffer(0, 0, combined_buffer.width, state->window_height, 0, 0, combined_buffer.width,
+                          state->window_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     }
 
     bind_default_framebuffer();
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-    SDL_GL_SwapWindow(window);
+    SDL_GL_SwapWindow(state->window);
 
 #ifdef FOUR_DEBUG
     switch (glGetError()) {

@@ -139,15 +139,10 @@ struct BoundedVector {
         return data[index];
     }
 
-    void push_back(const T& value) {
+    template <class U>
+    void push_back(U&& value) {
         DCHECK_LT_F(len, N);
-        data[len] = value;
-        len++;
-    }
-
-    void push_back(T&& value) {
-        DCHECK_LT_F(len, N);
-        data[len] = std::move(value);
+        data[len] = std::forward<U>(value);
         len++;
     }
 };
@@ -169,17 +164,10 @@ inline void hash_combine(size_t& seed, const T& value) {
     seed ^= hasher(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
-template <class T>
-inline size_t insert_back(std::vector<T>& vec, const T& value) {
+template <class T, class U>
+inline size_t insert_back(std::vector<T>& vec, U&& value) {
     size_t index = vec.size();
-    vec.push_back(value);
-    return index;
-}
-
-template <class T>
-inline size_t insert_back(std::vector<T>& vec, T&& value) {
-    size_t index = vec.size();
-    vec.push_back(std::move(value));
+    vec.push_back(std::forward<U>(value));
     return index;
 }
 
@@ -201,6 +189,11 @@ inline bool contains(const BoundedVector<T, N>& vec, const T& value) {
 template <class K, class V, class Hash, class Equals>
 inline bool has_key(const std::unordered_map<K, V, Hash, Equals>& map, const K& value) {
     return map.find(value) != map.cend();
+}
+
+template <class Container>
+inline void remove(Container& c, ptrdiff_t index) {
+    c.erase(c.begin() + index);
 }
 
 inline bool c_str_eq(const char* lhs, const char* rhs) {

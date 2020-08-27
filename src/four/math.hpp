@@ -184,13 +184,13 @@ inline Mat5 look_at_inverse(const glm::dvec4& eye, const glm::dvec4& target, con
 
 inline glm::dvec4 project_orthographic(const Vec5& v, f64 near) {
     DCHECK_GT_F(near, 0.0);
-    DCHECK_LE_F(v.w, -near);
+    // DCHECK_LE_F(v.w, -near);
     return glm::dvec4(v.x, v.y, v.z, std::abs(v.w - (-near)));
 }
 
 inline glm::dvec4 project_perspective(const Vec5& v, f64 near) {
     DCHECK_GT_F(near, 0.0);
-    DCHECK_LE_F(v.w, -near);
+    // DCHECK_LE_F(v.w, -near);
     f64 d = near / -v.w;
     glm::dvec4 intersect = d * to_vec4(v);
     return glm::dvec4(intersect.x, intersect.y, intersect.z, glm::length(intersect - to_vec4(v)));

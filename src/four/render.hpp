@@ -9,13 +9,11 @@
 #include <initializer_list>
 #include <random>
 
-struct SDL_Window;
-
 namespace four {
 
 struct GlBuffer {
 public:
-    u32 id;
+    u32 id = 0;
     GLenum type;
     GLenum usage;
     size_t size = 0;
@@ -25,8 +23,10 @@ protected:
     GlBuffer(GLenum type, GLenum usage);
 
 public:
+    void bind();
     void buffer_data(const void* data, size_t size);
     void buffer_data_realloc(const void* data, size_t size);
+    void destroy();
 };
 
 struct VertexBufferObject : public GlBuffer {
@@ -99,22 +99,24 @@ struct VertexSpec {
 };
 
 struct VertexArrayObject {
-    u32 id;
-    ShaderProgram* shader_program;
+    u32 id = 0;
+    ShaderProgram* shader_program = nullptr;
+    std::unordered_map<u32, VertexBufferObject>* vbos_ptr = nullptr;
     std::vector<u32> vbos; // Vertex buffer objects can be shared among many VAOs
     ElementBufferObject ebo;
 
     VertexArrayObject() = default;
-    VertexArrayObject(ShaderProgram* shader_program, std::initializer_list<u32> vbos,
-                      std::initializer_list<VertexSpec> specs, ElementBufferObject ebo);
+    VertexArrayObject(ShaderProgram* shader_program, std::unordered_map<u32, VertexBufferObject>* vbos_ptr,
+                      std::initializer_list<u32> vbos, std::initializer_list<VertexSpec> specs,
+                      ElementBufferObject ebo);
 
-    VertexBufferObject& get_vbo(size_t index);
+    VertexBufferObject& get_vbo(u32 id);
     void draw();
+    void destroy();
 };
 
 struct Renderer {
-public:
-    SDL_Window* window;
+private:
     AppState* state;
 
     u32 vis_width_screen;
@@ -129,20 +131,22 @@ public:
     ShaderProgram xz_grid_shader_prog;
     ShaderProgram divider_bar_shader_prog;
 
-    std::vector<VertexBufferObject> vbos;
+    u32 next_vbo_id = 0;
+    std::unordered_map<u32, VertexBufferObject> vbos;
 
-    VertexArrayObject wireframe;
-    VertexArrayObject selected_cell;
-    VertexArrayObject cross_section;
-    VertexArrayObject xz_grid;
-    VertexArrayObject divider_bar;
+    std::vector<VertexArrayObject> wireframe_vaos;
+    std::vector<VertexArrayObject> cross_section_vaos;
+    std::vector<VertexArrayObject> selected_cell_vaos;
+    VertexArrayObject xz_grid_vao;
+    VertexArrayObject divider_bar_vao;
 
     std::uniform_real_distribution<f32> color_dist;
-    std::vector<glm::vec3> tet_colors;
+    std::vector<std::vector<glm::vec3>> tet_colors;
 
-private:
     // Temporary storage
     // ------------------------------------------------
+
+    std::unordered_map<u32, glm::vec3> cell_colors;
 
     std::unordered_map<u32, u32> face2_vertex_i_mapping_left;
     std::unordered_map<u32, u32> face2_vertex_i_mapping_right;
@@ -161,16 +165,20 @@ private:
     // ------------------------------------------------
 
 public:
-    Renderer(SDL_Window* window, AppState* state);
+    Renderer(AppState* state);
     void render();
 
 private:
     u32 add_vbo(GLenum usage);
-    void do_mesh_changed();
+    void destroy_vbo(u32 id);
+    void do_mesh_instances_changed();
     void do_window_size_changed();
     void triangulate(const std::vector<glm::dvec3>& vertices, const std::vector<Edge>& edges, const Face& face,
                      std::vector<u32>& out);
 
-    void calculate_cross_section();
+    void calculate_cross_section(u32 mesh_instance, std::vector<f32>& out_vertices, std::vector<f32>& out_colors,
+                                 std::vector<u32>& out_tris);
+
+    glm::vec3 random_color();
 };
 } // namespace four

@@ -156,10 +156,10 @@ int main(int argc, char** argv) {
     SDL_SetWindowIcon(window, icon);
     SDL_FreeSurface(icon);
 
-    AppState state(window, imgui_io, get_resource_path("meshes/tesseract.mesh4").c_str());
+    AppState state(window, imgui_io);
     state.debug = debug;
 
-    Renderer renderer(window, &state);
+    Renderer renderer(&state);
 
     const f64 count_per_ms = (f64)SDL_GetPerformanceFrequency() / 1000.0;
     const s32 steps_per_sec = 60;
