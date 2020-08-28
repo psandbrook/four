@@ -42,6 +42,8 @@ struct Mesh4 {
         u32 vertices[4];
     };
 
+    std::string name;
+
     // Vector of four-dimensional points that represent the vertices of the
     // mesh.
     std::vector<glm::dvec4> vertices;

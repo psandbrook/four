@@ -552,34 +552,46 @@ Mesh4 generate_mesh4(const glm::dvec4* vertices, const u32 n_vertices, const f64
 } // namespace
 
 Mesh4 generate_5cell() {
-    return generate_mesh4(n5cell_vertices, ARRAY_SIZE(n5cell_vertices), n5cell_edge_length, n5cell_edges_per_face,
-                          n5cell_faces_per_cell, n5cell_n_cells);
+    Mesh4 result = generate_mesh4(n5cell_vertices, ARRAY_SIZE(n5cell_vertices), n5cell_edge_length,
+                                  n5cell_edges_per_face, n5cell_faces_per_cell, n5cell_n_cells);
+    result.name = "5-cell";
+    return result;
 }
 
 Mesh4 generate_tesseract() {
-    return generate_mesh4(tesseract_vertices, ARRAY_SIZE(tesseract_vertices), tesseract_edge_length,
-                          tesseract_edges_per_face, tesseract_faces_per_cell, tesseract_n_cells);
+    Mesh4 result = generate_mesh4(tesseract_vertices, ARRAY_SIZE(tesseract_vertices), tesseract_edge_length,
+                                  tesseract_edges_per_face, tesseract_faces_per_cell, tesseract_n_cells);
+    result.name = "Tesseract";
+    return result;
 }
 
 Mesh4 generate_16cell() {
-    return generate_mesh4(n16cell_vertices, ARRAY_SIZE(n16cell_vertices), n16cell_edge_length, n16cell_edges_per_face,
-                          n16cell_faces_per_cell, n16cell_n_cells);
+    Mesh4 result = generate_mesh4(n16cell_vertices, ARRAY_SIZE(n16cell_vertices), n16cell_edge_length,
+                                  n16cell_edges_per_face, n16cell_faces_per_cell, n16cell_n_cells);
+    result.name = "16-cell";
+    return result;
 }
 
 Mesh4 generate_24cell() {
-    return generate_mesh4(n24cell_vertices, ARRAY_SIZE(n24cell_vertices), n24cell_edge_length, n24cell_edges_per_face,
-                          n24cell_faces_per_cell, n24cell_n_cells);
+    Mesh4 result = generate_mesh4(n24cell_vertices, ARRAY_SIZE(n24cell_vertices), n24cell_edge_length,
+                                  n24cell_edges_per_face, n24cell_faces_per_cell, n24cell_n_cells);
+    result.name = "24-cell";
+    return result;
 }
 
 Mesh4 generate_120cell() {
     const std::vector<glm::dvec4> n120cell_vertices = generate_120cell_vertices();
-    return generate_mesh4(n120cell_vertices.data(), (u32)n120cell_vertices.size(), n120cell_edge_length,
-                          n120cell_edges_per_face, n120cell_faces_per_cell, n120cell_n_cells);
+    Mesh4 result = generate_mesh4(n120cell_vertices.data(), (u32)n120cell_vertices.size(), n120cell_edge_length,
+                                  n120cell_edges_per_face, n120cell_faces_per_cell, n120cell_n_cells);
+    result.name = "120-cell";
+    return result;
 }
 
 Mesh4 generate_600cell() {
     const std::vector<glm::dvec4> n600cell_vertices = generate_600cell_vertices();
-    return generate_mesh4(n600cell_vertices.data(), (u32)n600cell_vertices.size(), n600cell_edge_length,
-                          n600cell_edges_per_face, n600cell_faces_per_cell, n600cell_n_cells);
+    Mesh4 result = generate_mesh4(n600cell_vertices.data(), (u32)n600cell_vertices.size(), n600cell_edge_length,
+                                  n600cell_edges_per_face, n600cell_faces_per_cell, n600cell_n_cells);
+    result.name = "600-cell";
+    return result;
 }
 } // namespace four

@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
             if (c_str_eq(arg1, "5-cell")) {
                 mesh = generate_5cell();
 
-            } else if (c_str_eq(arg1, "tesseract")) {
+            } else if (c_str_eq(arg1, "Tesseract")) {
                 mesh = generate_tesseract();
 
             } else if (c_str_eq(arg1, "16-cell")) {
@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
 
             tetrahedralize(mesh);
 
-            auto path = std::string(arg1) + ".mesh4";
+            auto path = mesh.name + ".mesh4";
             CHECK_F(save_mesh_to_file(mesh, path.c_str()));
             return 0;
         }

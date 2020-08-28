@@ -329,7 +329,9 @@ void tetrahedralize(Mesh4& mesh) {
 bool save_mesh_to_file(const Mesh4& mesh, const char* path) {
     txml::XMLDocument doc;
     doc.InsertFirstChild(doc.NewDeclaration());
+
     txml::XMLElement* root = doc.NewElement("mesh4");
+    root->SetAttribute("name", mesh.name.c_str());
     doc.InsertEndChild(root);
 
     txml::XMLElement* vertices_xmle = doc.NewElement("vertices");
@@ -426,6 +428,10 @@ Mesh4 load_mesh_from_file(const char* path) {
 
     txml::XMLElement* root = doc.RootElement();
     CHECK_F(c_str_eq(root->Name(), "mesh4"));
+
+    const char* name_str = "";
+    root->QueryStringAttribute("name", &name_str);
+    result.name = std::string(name_str);
 
     txml::XMLElement* vertices_xmle = root->FirstChildElement();
     CHECK_F(c_str_eq(vertices_xmle->Name(), "vertices"));

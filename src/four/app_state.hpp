@@ -85,6 +85,13 @@ private:
     bool dragging_ui = false;
     bool dragging_divider = false;
 
+    u32 n5cell_index;
+    u32 tesseract_index;
+    u32 n16cell_index;
+    u32 n24cell_index;
+    u32 n120cell_index;
+    u32 n600cell_index;
+
     // Temporary storage
     // -----------------
 
@@ -106,6 +113,7 @@ public:
     void bump_mesh_pos_w(u32 mesh_instance);
 
 private:
+    u32 mesh_with_name(const char* name);
     void add_mesh_instance(u32 meshes_i);
     void remove_mesh_instance(u32 mesh_instance);
     bool is_mouse_around_x(f64 x);

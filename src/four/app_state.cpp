@@ -22,16 +22,7 @@ const char* plane_str[] = {
 };
 
 const char* mesh_paths[] = {
-        "5-cell.mesh4", "tesseract.mesh4", "16-cell.mesh4", "24-cell.mesh4", "120-cell.mesh4", "600-cell.mesh4",
-};
-
-enum MeshIndex {
-    n5cell_index,
-    tesseract_index,
-    n16cell_index,
-    n24cell_index,
-    n120cell_index,
-    n600cell_index,
+        "5-cell.mesh4", "Tesseract.mesh4", "16-cell.mesh4", "24-cell.mesh4", "120-cell.mesh4", "600-cell.mesh4",
 };
 
 inline bool imgui_drag_f64(const char* label, f64* value, f32 speed, const char* format = NULL) {
@@ -81,6 +72,13 @@ AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io)
         meshes.push_back(std::move(mesh));
     }
 
+    n5cell_index = mesh_with_name("5-cell");
+    tesseract_index = mesh_with_name("Tesseract");
+    n16cell_index = mesh_with_name("16-cell");
+    n24cell_index = mesh_with_name("24-cell");
+    n120cell_index = mesh_with_name("120-cell");
+    n600cell_index = mesh_with_name("600-cell");
+
     add_mesh_instance(tesseract_index);
 }
 
@@ -98,6 +96,15 @@ f64 AppState::norm_x(f64 x) {
 
 bool AppState::is_mouse_around_x(f64 x) {
     return is_around(x, norm_x(ImGui::GetMousePos().x));
+}
+
+u32 AppState::mesh_with_name(const char* name) {
+    for (u32 i = 0; i < meshes.size(); i++) {
+        if (meshes.at(i).name == name) {
+            return i;
+        }
+    }
+    ABORT_F("No mesh with name %s", name);
 }
 
 void AppState::add_mesh_instance(u32 meshes_i) {
@@ -453,37 +460,11 @@ bool AppState::process_events_and_imgui() {
 
             for (u32 mesh_instance = 0; mesh_instance < mesh_instances.size(); mesh_instance++) {
                 const auto fmt_str = "%s (%u)";
+                const auto& mesh = meshes.at(mesh_instances.at(mesh_instance));
 
-                const char* mesh_str = NULL;
-                switch ((MeshIndex)mesh_instances.at(mesh_instance)) {
-                case n5cell_index:
-                    mesh_str = "5-cell";
-                    break;
-
-                case tesseract_index:
-                    mesh_str = "Tesseract";
-                    break;
-
-                case n16cell_index:
-                    mesh_str = "16-cell";
-                    break;
-
-                case n24cell_index:
-                    mesh_str = "24-cell";
-                    break;
-
-                case n120cell_index:
-                    mesh_str = "120-cell";
-                    break;
-
-                case n600cell_index:
-                    mesh_str = "600-cell";
-                    break;
-                }
-
-                s32 str_size = snprintf(NULL, 0, fmt_str, mesh_str, mesh_instance);
+                s32 str_size = snprintf(NULL, 0, fmt_str, mesh.name.c_str(), mesh_instance);
                 str_buffer.resize((size_t)str_size + 1);
-                snprintf(str_buffer.data(), str_buffer.size(), fmt_str, mesh_str, mesh_instance);
+                snprintf(str_buffer.data(), str_buffer.size(), fmt_str, mesh.name.c_str(), mesh_instance);
 
                 if (ImGui::Selectable(str_buffer.data(), selected_mesh_instance == mesh_instance)) {
                     selected_mesh_instance = mesh_instance;
