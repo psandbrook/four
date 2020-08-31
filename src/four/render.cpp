@@ -456,7 +456,8 @@ void Renderer::do_mesh_instances_changed() {
         switch (event.type) {
         case AppState::MeshInstancesEvent::Type::added: {
 
-            auto& mesh = state->meshes.at(state->mesh_instances.at(event.index));
+            const auto& mesh = state->get_mesh(event.id);
+            MeshInstance instance = {};
 
             // Wireframe & selected cell
             {
@@ -470,15 +471,14 @@ void Renderer::do_mesh_instances_changed() {
 
                 ElementBufferObject wireframe_ebo(GL_STATIC_DRAW, GL_LINES);
 
-                wireframe_vaos.push_back(
-                        VertexArrayObject(&n4d_shader_prog, &vbos, {wireframe_vertices}, {vertex_spec}, wireframe_ebo));
+                instance.wireframe =
+                        VertexArrayObject(&n4d_shader_prog, &vbos, {wireframe_vertices}, {vertex_spec}, wireframe_ebo);
 
                 ElementBufferObject selected_cell_ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-                selected_cell_vaos.push_back(VertexArrayObject(&n4d_shader_prog, &vbos, {wireframe_vertices},
-                                                               {vertex_spec}, selected_cell_ebo));
+                instance.selected_cell = VertexArrayObject(&n4d_shader_prog, &vbos, {wireframe_vertices}, {vertex_spec},
+                                                           selected_cell_ebo);
 
-                auto& wireframe_vao = wireframe_vaos.back();
-                wireframe_vao.ebo.buffer_elements_realloc(mesh.edges.data(), 2 * (s32)mesh.edges.size());
+                instance.wireframe.ebo.buffer_elements_realloc(mesh.edges.data(), 2 * (s32)mesh.edges.size());
             }
 
             // Cross-section
@@ -501,45 +501,41 @@ void Renderer::do_mesh_instances_changed() {
                 color_spec.offset = 0;
 
                 ElementBufferObject ebo(GL_STREAM_DRAW, GL_TRIANGLES);
-                cross_section_vaos.push_back(VertexArrayObject(&cross_section_shader_prog, &vbos, {vertices, colors},
-                                                               {vertex_spec, color_spec}, ebo));
+                instance.cross_section = VertexArrayObject(&cross_section_shader_prog, &vbos, {vertices, colors},
+                                                           {vertex_spec, color_spec}, ebo);
 
-                std::vector<glm::vec3> mesh_instance_tet_colors;
                 cell_colors.clear();
-
                 for (const Mesh4::Tet& tet : mesh.tets) {
                     if (!has_key(cell_colors, tet.cell)) {
                         cell_colors.emplace(tet.cell, random_color());
                     }
-                    mesh_instance_tet_colors.push_back(cell_colors.at(tet.cell));
+                    instance.tet_colors.push_back(cell_colors.at(tet.cell));
                 }
 
                 CHECK_EQ_F(cell_colors.size(), mesh.cells.size());
-                tet_colors.push_back(std::move(mesh_instance_tet_colors));
             }
+
+            mesh_instances.emplace(event.id, std::move(instance));
         } break;
 
         case AppState::MeshInstancesEvent::Type::removed: {
 
-            auto& wireframe_vao = wireframe_vaos.at(event.index);
-            for (u32 i = 0; i < wireframe_vao.vbos.size(); i++) {
-                destroy_vbo(wireframe_vao.vbos.at(i));
+            auto& instance = mesh_instances.at(event.id);
+
+            for (u32 vbo_id : instance.wireframe.vbos) {
+                destroy_vbo(vbo_id);
             }
 
-            wireframe_vao.destroy();
-            remove(wireframe_vaos, event.index);
+            instance.wireframe.destroy();
+            instance.selected_cell.destroy();
 
-            selected_cell_vaos.at(event.index).destroy();
-            remove(selected_cell_vaos, event.index);
-
-            auto& cross_section_vao = cross_section_vaos.at(event.index);
-            for (u32 i = 0; i < cross_section_vao.vbos.size(); i++) {
-                destroy_vbo(cross_section_vao.vbos.at(i));
+            for (u32 vbo_id : instance.cross_section.vbos) {
+                destroy_vbo(vbo_id);
             }
 
-            cross_section_vao.destroy();
-            remove(cross_section_vaos, event.index);
-            remove(tet_colors, event.index);
+            instance.cross_section.destroy();
+
+            mesh_instances.erase(event.id);
         } break;
         }
     }
@@ -686,9 +682,10 @@ void Renderer::calculate_cross_section(const u32 mesh_instance, std::vector<f32>
     const glm::dvec4 n = glm::dvec4(0, 0, 0, 1);
 
 redo_cross_section:
-    auto& mesh = state->meshes.at(state->mesh_instances.at(mesh_instance));
-    auto& mesh_transform = state->mesh_instances_transforms.at(mesh_instance);
-    auto& mesh_tet_colors = tet_colors.at(mesh_instance);
+    auto& mesh_instance_data = state->mesh_instances.at(mesh_instance);
+    auto& mesh = state->meshes.at(mesh_instance_data.mesh_index);
+    auto& mesh_transform = mesh_instance_data.transform;
+    auto& mesh_tet_colors = mesh_instances.at(mesh_instance).tet_colors;
 
     out_vertices.clear();
     out_colors.clear();
@@ -893,7 +890,10 @@ void Renderer::render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     xz_grid_vao.draw();
 
-    for (u32 mesh_instance = 0; mesh_instance < state->mesh_instances.size(); mesh_instance++) {
+    for (auto& [mesh_instance, mesh_instance_data] : state->mesh_instances) {
+        auto& mesh = state->meshes.at(mesh_instance_data.mesh_index);
+        auto& mesh_transform = mesh_instance_data.transform;
+        auto& instance = mesh_instances.at(mesh_instance);
 
         // Draw cross-section
         {
@@ -901,11 +901,10 @@ void Renderer::render() {
             calculate_cross_section(mesh_instance, cross_vertices, cross_colors, cross_tris);
             DCHECK_EQ_F(cross_vertices.size(), cross_colors.size());
 
-            auto& cross_section_vao = cross_section_vaos.at(mesh_instance);
-            cross_section_vao.get_vbo(0).buffer_data(cross_vertices.data(), cross_vertices.size() * sizeof(f32));
-            cross_section_vao.get_vbo(1).buffer_data(cross_colors.data(), cross_colors.size() * sizeof(f32));
-            cross_section_vao.ebo.buffer_elements(cross_tris.data(), (s32)cross_tris.size());
-            cross_section_vao.draw();
+            instance.cross_section.get_vbo(0).buffer_data(cross_vertices.data(), cross_vertices.size() * sizeof(f32));
+            instance.cross_section.get_vbo(1).buffer_data(cross_colors.data(), cross_colors.size() * sizeof(f32));
+            instance.cross_section.ebo.buffer_elements(cross_tris.data(), (s32)cross_tris.size());
+            instance.cross_section.draw();
         }
 
         // Draw projection
@@ -913,9 +912,6 @@ void Renderer::render() {
             bind_projection_buffer();
 
             // Perform 4D to 3D projection
-            auto& mesh = state->meshes.at(state->mesh_instances.at(mesh_instance));
-            auto& mesh_transform = state->mesh_instances_transforms.at(mesh_instance);
-
             projected_vertices.clear();
             projected_vertices3.clear();
 
@@ -949,9 +945,8 @@ void Renderer::render() {
                 }
             }
 
-            auto& wireframe_vao = wireframe_vaos.at(mesh_instance);
-            wireframe_vao.get_vbo(0).buffer_data(projected_vertices_f32.data(),
-                                                 projected_vertices_f32.size() * sizeof(f32));
+            instance.wireframe.get_vbo(0).buffer_data(projected_vertices_f32.data(),
+                                                      projected_vertices_f32.size() * sizeof(f32));
             n4d_shader_prog.set_uniform_f32("max_depth", max_depth);
 
             if (mesh_instance == state->selected_mesh_instance && state->selected_cell_enabled) {
@@ -961,18 +956,17 @@ void Renderer::render() {
                     triangulate(projected_vertices3, mesh.edges, face, selected_cell_tri_faces);
                 }
 
-                auto& selected_cell_vao = selected_cell_vaos.at(mesh_instance);
-                selected_cell_vao.ebo.buffer_elements(selected_cell_tri_faces.data(),
-                                                      (s32)selected_cell_tri_faces.size());
+                instance.selected_cell.ebo.buffer_elements(selected_cell_tri_faces.data(),
+                                                           (s32)selected_cell_tri_faces.size());
                 f32 selected_cell_color[3] = {1, 0, 1};
                 n4d_shader_prog.set_uniform_vec3("color1", selected_cell_color);
-                selected_cell_vao.draw();
+                instance.selected_cell.draw();
             }
 
             f32 wireframe_color[3] = {1, 1, 0};
             n4d_shader_prog.set_uniform_vec3("color1", wireframe_color);
             glLineWidth(2.0f);
-            wireframe_vao.draw();
+            instance.wireframe.draw();
         }
     }
 

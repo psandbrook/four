@@ -66,6 +66,8 @@ AppState::AppState(SDL_Window* window, ImGuiIO* imgui_io)
         colors[i].z = srgb_to_linear(colors[i].z);
     }
 
+    meshes.push_back(Mesh4{});
+
     for (const char* path : mesh_paths) {
         auto res_path = std::string("meshes/") + path;
         Mesh4 mesh = load_mesh_from_file(get_resource_path(res_path.c_str()).c_str());
@@ -107,36 +109,39 @@ u32 AppState::mesh_with_name(const char* name) {
     ABORT_F("No mesh with name %s", name);
 }
 
-void AppState::add_mesh_instance(u32 meshes_i) {
-    mesh_instances.push_back(meshes_i);
-    u32 mesh_instance = (u32)mesh_instances.size() - 1;
+void AppState::add_mesh_instance(u32 mesh_index) {
+    MeshInstance mesh_instance = {};
+    mesh_instance.mesh_index = mesh_index;
+    mesh_instance.transform.position = {0.0, 0.0, 0.0, 0.0};
+    mesh_instance.transform.scale = {1, 1, 1, 1};
+    mesh_instance.transform.rotation.is_rotor = false;
+    mesh_instance.transform.rotation.euler = Bivec4{};
+    mesh_instance.auto_rotate_magnitude.fill(0.01);
 
-    Transform4 mesh_transform = {};
-    mesh_transform.position = {0.0, 0.0, 0.0, 0.0};
-    mesh_transform.scale = {1, 1, 1, 1};
-    mesh_transform.rotation.is_rotor = false;
-    mesh_transform.rotation.euler = Bivec4{};
-    mesh_instances_transforms.push_back(mesh_transform);
+    while (has_key(mesh_instances, next_mesh_instance_id)) {
+        next_mesh_instance_id++;
+    }
 
-    std::array<bool, plane4_n> auto_rotate = {};
-    mesh_instances_auto_rotate.push_back(auto_rotate);
+    const u32 mesh_instance_id = next_mesh_instance_id;
+    next_mesh_instance_id++;
+    mesh_instances.emplace(mesh_instance_id, mesh_instance);
+    mesh_instances_insertion.push_back(mesh_instance_id);
 
-    std::array<f64, plane4_n> auto_rotate_mag = {};
-    auto_rotate_mag.fill(0.01);
-    mesh_instances_auto_rotate_mag.push_back(auto_rotate_mag);
-
-    mesh_instances_events.push_back({MeshInstancesEvent::Type::added, mesh_instance});
-    selected_mesh_instance = mesh_instance;
-    selected_cell = 0;
+    mesh_instances_events.push_back({MeshInstancesEvent::Type::added, mesh_instance_id});
+    set_selected_mesh_instance(mesh_instance_id);
 }
 
 void AppState::remove_mesh_instance(u32 mesh_instance) {
-    remove(mesh_instances, mesh_instance);
-    remove(mesh_instances_transforms, mesh_instance);
-    remove(mesh_instances_auto_rotate, mesh_instance);
-    remove(mesh_instances_auto_rotate_mag, mesh_instance);
-
+    mesh_instances.erase(mesh_instance);
+    mesh_instances_insertion.erase(
+            std::find(mesh_instances_insertion.begin(), mesh_instances_insertion.end(), mesh_instance));
+    next_mesh_instance_id = std::min(next_mesh_instance_id, mesh_instance);
     mesh_instances_events.push_back({MeshInstancesEvent::Type::removed, mesh_instance});
+}
+
+void AppState::set_selected_mesh_instance(u32 mesh_instance) {
+    selected_mesh_instance = mesh_instance;
+    selected_cell = 0;
 }
 
 void AppState::calc_ui_size_screen() {
@@ -297,9 +302,11 @@ bool AppState::process_events_and_imgui() {
     ImGui::SetNextWindowBgAlpha(0xff);
     ImGui::Begin("four", NULL, window_flags);
 
-    Transform4 dummy_mesh_transform = {};
-    auto& mesh_transform =
-            mesh_instances.empty() ? dummy_mesh_transform : mesh_instances_transforms.at(selected_mesh_instance);
+    auto& selected_mesh_instance_data = get_selected_mesh_instance();
+    auto& mesh = meshes.at(selected_mesh_instance_data.mesh_index);
+    auto& mesh_transform = selected_mesh_instance_data.transform;
+    auto& auto_rotate = selected_mesh_instance_data.auto_rotate;
+    auto& auto_rotate_mag = selected_mesh_instance_data.auto_rotate_magnitude;
 
     ImGui::BeginChild("ui_left", ImVec2(ImGui::GetContentRegionAvailWidth() * 0.57f, 0), true, window_flags);
 
@@ -367,15 +374,6 @@ bool AppState::process_events_and_imgui() {
         ImGui::Text("Rotate");
 
         if (ImGui::BeginTabBar("RotationType")) {
-            std::array<bool, plane4_n> dummy_auto_rotate = {};
-            std::array<f64, plane4_n> dummy_auto_rotate_mag = {};
-
-            auto& auto_rotate =
-                    mesh_instances.empty() ? dummy_auto_rotate : mesh_instances_auto_rotate.at(selected_mesh_instance);
-
-            auto& auto_rotate_mag = mesh_instances.empty() ? dummy_auto_rotate_mag
-                                                           : mesh_instances_auto_rotate_mag.at(selected_mesh_instance);
-
             if (ImGui::BeginTabItem("Euler")) {
                 if (mesh_transform.rotation.is_rotor) {
                     mesh_transform.rotation.is_rotor = false;
@@ -445,10 +443,20 @@ bool AppState::process_events_and_imgui() {
 
         if (ImGui::Button("Delete", button_size)) {
             if (!mesh_instances.empty()) {
+
+                u32 sel_insertion_i = 0;
+                while (mesh_instances_insertion.at(sel_insertion_i) != selected_mesh_instance) {
+                    sel_insertion_i++;
+                }
+
                 remove_mesh_instance(selected_mesh_instance);
-                if (selected_mesh_instance >= mesh_instances.size()) {
-                    selected_mesh_instance = (u32)mesh_instances.size() - 1;
-                    selected_cell = 0;
+
+                if (sel_insertion_i == mesh_instances_insertion.size()) {
+                    sel_insertion_i--;
+                }
+
+                if (!mesh_instances.empty()) {
+                    set_selected_mesh_instance(mesh_instances_insertion.at(sel_insertion_i));
                 }
             }
         }
@@ -457,18 +465,16 @@ bool AppState::process_events_and_imgui() {
         const auto list_box_size = ImVec2(0, ImGui::GetWindowHeight() * 0.25f);
 
         if (ImGui::ListBoxHeader("##outliner_list_box", list_box_size)) {
-
-            for (u32 mesh_instance = 0; mesh_instance < mesh_instances.size(); mesh_instance++) {
-                const auto fmt_str = "%s (%u)";
-                const auto& mesh = meshes.at(mesh_instances.at(mesh_instance));
+            for (u32 mesh_instance : mesh_instances_insertion) {
+                const auto fmt_str = "%s [%u]";
+                const auto& mesh = get_mesh(mesh_instance);
 
                 s32 str_size = snprintf(NULL, 0, fmt_str, mesh.name.c_str(), mesh_instance);
                 str_buffer.resize((size_t)str_size + 1);
                 snprintf(str_buffer.data(), str_buffer.size(), fmt_str, mesh.name.c_str(), mesh_instance);
 
                 if (ImGui::Selectable(str_buffer.data(), selected_mesh_instance == mesh_instance)) {
-                    selected_mesh_instance = mesh_instance;
-                    selected_cell = 0;
+                    set_selected_mesh_instance(mesh_instance);
                 }
             }
             ImGui::ListBoxFooter();
@@ -506,21 +512,17 @@ bool AppState::process_events_and_imgui() {
         ImGui::Checkbox("Cycle", &selected_cell_cycle);
 
         ImGui::PushItemWidth(-1);
-        const auto list_box_size = ImVec2(0, ImGui::GetWindowHeight() * 0.4f);
+        const auto list_box_size = ImVec2(0, ImGui::GetContentRegionAvail().y);
 
         if (ImGui::ListBoxHeader("##selected_cell_empty", list_box_size)) {
+            for (u32 i = 0; i < mesh.cells.size(); i++) {
+                const auto fmt_str = "%u";
+                s32 str_size = snprintf(NULL, 0, fmt_str, i);
+                str_buffer.resize((size_t)str_size + 1);
+                snprintf(str_buffer.data(), str_buffer.size(), fmt_str, i);
 
-            if (!mesh_instances.empty()) {
-                auto& mesh = meshes.at(mesh_instances.at(selected_mesh_instance));
-                for (u32 i = 0; i < mesh.cells.size(); i++) {
-                    const auto fmt_str = "%u";
-                    s32 str_size = snprintf(NULL, 0, fmt_str, i);
-                    str_buffer.resize((size_t)str_size + 1);
-                    snprintf(str_buffer.data(), str_buffer.size(), fmt_str, i);
-
-                    if (ImGui::Selectable(str_buffer.data(), selected_cell == i)) {
-                        selected_cell = i;
-                    }
+                if (ImGui::Selectable(str_buffer.data(), selected_cell == i)) {
+                    selected_cell = i;
                 }
             }
 
@@ -540,7 +542,7 @@ bool AppState::process_events_and_imgui() {
 void AppState::step(const f64 ms) {
 
     if (!mesh_instances.empty()) {
-        auto& mesh = meshes.at(mesh_instances.at(selected_mesh_instance));
+        auto& mesh = get_mesh(selected_mesh_instance);
 
         if (selected_cell_cycle) {
             selected_cell_cycle_acc += ms;
@@ -556,14 +558,13 @@ void AppState::step(const f64 ms) {
         }
     }
 
-    for (u32 mesh_instance = 0; mesh_instance < mesh_instances.size(); mesh_instance++) {
-        auto& mesh_transform = mesh_instances_transforms.at(mesh_instance);
-        auto& auto_rotate = mesh_instances_auto_rotate.at(mesh_instance);
-        auto& auto_rotate_mag = mesh_instances_auto_rotate_mag.at(mesh_instance);
-
+    for (auto& [_, mesh_instance_data] : mesh_instances) {
+        auto& mesh_transform = mesh_instance_data.transform;
+        auto& auto_rotate = mesh_instance_data.auto_rotate;
+        auto& auto_rotate_magnitude = mesh_instance_data.auto_rotate_magnitude;
         for (size_t plane4_i = 0; plane4_i < plane4_n; plane4_i++) {
             if (auto_rotate[plane4_i]) {
-                mesh_transform.rotation.euler[plane4_i] += auto_rotate_mag[plane4_i];
+                mesh_transform.rotation.euler[plane4_i] += auto_rotate_magnitude[plane4_i];
             }
         }
     }
@@ -571,9 +572,26 @@ void AppState::step(const f64 ms) {
 
 void AppState::bump_mesh_pos_w(u32 mesh_instance) {
     constexpr f64 mag = 0.0000001;
-    auto& mesh_transform = mesh_instances_transforms.at(mesh_instance);
+    auto& mesh_transform = get_transform(mesh_instance);
     mesh_transform.position.w += mag;
     LOG_F(WARNING, "New mesh instance %u w: %+.16f", mesh_instance, mesh_transform.position.w);
+}
+
+AppState::MeshInstance& AppState::get_selected_mesh_instance() {
+    if (mesh_instances.empty()) {
+        dummy_mesh_instance = AppState::MeshInstance{};
+        return dummy_mesh_instance;
+    } else {
+        return mesh_instances.at(selected_mesh_instance);
+    }
+}
+
+Mesh4& AppState::get_mesh(u32 mesh_instance) {
+    return meshes.at(mesh_instances.at(mesh_instance).mesh_index);
+}
+
+Transform4& AppState::get_transform(u32 mesh_instance) {
+    return mesh_instances.at(mesh_instance).transform;
 }
 
 Mat5 mk_model_mat(const Transform4& transform4) {

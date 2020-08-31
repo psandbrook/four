@@ -49,8 +49,9 @@ public:
     struct MeshInstancesEvent {
         enum class Type { added, removed };
         Type type;
-        u32 index;
+        u32 id;
     };
+
     std::vector<MeshInstancesEvent> mesh_instances_events;
 
     s32 window_width = 0;
@@ -62,10 +63,17 @@ public:
     f64 divider = 0.5;
 
     std::vector<Mesh4> meshes;
-    std::vector<u32> mesh_instances;
-    std::vector<Transform4> mesh_instances_transforms;
-    std::vector<std::array<bool, plane4_n>> mesh_instances_auto_rotate;
-    std::vector<std::array<f64, plane4_n>> mesh_instances_auto_rotate_mag;
+
+    struct MeshInstance {
+        u32 mesh_index;
+        Transform4 transform;
+        std::array<bool, plane4_n> auto_rotate;
+        std::array<f64, plane4_n> auto_rotate_magnitude;
+    };
+
+    u32 next_mesh_instance_id = 0;
+    std::vector<u32> mesh_instances_insertion;
+    std::unordered_map<u32, MeshInstance> mesh_instances;
 
     u32 selected_mesh_instance = 0;
 
@@ -92,6 +100,8 @@ private:
     u32 n120cell_index;
     u32 n600cell_index;
 
+    MeshInstance dummy_mesh_instance = {};
+
     // Temporary storage
     // -----------------
 
@@ -111,11 +121,15 @@ public:
     f64 screen_y(f64 y);
     f64 norm_x(f64 x);
     void bump_mesh_pos_w(u32 mesh_instance);
+    MeshInstance& get_selected_mesh_instance();
+    Mesh4& get_mesh(u32 mesh_instance);
+    Transform4& get_transform(u32 mesh_instance);
 
 private:
     u32 mesh_with_name(const char* name);
-    void add_mesh_instance(u32 meshes_i);
+    void add_mesh_instance(u32 mesh_index);
     void remove_mesh_instance(u32 mesh_instance);
+    void set_selected_mesh_instance(u32 mesh_instance);
     bool is_mouse_around_x(f64 x);
     void calc_ui_size_screen();
 };

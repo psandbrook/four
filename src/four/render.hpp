@@ -134,14 +134,19 @@ private:
     u32 next_vbo_id = 0;
     std::unordered_map<u32, VertexBufferObject> vbos;
 
-    std::vector<VertexArrayObject> wireframe_vaos;
-    std::vector<VertexArrayObject> cross_section_vaos;
-    std::vector<VertexArrayObject> selected_cell_vaos;
+    struct MeshInstance {
+        VertexArrayObject wireframe;
+        VertexArrayObject cross_section;
+        VertexArrayObject selected_cell;
+        std::vector<glm::vec3> tet_colors;
+    };
+
+    std::unordered_map<u32, MeshInstance> mesh_instances;
+
     VertexArrayObject xz_grid_vao;
     VertexArrayObject divider_bar_vao;
 
     std::uniform_real_distribution<f32> color_dist;
-    std::vector<std::vector<glm::vec3>> tet_colors;
 
     // Temporary storage
     // ------------------------------------------------
