@@ -464,7 +464,8 @@ bool AppState::process_events_and_imgui() {
         ImGui::PushItemWidth(-1);
         const auto list_box_size = ImVec2(0, ImGui::GetWindowHeight() * 0.25f);
 
-        if (ImGui::ListBoxHeader("##outliner_list_box", list_box_size)) {
+        if (ImGui::BeginChildFrame(ImGui::GetID("##outliner_list_box"), list_box_size,
+                                   ImGuiWindowFlags_HorizontalScrollbar)) {
             for (u32 mesh_instance : mesh_instances_insertion) {
                 const auto fmt_str = "%s [%u]";
                 const auto& mesh = get_mesh(mesh_instance);
@@ -477,8 +478,8 @@ bool AppState::process_events_and_imgui() {
                     set_selected_mesh_instance(mesh_instance);
                 }
             }
-            ImGui::ListBoxFooter();
         }
+        ImGui::EndChildFrame();
         ImGui::PopItemWidth();
 
         ImGui::Text("Add object");
