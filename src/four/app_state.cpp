@@ -309,7 +309,6 @@ bool AppState::process_events_and_imgui() {
     auto& auto_rotate_mag = selected_mesh_instance_data.auto_rotate_magnitude;
 
     const Transform4 old_transform = mesh_transform;
-    const Camera4 old_camera4 = camera4;
 
     ImGui::BeginChild("ui_left", ImVec2(ImGui::GetContentRegionAvailWidth() * 0.57f, 0), true, window_flags);
 
@@ -328,10 +327,6 @@ bool AppState::process_events_and_imgui() {
             if (ImGui::Button(label, ImVec2(ImGui::GetContentRegionAvailWidth(), 0))) {
                 perspective_projection = !perspective_projection;
             }
-
-            const f64 old_w = camera4.pos.w;
-            imgui_drag_f64("w##camera", &camera4.pos.w, speed, fmt);
-            camera4.target.w += camera4.pos.w - old_w;
         }
 
         ImGui::Spacing();
@@ -537,7 +532,7 @@ bool AppState::process_events_and_imgui() {
     ImGui::End();
     ImGui::EndFrame();
 
-    validate_mesh_transform(selected_mesh_instance_data, old_transform, old_camera4);
+    validate_mesh_transform(selected_mesh_instance_data, old_transform);
 
     return false;
 }
@@ -574,7 +569,7 @@ void AppState::step(const f64 ms) {
             }
         }
 
-        validate_mesh_transform(mesh_instance_data, old_transform, camera4);
+        validate_mesh_transform(mesh_instance_data, old_transform);
     }
 }
 
@@ -602,8 +597,7 @@ Transform4& AppState::get_transform(u32 mesh_instance) {
     return mesh_instances.at(mesh_instance).transform;
 }
 
-void AppState::validate_mesh_transform(MeshInstance& mesh_instance, const Transform4& old_transform,
-                                       const Camera4& old_camera4) {
+void AppState::validate_mesh_transform(MeshInstance& mesh_instance, const Transform4& old_transform) {
 
     const auto& mesh = meshes.at(mesh_instance.mesh_index);
     const Mat5 model = mk_model_mat(mesh_instance.transform);
@@ -614,7 +608,6 @@ void AppState::validate_mesh_transform(MeshInstance& mesh_instance, const Transf
         if (view_v.w > -camera4.near) {
             // Transform is invalid because vertex is behind the near plane of the camera
             mesh_instance.transform = old_transform;
-            camera4 = old_camera4;
             break;
         }
     }
