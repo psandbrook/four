@@ -787,7 +787,7 @@ redo_cross_section:
             glm::dvec3 l0 = p1 - p0;
             glm::dvec3 l1 = p2 - p0;
             glm::dvec3 l2 = p3 - p0;
-            DCHECK_F(float_eq(glm::dot(glm::cross(l0, l1), l2), 0.0));
+            DCHECK_F(float_eq(glm::dot(glm::cross(l0, l1), l2), 0.0, 0.0000000000001));
 
             f64 sum0 = glm::length(p1 - p0) + glm::length(p3 - p2);
             f64 sum1 = glm::length(p2 - p0) + glm::length(p3 - p1);
