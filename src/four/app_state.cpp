@@ -308,6 +308,9 @@ bool AppState::process_events_and_imgui() {
     auto& auto_rotate = selected_mesh_instance_data.auto_rotate;
     auto& auto_rotate_mag = selected_mesh_instance_data.auto_rotate_magnitude;
 
+    const Transform4 old_transform = mesh_transform;
+    const Camera4 old_camera4 = camera4;
+
     ImGui::BeginChild("ui_left", ImVec2(ImGui::GetContentRegionAvailWidth() * 0.57f, 0), true, window_flags);
 
     ImGui::Checkbox("Split", &split);
@@ -326,12 +329,9 @@ bool AppState::process_events_and_imgui() {
                 perspective_projection = !perspective_projection;
             }
 
-            const Camera4 old_camera4 = camera4;
+            const f64 old_w = camera4.pos.w;
             imgui_drag_f64("w##camera", &camera4.pos.w, speed, fmt);
-
-            if (float_eq(camera4.pos, camera4.target)) {
-                camera4 = old_camera4;
-            }
+            camera4.target.w += camera4.pos.w - old_w;
         }
 
         ImGui::Spacing();
@@ -537,6 +537,8 @@ bool AppState::process_events_and_imgui() {
     ImGui::End();
     ImGui::EndFrame();
 
+    validate_mesh_transform(selected_mesh_instance_data, old_transform, old_camera4);
+
     return false;
 }
 
@@ -563,11 +565,16 @@ void AppState::step(const f64 ms) {
         auto& mesh_transform = mesh_instance_data.transform;
         auto& auto_rotate = mesh_instance_data.auto_rotate;
         auto& auto_rotate_magnitude = mesh_instance_data.auto_rotate_magnitude;
+
+        const Transform4 old_transform = mesh_transform;
+
         for (size_t plane4_i = 0; plane4_i < plane4_n; plane4_i++) {
             if (auto_rotate[plane4_i]) {
                 mesh_transform.rotation.euler[plane4_i] += auto_rotate_magnitude[plane4_i];
             }
         }
+
+        validate_mesh_transform(mesh_instance_data, old_transform, camera4);
     }
 }
 
@@ -593,6 +600,24 @@ Mesh4& AppState::get_mesh(u32 mesh_instance) {
 
 Transform4& AppState::get_transform(u32 mesh_instance) {
     return mesh_instances.at(mesh_instance).transform;
+}
+
+void AppState::validate_mesh_transform(MeshInstance& mesh_instance, const Transform4& old_transform,
+                                       const Camera4& old_camera4) {
+
+    const auto& mesh = meshes.at(mesh_instance.mesh_index);
+    const Mat5 model = mk_model_mat(mesh_instance.transform);
+    const Mat5 mv = mk_model_view_mat(model, camera4);
+
+    for (const glm::dvec4& v : mesh.vertices) {
+        const Vec5 view_v = mv * Vec5(v, 1);
+        if (view_v.w > -camera4.near) {
+            // Transform is invalid because vertex is behind the near plane of the camera
+            mesh_instance.transform = old_transform;
+            camera4 = old_camera4;
+            break;
+        }
+    }
 }
 
 Mat5 mk_model_mat(const Transform4& transform4) {

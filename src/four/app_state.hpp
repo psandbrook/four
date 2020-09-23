@@ -132,6 +132,8 @@ private:
     void set_selected_mesh_instance(u32 mesh_instance);
     bool is_mouse_around_x(f64 x);
     void calc_ui_size_screen();
+    void validate_mesh_transform(MeshInstance& mesh_instance, const Transform4& old_transform,
+                                 const Camera4& old_camera4);
 };
 
 Mat5 mk_model_mat(const Transform4& transform4);
