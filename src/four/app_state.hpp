@@ -89,6 +89,9 @@ public:
     glm::dvec3 camera_target = {0, 0, 0};
     glm::dvec3 camera_up = {0, 1, 0};
 
+    glm::dvec4 cross_section_p_0 = {0, 0, 0, 0};
+    glm::dvec4 cross_section_n = {0, 0, 0, 1};
+
 private:
     bool dragging_ui = false;
     bool dragging_divider = false;

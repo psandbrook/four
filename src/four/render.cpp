@@ -678,8 +678,8 @@ end_face2_loop:
 void Renderer::calculate_cross_section(const u32 mesh_instance, std::vector<f32>& out_vertices,
                                        std::vector<f32>& out_colors, std::vector<u32>& out_tris) {
 
-    const glm::dvec4 p_0 = glm::dvec4(0, 0, 0, 0);
-    const glm::dvec4 n = glm::dvec4(0, 0, 0, 1);
+    const auto& p_0 = state->cross_section_p_0;
+    const auto& n = state->cross_section_n;
 
 redo_cross_section:
     auto& mesh_instance_data = state->mesh_instances.at(mesh_instance);
@@ -725,7 +725,7 @@ redo_cross_section:
                 if ((d >= 0.0 && d <= 1.0) || float_eq(d, 0.0) || float_eq(d, 1.0)) {
                     // Edge intersects with hyperplane at a point
                     glm::dvec4 point = d * l + l_0;
-                    DCHECK_F(float_eq(point.w, 0.0));
+                    DCHECK_F(float_eq(point.w, p_0.w));
 
                     glm::dvec3 point3 = glm::dvec3(point);
                     bool unique = true;

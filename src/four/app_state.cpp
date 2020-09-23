@@ -332,6 +332,12 @@ bool AppState::process_events_and_imgui() {
         ImGui::Spacing();
         ImGui::Separator();
 
+        ImGui::Text("Cross Section");
+        imgui_drag_f64("w##cross_w", &cross_section_p_0.w, speed, fmt);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+
         ImGui::Text("Translate");
         imgui_drag_f64("x##t", &mesh_transform.position.x, speed, fmt);
         imgui_drag_f64("y##t", &mesh_transform.position.y, speed, fmt);
