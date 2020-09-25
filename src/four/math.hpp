@@ -203,8 +203,6 @@ inline glm::dvec4 project_perspective(const Vec5& v, f64 near) {
 
 // See https://marctenbosch.com/quaternions/
 
-// Code adapted from http://marctenbosch.com/quaternions/code.htm
-
 struct Bivec3 {
     f64 xy, xz, yz;
 };
@@ -246,12 +244,7 @@ inline Rotor3 normalize(const Rotor3& r) {
 inline Rotor3 rotor3(const glm::dvec3& a, const glm::dvec3& b) {
     Rotor3 result = {};
     result.s = glm::dot(a, b);
-
-    Bivec3 minus_B = outer(b, a);
-    result.B.xy = minus_B.xy;
-    result.B.xz = minus_B.xz;
-    result.B.yz = minus_B.yz;
-
+    result.B = outer(b, a);
     result = normalize(result);
     return result;
 }
