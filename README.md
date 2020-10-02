@@ -4,7 +4,7 @@ An application for real-time rendering of
 [four-dimensional](https://en.wikipedia.org/wiki/Four-dimensional_space)
 objects.
 
-![Main screenshot](docs/main_screenshot.png)
+![README GIF](docs/readme.gif)
 
 ## Features
 
