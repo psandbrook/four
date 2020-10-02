@@ -15,7 +15,11 @@ objects.
   [regular convex 4-polytopes](https://en.wikipedia.org/wiki/Convex_regular_4-polytope)
 * Translation, scaling and rotation
 
-## Build & run
+## Download
+
+[Download the latest release here](https://github.com/psandbrook/four/releases/tag/v0.1.0)
+
+## Build
 
 Prerequisites:
 
@@ -33,13 +37,6 @@ cd build
 cmake .. -G 'Unix Makefiles' -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release
 
 make -j$(nproc)
-```
-
-Run the application:
-
-```bash
-cd /path/to/repository/build
-./four
 ```
 
 ## Command line interface
