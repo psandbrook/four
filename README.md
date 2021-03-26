@@ -42,7 +42,7 @@ make -j$(nproc)
 ## Command line interface
 
 * `--generate <name>`: Generate the named regular convex 4-polytope and write it
-    to a `.mesh4` file. Valid values for `<name>` are `5-cell`, `tesseract`,
+    to a `.mesh4` file. Valid values for `<name>` are `5-cell`, `Tesseract`,
     `16-cell`, `24-cell`, `120-cell`, and `600-cell`.
 
 ## GUI controls
