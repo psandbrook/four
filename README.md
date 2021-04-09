@@ -17,7 +17,7 @@ objects.
 
 ## Download
 
-[Download the latest release here](https://github.com/psandbrook/four/releases/tag/v0.1.0)
+[Download the latest release here](https://github.com/psandbrook/four/releases/tag/v1.0.0)
 
 ## Build
 

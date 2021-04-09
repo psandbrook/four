@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
-project(four VERSION 0.1.0 LANGUAGES C CXX)
+project(four VERSION 1.0.0 LANGUAGES C CXX)
 
 include(FetchContent)
 include(ProcessorCount)
